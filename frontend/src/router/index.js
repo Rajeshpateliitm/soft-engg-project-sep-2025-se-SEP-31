@@ -14,6 +14,14 @@ const PrimaryUserMonthlyEngagement = () => import('@/views/primary/PrimaryUserMo
 const PrimaryUserWasteSummary = () => import('@/views/primary/PrimaryUserWasteSummary.vue');
 const SecondaryUserDashboard = () => import('@/views/SecondaryUserDashboard.vue');
 const TertiaryUserDashboard = () => import('@/views/TertiaryUserDashboard.vue');
+const RWANavbar = () => import('@/components/layout/RWANavbar.vue');
+const RWADashboard = () => import('@/views/rwa/RWADashboard.vue');
+const RWALeaderboard = () => import('@/views/rwa/RWALeaderboard.vue');
+const RWAPickupDetails = () => import('@/views/rwa/RWAPickupDetails.vue');
+const RWAWasteSummary = () => import('@/views/rwa/RWAWasteSummary.vue');
+const RWACampaigns = () => import('@/views/rwa/RWACampaigns.vue');
+const RWACreateCampaign = () => import('@/views/rwa/RWACreateCampaign.vue');
+const RWAMonthlyPickupSummary = () => import('@/views/rwa/RWAMonthlyPickupSummary.vue');
 
 const routes = [
   { 
@@ -81,6 +89,47 @@ const routes = [
     path: '/tertiary-dashboard', 
     name: 'TertiaryUserDashboard',
     component: TertiaryUserDashboard 
+  },
+  {
+    path: '/rwa-dashboard',
+    component: RWANavbar,
+    children: [
+      {
+        path: '',
+        name: 'RWADashboard',
+        component: RWADashboard
+      },
+      {
+        path: 'leaderboard',
+        name: 'RWALeaderboard',
+        component: RWALeaderboard
+      },
+      {
+        path: 'pickup-details',
+        name: 'RWAPickupDetails',
+        component: RWAPickupDetails
+      },
+      {
+        path: 'waste-summary',
+        name: 'RWAWasteSummary',
+        component: RWAWasteSummary
+      },
+      {
+        path: 'campaigns',
+        name: 'RWACampaigns',
+        component: RWACampaigns
+      },
+      {
+        path: 'create-campaign',
+        name: 'RWACreateCampaign',
+        component: RWACreateCampaign
+      },
+      {
+        path: 'monthly-pickup-summary',
+        name: 'RWAMonthlyPickupSummary',
+        component: RWAMonthlyPickupSummary
+      }
+    ]
   },
   
   // Redirect to home if route doesn't exist
