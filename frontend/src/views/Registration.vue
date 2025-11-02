@@ -1,0 +1,236 @@
+<template>
+  <div class="registration-page">
+    <div class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+          <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white text-center py-3">
+              <h2 class="mb-0">Create Your Account</h2>
+            </div>
+            <div class="card-body p-4">
+              <form @submit.prevent="handleSubmit" class="needs-validation" novalidate>
+                <div class="mb-3">
+                  <label for="fullName" class="form-label">Full Name</label>
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    id="fullName" 
+                    v-model="formData.fullName" 
+                    required
+                  >
+                  <div class="invalid-feedback">
+                    Please enter your full name.
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="email" class="form-label">Email Address</label>
+                  <input 
+                    type="email" 
+                    class="form-control" 
+                    id="email" 
+                    v-model="formData.email" 
+                    required
+                  >
+                  <div class="invalid-feedback">
+                    Please enter a valid email address.
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input 
+                      type="password" 
+                      class="form-control" 
+                      id="password" 
+                      v-model="formData.password" 
+                      required
+                      minlength="8"
+                    >
+                    <div class="invalid-feedback">
+                      Password must be at least 8 characters long.
+                    </div>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label for="confirmPassword" class="form-label">Confirm Password</label>
+                    <input 
+                      type="password" 
+                      class="form-control" 
+                      id="confirmPassword" 
+                      v-model="formData.confirmPassword" 
+                      required
+                    >
+                    <div class="invalid-feedback">
+                      Passwords must match.
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="userType" class="form-label">I am a</label>
+                  <select 
+                    class="form-select" 
+                    id="userType" 
+                    v-model="formData.userType"
+                    required
+                  >
+                    <option value="" disabled>Select user type</option>
+                    <option value="primary">Primary User (Individual)</option>
+                    <option value="secondary">Secondary User (Organization)</option>
+                    <option value="tertiary">Tertiary User (Municipality)</option>
+                  </select>
+                  <div class="invalid-feedback">
+                    Please select a user type.
+                  </div>
+                </div>
+
+                <div class="form-check mb-4">
+                  <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    id="terms" 
+                    v-model="formData.agreeTerms"
+                    required
+                  >
+                  <label class="form-check-label" for="terms">
+                    I agree to the <a href="#" @click.prevent>Terms and Conditions</a>
+                  </label>
+                  <div class="invalid-feedback">
+                    You must agree to the terms and conditions.
+                  </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                  <button type="submit" class="btn btn-primary btn-lg">
+                    Create Account
+                  </button>
+                </div>
+              </form>
+
+              <div class="text-center mt-4">
+                <p class="mb-0">
+                  Already have an account? 
+                  <router-link to="/login">Sign in here</router-link>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+const formData = ref({
+  fullName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  userType: '',
+  agreeTerms: false
+});
+
+const handleSubmit = () => {
+  const form = document.querySelector('.needs-validation');
+  
+  if (form.checkValidity() === false) {
+    event.preventDefault();
+    event.stopPropagation();
+  } else {
+    // Form is valid, handle registration
+    console.log('Form submitted:', formData.value);
+    // TODO: Add actual registration logic here
+    
+    // Redirect based on user type after successful registration
+    switch(formData.value.userType) {
+      case 'primary':
+        router.push('/primary-dashboard');
+        break;
+      case 'secondary':
+        router.push('/secondary-dashboard');
+        break;
+      case 'tertiary':
+        router.push('/tertiary-dashboard');
+        break;
+      default:
+        router.push('/');
+    }
+  }
+  
+  form.classList.add('was-validated');
+};
+</script>
+
+<style scoped>
+.registration-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 2rem 0;
+}
+
+.card {
+  border: none;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: none;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  padding: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.invalid-feedback {
+  display: none;
+  font-size: 0.875rem;
+  color: #dc3545;
+}
+
+.was-validated .form-control:invalid ~ .invalid-feedback,
+.was-validated .form-select:invalid ~ .invalid-feedback,
+.was-validated .form-check-input:invalid ~ .invalid-feedback {
+  display: block;
+}
+
+.was-validated .form-control:invalid,
+.was-validated .form-select:invalid,
+.was-validated .form-check-input:invalid {
+  border-color: #dc3545;
+}
+
+a {
+  color: #667eea;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+</style>
