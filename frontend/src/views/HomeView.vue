@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { useCounterStore } from '@/stores/counter';
+import { useCounterStore } from '@/stores/counter.js';
 
 const counter = useCounterStore();
 const message = ref('Welcome to Windsurf App!');

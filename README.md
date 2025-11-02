@@ -1,6 +1,6 @@
-# Windsurf - Full Stack Application
+# Waste Management System
 
-A modern full-stack application(Waste Management) built with Vue 3 (Frontend) and FastAPI (Backend).
+A comprehensive waste management application built with Vue 3 (Frontend) and FastAPI (Backend).
 
 
 
