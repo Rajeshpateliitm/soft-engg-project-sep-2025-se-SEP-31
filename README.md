@@ -1,8 +1,8 @@
 # Windsurf - Full Stack Application
 
-A modern full-stack application built with Vue 3 (Frontend) and FastAPI (Backend).
+A modern full-stack application(Waste Management) built with Vue 3 (Frontend) and FastAPI (Backend).
 
-![Windsurf Logo](https://via.placeholder.com/150x50?text=Windsurf+Logo)
+
 
 ## 🚀 Features
 
