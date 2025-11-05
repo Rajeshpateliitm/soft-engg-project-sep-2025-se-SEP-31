@@ -154,10 +154,10 @@
                 <div class="d-flex align-items-center">
                   <div 
                     class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                    :class="'bg-' + category.variant + '-subtle'"
+                    :class="`bg-${category.variant}-subtle`"
                     style="width: 40px; height: 40px;"
                   >
-                    <i :class="'bi ' + category.icon + ' text-' + category.variant + '" style="font-size: 1.25rem;"></i>
+                    <i :class="`bi ${category.icon} text-${category.variant}`" style="font-size: 1.25rem;"></i>
                   </div>
                   <div>
                     <h6 class="mb-0">{{ category.name }}</h6>
@@ -233,10 +233,10 @@
                     <div class="d-flex align-items-center">
                       <div 
                         class="rounded-circle d-flex align-items-center justify-content-center me-2" 
-                        :class="'bg-' + getWasteType(log.type).variant + '-subtle'"
+                        :class="`bg-${getWasteType(log.type).variant}-subtle`"
                         style="width: 32px; height: 32px;"
                       >
-                        <i :class="'bi ' + getWasteType(log.type).icon + ' text-' + getWasteType(log.type).variant" style="font-size: 0.875rem;"></i>
+                        <i :class="`bi ${getWasteType(log.type).icon} text-${getWasteType(log.type).variant}`" style="font-size: 0.875rem;"></i>
                       </div>
                       <span>{{ log.type }}</span>
                     </div>
@@ -280,7 +280,7 @@
                   <div class="card-body">
                     <div class="d-flex align-items-start">
                       <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3">
-                        <i :class="'bi ' + tip.icon + ' text-primary'" style="font-size: 1.25rem;"></i>
+                        <i :class="`bi ${tip.icon} text-primary`" style="font-size: 1.25rem;"></i>
                       </div>
                       <div>
                         <h6 class="mb-1">{{ tip.title }}</h6>
@@ -320,7 +320,7 @@
                      class="img-fluid rounded mb-3" alt="Waste reduction tip">
                 <div class="d-flex align-items-center mb-3">
                   <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3">
-                    <i :class="'bi ' + selectedTip.icon + ' text-primary'" style="font-size: 1.5rem;"></i>
+                    <i :class="`bi ${selectedTip.icon} text-primary`" style="font-size: 1.5rem;"></i>
                   </div>
                   <div>
                     <h6 class="mb-0">Potential Impact</h6>

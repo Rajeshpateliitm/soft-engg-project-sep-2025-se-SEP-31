@@ -1,28 +1,14 @@
 <template>
-  <div class="registration-page">
+  <div class="signin-page">
     <div class="container py-5">
       <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
           <div class="card shadow-lg">
             <div class="card-header bg-primary text-white text-center py-3">
-              <h2 class="mb-0">Create Your Account</h2>
+              <h2 class="mb-0">Sign In</h2>
             </div>
             <div class="card-body p-4">
               <form @submit.prevent="handleSubmit" class="needs-validation" novalidate>
-                <div class="mb-3">
-                  <label for="fullName" class="form-label">Full Name</label>
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    id="fullName" 
-                    v-model="formData.fullName" 
-                    required
-                  >
-                  <div class="invalid-feedback">
-                    Please enter your full name.
-                  </div>
-                </div>
-
                 <div class="mb-3">
                   <label for="email" class="form-label">Email Address</label>
                   <input 
@@ -37,33 +23,18 @@
                   </div>
                 </div>
 
-                <div class="row">
-                  <div class="col-md-6 mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input 
-                      type="password" 
-                      class="form-control" 
-                      id="password" 
-                      v-model="formData.password" 
-                      required
-                      minlength="8"
-                    >
-                    <div class="invalid-feedback">
-                      Password must be at least 8 characters long.
-                    </div>
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <label for="confirmPassword" class="form-label">Confirm Password</label>
-                    <input 
-                      type="password" 
-                      class="form-control" 
-                      id="confirmPassword" 
-                      v-model="formData.confirmPassword" 
-                      required
-                    >
-                    <div class="invalid-feedback">
-                      Passwords must match.
-                    </div>
+                <div class="mb-3">
+                  <label for="password" class="form-label">Password</label>
+                  <input 
+                    type="password" 
+                    class="form-control" 
+                    id="password" 
+                    v-model="formData.password" 
+                    required
+                    minlength="6"
+                  >
+                  <div class="invalid-feedback">
+                    Password must be at least 6 characters long.
                   </div>
                 </div>
 
@@ -85,33 +56,34 @@
                   </div>
                 </div>
 
-                <div class="form-check mb-4">
-                  <input 
-                    class="form-check-input" 
-                    type="checkbox" 
-                    id="terms" 
-                    v-model="formData.agreeTerms"
-                    required
-                  >
-                  <label class="form-check-label" for="terms">
-                    I agree to the <a href="#" @click.prevent>Terms and Conditions</a>
-                  </label>
-                  <div class="invalid-feedback">
-                    You must agree to the terms and conditions.
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                  <div class="form-check">
+                    <input 
+                      class="form-check-input" 
+                      type="checkbox" 
+                      id="rememberMe" 
+                      v-model="formData.rememberMe"
+                    >
+                    <label class="form-check-label" for="rememberMe">
+                      Remember me
+                    </label>
+                  </div>
+                  <div>
+                    <a href="#" class="text-primary">Forgot password?</a>
                   </div>
                 </div>
 
                 <div class="d-grid gap-2">
                   <button type="submit" class="btn btn-primary btn-lg">
-                    Create Account
+                    Sign In
                   </button>
                 </div>
               </form>
 
               <div class="text-center mt-4">
                 <p class="mb-0">
-                  Already have an account? 
-                  <router-link to="/signin">Sign in here</router-link>
+                  Don't have an account? 
+                  <router-link to="/register">Sign up here</router-link>
                 </p>
               </div>
             </div>
@@ -129,12 +101,10 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const formData = ref({
-  fullName: '',
   email: '',
   password: '',
-  confirmPassword: '',
   userType: '',
-  agreeTerms: false
+  rememberMe: false
 });
 
 const handleSubmit = () => {
@@ -144,11 +114,10 @@ const handleSubmit = () => {
     event.preventDefault();
     event.stopPropagation();
   } else {
-    // Form is valid, handle registration
-    console.log('Form submitted:', formData.value);
-    // TODO: Add actual registration logic here
+    // TODO: Implement actual authentication
+    console.log('Signing in with:', formData.value);
     
-    // Redirect based on user type after successful registration
+    // Redirect based on user type after successful sign in
     switch(formData.value.userType) {
       case 'primary':
         router.push('/primary-dashboard');
@@ -169,7 +138,7 @@ const handleSubmit = () => {
 </script>
 
 <style scoped>
-.registration-page {
+.signin-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   padding: 2rem 0;
@@ -202,35 +171,40 @@ const handleSubmit = () => {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+a {
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+a:hover {
+  text-decoration: underline;
 }
 
 .invalid-feedback {
   display: none;
-  font-size: 0.875rem;
+  width: 100%;
+  margin-top: 0.25rem;
+  font-size: 0.875em;
   color: #dc3545;
 }
 
 .was-validated .form-control:invalid ~ .invalid-feedback,
-.was-validated .form-select:invalid ~ .invalid-feedback,
-.was-validated .form-check-input:invalid ~ .invalid-feedback {
+.was-validated .form-control:invalid ~ .invalid-tooltip,
+.form-control.is-invalid ~ .invalid-feedback,
+.form-control.is-invalid ~ .invalid-tooltip {
   display: block;
 }
 
 .was-validated .form-control:invalid,
-.was-validated .form-select:invalid,
-.was-validated .form-check-input:invalid {
+.form-control.is-invalid {
   border-color: #dc3545;
-}
-
-a {
-  color: #667eea;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-a:hover {
-  color: #764ba2;
-  text-decoration: underline;
+  padding-right: calc(1.5em + 0.75rem);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
 }
 </style>

@@ -29,7 +29,7 @@
           <ul class="navbar-nav me-auto">
             <li class="nav-item">
               <router-link 
-                to="/primary-dashboard" 
+                to="/secondary-dashboard" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -38,25 +38,16 @@
             </li>
             <li class="nav-item">
               <router-link 
-                to="/primary-dashboard/quiz" 
+                to="/secondary-dashboard/waste-summary" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
-                QUIZ
+                WASTE SUMMARY
               </router-link>
             </li>
             <li class="nav-item">
               <router-link 
-                to="/primary-dashboard/wastelog" 
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
-              >
-                WASTELOG
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link 
-                to="/primary-dashboard/campaigns" 
+                to="/secondary-dashboard/campaigns" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -72,13 +63,6 @@
                 class="nav-link fw-semibold text-dark"
               >
                 <i class="bi bi-clock me-1"></i> {{ currentDateTime }}
-              </span>
-            </li>
-            <li class="nav-item">
-              <span 
-                class="nav-link fw-semibold text-dark"
-              >
-                <i class="bi bi-person me-1"></i> XYZABC
               </span>
             </li>
             <li class="nav-item">
@@ -117,15 +101,8 @@ const currentDateTime = ref('');
 
 const updateDateTime = () => {
   const now = new Date();
-  currentDateTime.value = now.toLocaleString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+  // Format as ISO 8601 format
+  currentDateTime.value = now.toISOString().split('T')[0] + ' ' + now.toISOString().split('T')[1].substring(0, 8);
 };
 
 const handleLogout = () => {
@@ -138,7 +115,7 @@ let datetimeInterval;
 
 onMounted(() => {
   updateDateTime();
-  datetimeInterval = setInterval(updateDateTime, 60000); // Update every minute
+  datetimeInterval = setInterval(updateDateTime, 1000); // Update every second for ISO format
 });
 
 onUnmounted(() => {
@@ -212,6 +189,7 @@ onUnmounted(() => {
 .main-content {
   padding-top: 80px;
   min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
 /* Fade transition for route changes */

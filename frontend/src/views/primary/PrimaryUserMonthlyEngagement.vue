@@ -165,10 +165,10 @@
                 <div class="d-flex align-items-center">
                   <div 
                     class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                    :class="'bg-' + activity.variant + '-subtle'"
+                    :class="`bg-${activity.variant}-subtle`"
                     style="width: 40px; height: 40px;"
                   >
-                    <i :class="'bi ' + activity.icon + ' text-' + activity.variant + '" style="font-size: 1.25rem;"></i>
+                    <i :class="`bi ${activity.icon} text-${activity.variant}`" style="font-size: 1.25rem;"></i>
                   </div>
                   <div>
                     <h6 class="mb-0">{{ activity.name }}</h6>
@@ -242,7 +242,7 @@
                         :class="'bg-' + activity.variant + '-subtle'"
                         style="width: 36px; height: 36px;"
                       >
-                        <i :class="'bi ' + activity.icon + ' text-' + activity.variant + '" style="font-size: 1rem;"></i>
+                        <i :class="`bi ${activity.icon} text-${activity.variant}`" style="font-size: 1rem;"></i>
                       </div>
                       <div>
                         <div class="fw-medium">{{ activity.title }}</div>
@@ -763,19 +763,27 @@ const getEngagementChartData = () => {
 };
 
 const formatDate = (date) => {
-  return date.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
-  });
+  if (!date) return 'N/A';
+  const dateObj = new Date(date);
+  return isNaN(dateObj.getTime()) 
+    ? 'Invalid Date' 
+    : dateObj.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
 };
 
 const formatTime = (date) => {
-  return date.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: true
-  });
+  if (!date) return 'N/A';
+  const dateObj = new Date(date);
+  return isNaN(dateObj.getTime())
+    ? 'Invalid Time'
+    : dateObj.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true
+      });
 };
 
 const getDaysLeft = (endDate) => {
