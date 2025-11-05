@@ -763,19 +763,27 @@ const getEngagementChartData = () => {
 };
 
 const formatDate = (date) => {
-  return date.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
-  });
+  if (!date) return 'N/A';
+  const dateObj = new Date(date);
+  return isNaN(dateObj.getTime()) 
+    ? 'Invalid Date' 
+    : dateObj.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
 };
 
 const formatTime = (date) => {
-  return date.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: true
-  });
+  if (!date) return 'N/A';
+  const dateObj = new Date(date);
+  return isNaN(dateObj.getTime())
+    ? 'Invalid Time'
+    : dateObj.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true
+      });
 };
 
 const getDaysLeft = (endDate) => {

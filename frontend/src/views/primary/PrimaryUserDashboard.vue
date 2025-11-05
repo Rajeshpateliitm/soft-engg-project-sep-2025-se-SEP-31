@@ -1,5 +1,49 @@
 <template>
   <div class="primary-user-dashboard">
+    <!-- Floating Chat Button -->
+    <button 
+      @click="toggleChat" 
+      class="chat-button"
+      :class="{ 'chat-button-active': isChatOpen }"
+      :aria-label="isChatOpen ? 'Close chat' : 'Chat with WasteWise'"
+    >
+      <div class="chat-button-content">
+        <i class="bi" :class="isChatOpen ? 'bi-x-lg' : 'bi-chat-dots-fill'"></i>
+        <span class="chat-button-text" v-if="!isChatOpen">Need help?</span>
+      </div>
+      <div class="chat-notification" v-if="!isChatOpen">
+        <i class="bi bi-arrow-up"></i>
+      </div>
+    </button>
+
+    <!-- Chat Window -->
+    <div class="chat-window" :class="{ 'chat-window-open': isChatOpen }">
+      <div class="chat-header">
+        <h6 class="mb-0">WasteWise Assistant</h6>
+        <button @click="toggleChat" class="btn-close" aria-label="Close chat"></button>
+      </div>
+      <div class="chat-messages" ref="chatContainer">
+        <div 
+          v-for="(message, index) in chatMessages" 
+          :key="index"
+          :class="['message', message.sender]"
+        >
+          {{ message.text }}
+        </div>
+      </div>
+      <div class="chat-input">
+        <input 
+          type="text" 
+          v-model="userMessage" 
+          @keyup.enter="sendMessage"
+          placeholder="Type your message..."
+          class="form-control"
+        >
+        <button @click="sendMessage" class="btn btn-primary">
+          <i class="bi bi-send-fill"></i>
+        </button>
+      </div>
+    </div>
     <div class="row">
       <!-- Container 1: Quiz Performance -->
       <div class="col-md-6 col-lg-4 mb-4">
@@ -125,30 +169,69 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 
 const userMessage = ref('');
+const isChatOpen = ref(false);
+const chatContainer = ref(null);
 const chatMessages = ref([
   { text: 'Hello! I\'m your WasteWise assistant. How can I help you with waste management today?', sender: 'bot' }
 ]);
 
-const sendMessage = () => {
+const sendMessage = async () => {
   if (!userMessage.value.trim()) return;
   
   // Add user message to chat
   chatMessages.value.push({ text: userMessage.value, sender: 'user' });
   
+  // Clear input
+  const message = userMessage.value;
+  userMessage.value = '';
+  
+  // Scroll to bottom after message is added
+  await nextTick();
+  scrollToBottom();
+  
   // Simulate bot response
   setTimeout(() => {
     chatMessages.value.push({ 
-      text: 'Thank you for your message! I\'m here to help with any waste management questions you have.', 
+      text: `You said: "${message}"\nI'm here to help with any waste management questions you have.`,
       sender: 'bot' 
     });
+    scrollToBottom();
   }, 500);
-  
-  // Clear input
-  userMessage.value = '';
 };
+
+const toggleChat = () => {
+  isChatOpen.value = !isChatOpen.value;
+  if (isChatOpen.value) {
+    nextTick(() => {
+      scrollToBottom();
+    });
+  }
+};
+
+const scrollToBottom = () => {
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  }
+};
+
+// Close chat when clicking outside
+const handleClickOutside = (event) => {
+  const chatWindow = document.querySelector('.chat-window');
+  const chatButton = document.querySelector('.chat-button');
+  
+  if (isChatOpen.value && 
+      !chatWindow.contains(event.target) && 
+      !chatButton.contains(event.target)) {
+    isChatOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
 </script>
 
 <style scoped>
@@ -195,5 +278,242 @@ const sendMessage = () => {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Chat Button */
+.chat-button {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  min-width: 60px;
+  height: 60px;
+  border-radius: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  padding: 0 1.5rem;
+  overflow: hidden;
+}
+
+.chat-button-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  white-space: nowrap;
+}
+
+.chat-button-text {
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.chat-button-active .chat-button-text {
+  transform: translateX(10px);
+  opacity: 0;
+  width: 0;
+}
+
+.chat-notification {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff4d4f;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.chat-button i {
+  transition: all 0.3s ease;
+  font-size: 1.5rem;
+}
+
+.chat-button:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+}
+
+.chat-button:hover .chat-button-text {
+  transform: translateX(5px);
+}
+
+.chat-button-active {
+  transform: scale(1) !important;
+  border-radius: 50%;
+  padding: 0;
+  width: 60px;
+}
+
+.chat-button-active i {
+  transform: rotate(90deg);
+}
+
+/* Chat Window */
+.chat-window {
+  position: fixed;
+  bottom: 5.5rem;
+  right: 2rem;
+  width: 350px;
+  height: 500px;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(20px);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  z-index: 999;
+}
+
+.chat-window-open {
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+.chat-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-header h6 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background-color: #f8f9fa;
+}
+
+.message {
+  max-width: 80%;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  position: relative;
+  animation: messageAppear 0.3s ease-out;
+}
+
+@keyframes messageAppear {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message.user {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 0.25rem;
+}
+
+.message.bot {
+  background: white;
+  border: 1px solid #e9ecef;
+  align-self: flex-start;
+  border-bottom-left-radius: 0.25rem;
+}
+
+.chat-input {
+  display: flex;
+  padding: 1rem;
+  background: white;
+  border-top: 1px solid #e9ecef;
+  gap: 0.5rem;
+}
+
+.chat-input input {
+  flex: 1;
+  border: 1px solid #dee2e6;
+  border-radius: 2rem;
+  padding: 0.5rem 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.chat-input input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+.chat-input button {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+  .chat-window {
+    width: 90%;
+    right: 5%;
+    bottom: 5.5rem;
+    height: 70vh;
+  }
+  
+  .chat-button {
+    right: 1rem;
+    bottom: 1rem;
+    width: 50px;
+    height: 50px;
+    font-size: 1.25rem;
+  }
 }
 </style>
