@@ -154,34 +154,46 @@ const sendMessage = () => {
 <style scoped>
 .primary-user-dashboard {
   padding: 1.5rem;
+  background-color: transparent;
 }
 
 .card {
-  border: none;
+  border: 1px solid rgba(0, 0, 0, 0.125);
   border-radius: 0.5rem;
-  transition: transform 0.2s;
+  transition: all 0.2s ease;
+  background-color: #fff;
+  margin-bottom: 1.5rem;
 }
 
 .card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
-  border-bottom: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 0.5rem 0.5rem 0 0 !important;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .chat-messages {
   min-height: 200px;
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  margin: 0.5rem;
 }
 
 .btn-primary {
-  background-color: #0d6efd;
-  border-color: #0d6efd;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
 }
 
 .btn-primary:hover {
-  background-color: #0b5ed7;
-  border-color: #0a58ca;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 </style>

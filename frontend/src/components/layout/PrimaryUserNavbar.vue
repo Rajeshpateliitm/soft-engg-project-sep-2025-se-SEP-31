@@ -2,10 +2,8 @@
   <div>
     <!-- Navbar -->
     <nav 
-      class="navbar navbar-expand-lg navbar-light fixed-top" 
-      :style="navbarStyle"
-      @mouseenter="navbarHover = true"
-      @mouseleave="navbarHover = false"
+      class="navbar navbar-expand-lg fixed-top"
+      style="background-color: #f8f9fa; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
     >
       <div class="container-fluid">
         <!-- Navbar Brand -->
@@ -32,8 +30,7 @@
             <li class="nav-item">
               <router-link 
                 to="/primary-dashboard" 
-                class="nav-link fw-semibold"
-                :class="{ 'text-white': navbarHover, 'text-dark': !navbarHover }"
+                class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
                 DASHBOARD
@@ -42,8 +39,7 @@
             <li class="nav-item">
               <router-link 
                 to="/primary-dashboard/quiz" 
-                class="nav-link fw-semibold"
-                :class="{ 'text-white': navbarHover, 'text-dark': !navbarHover }"
+                class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
                 QUIZ
@@ -52,8 +48,7 @@
             <li class="nav-item">
               <router-link 
                 to="/primary-dashboard/wastelog" 
-                class="nav-link fw-semibold"
-                :class="{ 'text-white': navbarHover, 'text-dark': !navbarHover }"
+                class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
                 WASTELOG
@@ -62,8 +57,7 @@
             <li class="nav-item">
               <router-link 
                 to="/primary-dashboard/campaigns" 
-                class="nav-link fw-semibold"
-                :class="{ 'text-white': navbarHover, 'text-dark': !navbarHover }"
+                class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
                 CAMPAIGNS
@@ -75,16 +69,14 @@
           <ul class="navbar-nav">
             <li class="nav-item">
               <span 
-                class="nav-link fw-semibold"
-                :class="{ 'text-white': navbarHover, 'text-dark': !navbarHover }"
+                class="nav-link fw-semibold text-dark"
               >
                 <i class="bi bi-clock me-1"></i> {{ currentDateTime }}
               </span>
             </li>
             <li class="nav-item">
               <span 
-                class="nav-link fw-semibold"
-                :class="{ 'text-white': navbarHover, 'text-dark': !navbarHover }"
+                class="nav-link fw-semibold text-dark"
               >
                 <i class="bi bi-person me-1"></i> XYZABC
               </span>
@@ -92,7 +84,7 @@
             <li class="nav-item">
               <router-link 
                 to="/" 
-                class="btn btn-outline-danger btn-sm ms-2"
+                class="btn btn-outline-danger btn-sm ms-2 fw-semibold"
                 @click="handleLogout"
               >
                 LOGOUT
@@ -121,23 +113,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
-const navbarHover = ref(false);
 const currentDateTime = ref('');
-
-const navbarStyle = computed(() => {
-  const baseStyle = {
-    border: '2px solid #000',
-    transition: 'all 0.3s ease',
-    padding: '10px 0',
-    zIndex: 1030
-  };
-  
-  return {
-    ...baseStyle,
-    backgroundColor: navbarHover.value ? '#464A9E' : 'transparent',
-    boxShadow: navbarHover.value ? '0 4px 12px rgba(0, 0, 0, 0.1)' : 'none'
-  };
-});
 
 const updateDateTime = () => {
   const now = new Date();
@@ -174,43 +150,68 @@ onUnmounted(() => {
 
 <style scoped>
 .navbar {
-  transition: all 0.3s ease;
+  padding: 0.75rem 2rem;
 }
 
 .navbar-brand {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  letter-spacing: 1px;
+  color: #2c3e50;
+  letter-spacing: 0.5px;
 }
 
 .nav-link {
+  font-size: 1rem;
+  padding: 0.75rem 1.25rem;
+  transition: all 0.2s ease;
   position: relative;
-  padding: 0.5rem 1rem;
-  margin: 0 0.25rem;
-  transition: color 0.3s ease;
+  color: #2c3e50 !important;
 }
 
-.nav-link::after {
+.nav-link:hover {
+  color: #4a6baf !important;
+}
+
+.nav-link.active {
+  color: #4a6baf !important;
+  font-weight: 600;
+}
+
+.nav-link.active::after {
   content: '';
   position: absolute;
   bottom: 0;
-  left: 50%;
-  width: 0;
-  height: 2px;
-  background-color: currentColor;
-  transition: all 0.3s ease;
-  transform: translateX(-50%);
+  left: 1.25rem;
+  right: 1.25rem;
+  height: 3px;
+  background-color: #4a6baf;
+  border-radius: 3px 3px 0 0;
 }
 
-.nav-link:hover::after,
-.nav-link.active::after {
-  width: 80%;
+.navbar-toggler {
+  border: none;
+  padding: 0.5rem;
+}
+
+.navbar-toggler:focus {
+  box-shadow: none;
+  outline: none;
+}
+
+.btn-outline-danger {
+  border-width: 2px;
+  padding: 0.35rem 1rem;
+  margin-left: 0.75rem;
+}
+
+.navbar-nav .nav-item {
+  display: flex;
+  align-items: center;
 }
 
 .main-content {
   padding-top: 80px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 /* Fade transition for route changes */
