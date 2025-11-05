@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 // Lazy load components for better performance
 const Home = () => import('@/views/Home.vue');
 const Registration = () => import('@/views/Registration.vue');
+const SignIn = () => import('@/views/SignIn.vue');
 const PrimaryUserNavbar = () => import('@/components/layout/PrimaryUserNavbar.vue');
 const PrimaryUserDashboard = () => import('@/views/primary/PrimaryUserDashboard.vue');
 const PrimaryUserQuiz = () => import('@/views/primary/PrimaryUserQuiz.vue');
@@ -33,6 +34,11 @@ const routes = [
     path: '/register', 
     name: 'Registration',
     component: Registration 
+  },
+  { 
+    path: '/signin', 
+    name: 'SignIn',
+    component: SignIn 
   },
   { 
     path: '/primary-dashboard', 
