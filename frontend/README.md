@@ -103,5 +103,5 @@ The application is tested on the latest versions of:
 5. Open a Pull Request
 
 ## License
-
+## MIT License
 This project is licensed under the MIT License.
