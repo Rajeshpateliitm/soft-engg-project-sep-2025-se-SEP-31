@@ -165,10 +165,10 @@
                 <div class="d-flex align-items-center">
                   <div 
                     class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                    :class="'bg-' + activity.variant + '-subtle'"
+                    :class="`bg-${activity.variant}-subtle`"
                     style="width: 40px; height: 40px;"
                   >
-                    <i :class="'bi ' + activity.icon + ' text-' + activity.variant + '" style="font-size: 1.25rem;"></i>
+                    <i :class="`bi ${activity.icon} text-${activity.variant}`" style="font-size: 1.25rem;"></i>
                   </div>
                   <div>
                     <h6 class="mb-0">{{ activity.name }}</h6>
@@ -242,7 +242,7 @@
                         :class="'bg-' + activity.variant + '-subtle'"
                         style="width: 36px; height: 36px;"
                       >
-                        <i :class="'bi ' + activity.icon + ' text-' + activity.variant + '" style="font-size: 1rem;"></i>
+                        <i :class="`bi ${activity.icon} text-${activity.variant}`" style="font-size: 1rem;"></i>
                       </div>
                       <div>
                         <div class="fw-medium">{{ activity.title }}</div>
