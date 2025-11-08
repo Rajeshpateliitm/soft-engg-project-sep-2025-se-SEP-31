@@ -7,31 +7,42 @@
       <div class="card-body">
         <form @submit.prevent="submitWasteLog" class="wastelog-form">
           <div class="row g-3">
-            <div class="col-md-6">
-              <label for="wasteType" class="form-label">Waste Type</label>
-              <select class="form-select" id="wasteType" v-model="wasteLog.type" required>
-                <option value="" disabled>Select waste type</option>
-                <option value="plastic">Plastic</option>
-                <option value="paper">Paper</option>
-                <option value="glass">Glass</option>
-                <option value="metal">Metal</option>
-                <option value="organic">Organic</option>
-                <option value="ewaste">E-Waste</option>
-                <option value="hazardous">Hazardous</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            
-            <div class="col-md-6">
-              <label for="weight" class="form-label">Weight (kg)</label>
+            <div class="col-md-4">
+              <label for="wetWaste" class="form-label">Wet Waste (kg)</label>
               <input 
                 type="number" 
                 class="form-control" 
-                id="weight" 
-                v-model.number="wasteLog.weight" 
-                min="0.1" 
+                id="wetWaste" 
+                v-model.number="wasteLog.wet_waste" 
+                min="0" 
                 step="0.1"
-                required
+                placeholder="0.0"
+              >
+            </div>
+            
+            <div class="col-md-4">
+              <label for="dryWaste" class="form-label">Dry Waste (kg)</label>
+              <input 
+                type="number" 
+                class="form-control" 
+                id="dryWaste" 
+                v-model.number="wasteLog.dry_waste" 
+                min="0" 
+                step="0.1"
+                placeholder="0.0"
+              >
+            </div>
+            
+            <div class="col-md-4">
+              <label for="hazardousWaste" class="form-label">Hazardous Waste (kg)</label>
+              <input 
+                type="number" 
+                class="form-control" 
+                id="hazardousWaste" 
+                v-model.number="wasteLog.hazardous_waste" 
+                min="0" 
+                step="0.1"
+                placeholder="0.0"
               >
             </div>
             
@@ -41,23 +52,68 @@
                 type="date" 
                 class="form-control" 
                 id="date" 
-                v-model="wasteLog.date"
+                v-model="wasteLog.log_date"
                 required
               >
             </div>
             
+            <div class="col-md-6">
+              <div class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  id="separated" 
+                  v-model="wasteLog.separated"
+                >
+                <label class="form-check-label" for="separated">
+                  Waste was properly separated
+                </label>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  id="recycled" 
+                  v-model="wasteLog.recycled"
+                >
+                <label class="form-check-label" for="recycled">
+                  Waste was recycled/reused/donated
+                </label>
+              </div>
+            </div>
+            
             <div class="col-12">
-              <label for="notes" class="form-label">Notes (Optional)</label>
+              <label for="questionsDoubts" class="form-label">Questions/Doubts (Optional)</label>
               <textarea 
                 class="form-control" 
-                id="notes" 
-                rows="3" 
-                v-model="wasteLog.notes"
-                placeholder="Any additional details about this waste..."
+                id="questionsDoubts" 
+                rows="2" 
+                v-model="wasteLog.questions_doubts"
+                placeholder="Any questions about waste segregation or disposal..."
+              ></textarea>
+            </div>
+            
+            <div class="col-12">
+              <label for="feedback" class="form-label">Feedback (Optional)</label>
+              <textarea 
+                class="form-control" 
+                id="feedback" 
+                rows="2" 
+                v-model="wasteLog.feedback"
+                placeholder="Any feedback or suggestions..."
               ></textarea>
             </div>
             
             <div class="col-12 mt-3">
+              <div v-if="errorMessage" class="alert alert-danger" role="alert">
+                {{ errorMessage }}
+              </div>
+              <div v-if="successMessage" class="alert alert-success" role="alert">
+                {{ successMessage }}
+              </div>
               <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
                 <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                 {{ isSubmitting ? 'Saving...' : 'Log Waste' }}
@@ -81,30 +137,24 @@
           <thead class="table-light">
             <tr>
               <th>Date</th>
-              <th>Type</th>
+              <th>Category</th>
               <th>Weight (kg)</th>
-              <th>Notes</th>
-              <th>Actions</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(entry, index) in recentEntries" :key="index">
-              <td>{{ formatDate(entry.date) }}</td>
+            <tr v-for="entry in recentEntries" :key="entry.id">
+              <td>{{ formatDate(entry.log_date) }}</td>
               <td>
-                <span class="badge" :class="getWasteTypeBadge(entry.type)">
-                  {{ formatWasteType(entry.type) }}
+                <span class="badge" :class="getWasteTypeBadge(entry.category)">
+                  {{ formatWasteType(entry.category) }}
                 </span>
               </td>
-              <td>{{ entry.weight }} kg</td>
-              <td>{{ entry.notes || '—' }}</td>
+              <td>{{ entry.quantity_kg }} kg</td>
               <td>
-                <button 
-                  class="btn btn-sm btn-outline-danger"
-                  @click="deleteEntry(index)"
-                  title="Delete entry"
-                >
-                  <i class="bi bi-trash"></i>
-                </button>
+                <div v-if="entry.separated" class="badge bg-success me-1">Separated</div>
+                <div v-if="entry.recycled" class="badge bg-info">Recycled</div>
+                <span v-if="!entry.separated && !entry.recycled" class="text-muted">—</span>
               </td>
             </tr>
           </tbody>
@@ -116,59 +166,98 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import api from '../../services/api';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const wasteLog = ref({
-  type: '',
-  weight: '',
-  date: new Date().toISOString().split('T')[0],
-  notes: ''
+  wet_waste: 0,
+  dry_waste: 0,
+  hazardous_waste: 0,
+  log_date: new Date().toISOString().split('T')[0],
+  separated: false,
+  recycled: false,
+  questions_doubts: '',
+  feedback: ''
 });
 
 const recentEntries = ref([]);
 const isSubmitting = ref(false);
+const errorMessage = ref('');
+const successMessage = ref('');
 
-// Load saved entries from localStorage on component mount
-onMounted(() => {
-  const savedEntries = localStorage.getItem('wasteLogEntries');
-  if (savedEntries) {
-    recentEntries.value = JSON.parse(savedEntries);
+// Fetch waste logs from backend
+const fetchWasteLogs = async () => {
+  try {
+    const response = await api.get('/primary/waste-logs?limit=20');
+    recentEntries.value = response.data.waste_logs || [];
+  } catch (error) {
+    console.error('Error fetching waste logs:', error);
   }
+};
+
+// Load entries from backend on component mount
+onMounted(() => {
+  fetchWasteLogs();
 });
 
-const submitWasteLog = () => {
-  isSubmitting.value = true;
+const submitWasteLog = async () => {
+  // Validate that at least one waste type has a value
+  if (wasteLog.value.wet_waste <= 0 && wasteLog.value.dry_waste <= 0 && wasteLog.value.hazardous_waste <= 0) {
+    errorMessage.value = 'Please enter at least one waste type with a value greater than 0.';
+    return;
+  }
   
-  // Simulate API call
-  setTimeout(() => {
-    const newEntry = { ...wasteLog.value };
-    recentEntries.value.unshift(newEntry);
+  isSubmitting.value = true;
+  errorMessage.value = '';
+  successMessage.value = '';
+  
+  try {
+    const response = await api.post('/primary/waste-log', {
+      wet_waste: wasteLog.value.wet_waste || 0,
+      dry_waste: wasteLog.value.dry_waste || 0,
+      hazardous_waste: wasteLog.value.hazardous_waste || 0,
+      log_date: wasteLog.value.log_date,
+      separated: wasteLog.value.separated,
+      recycled: wasteLog.value.recycled,
+      questions_doubts: wasteLog.value.questions_doubts || null,
+      feedback: wasteLog.value.feedback || null
+    });
     
-    // Save to localStorage
-    localStorage.setItem('wasteLogEntries', JSON.stringify(recentEntries.value));
+    successMessage.value = `Waste logged successfully! You earned points. Total points: ${response.data.points}`;
     
     // Reset form
     resetForm();
-    isSubmitting.value = false;
     
-    // Show success message
-    alert('Waste entry logged successfully!');
-  }, 1000);
+    // Refresh the list
+    await fetchWasteLogs();
+    
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+      successMessage.value = '';
+    }, 5000);
+  } catch (error) {
+    console.error('Error logging waste:', error);
+    errorMessage.value = error.response?.data?.error || 'Failed to log waste. Please try again.';
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 
 const resetForm = () => {
   wasteLog.value = {
-    type: '',
-    weight: '',
-    date: new Date().toISOString().split('T')[0],
-    notes: ''
+    wet_waste: 0,
+    dry_waste: 0,
+    hazardous_waste: 0,
+    log_date: new Date().toISOString().split('T')[0],
+    separated: false,
+    recycled: false,
+    questions_doubts: '',
+    feedback: ''
   };
-};
-
-const deleteEntry = (index) => {
-  if (confirm('Are you sure you want to delete this entry?')) {
-    recentEntries.value.splice(index, 1);
-    localStorage.setItem('wasteLogEntries', JSON.stringify(recentEntries.value));
-  }
+  errorMessage.value = '';
+  successMessage.value = '';
 };
 
 const formatDate = (dateString) => {
@@ -182,17 +271,13 @@ const formatWasteType = (type) => {
 
 const getWasteTypeBadge = (type) => {
   const badgeClasses = {
-    plastic: 'bg-info text-dark',
-    paper: 'bg-light text-dark',
-    glass: 'bg-primary',
-    metal: 'bg-secondary',
-    organic: 'bg-success',
-    ewaste: 'bg-warning text-dark',
+    wet: 'bg-success',
+    dry: 'bg-info',
     hazardous: 'bg-danger',
-    other: 'bg-dark'
+    other: 'bg-secondary'
   };
   
-  return badgeClasses[type] || 'bg-secondary';
+  return badgeClasses[type?.toLowerCase()] || 'bg-secondary';
 };
 </script>
 

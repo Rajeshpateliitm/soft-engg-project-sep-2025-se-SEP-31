@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 // Lazy load components for better performance
+const StandardLayout = () => import('@/components/layout/StandardLayout.vue');
 const Home = () => import('@/views/Home.vue');
 const Registration = () => import('@/views/Registration.vue');
 const SignIn = () => import('@/views/SignIn.vue');
@@ -27,18 +28,24 @@ const TertiaryUserDashboard = () => import('@/views/TertiaryUserDashboard.vue');
 const routes = [
   { 
     path: '/', 
-    name: 'Home',
-    component: Home 
-  },
-  { 
-    path: '/register', 
-    name: 'Registration',
-    component: Registration 
-  },
-  { 
-    path: '/signin', 
-    name: 'SignIn',
-    component: SignIn 
+    component: StandardLayout,
+    children: [
+      { 
+        path: '', 
+        name: 'Home',
+        component: Home 
+      },
+      { 
+        path: 'register', 
+        name: 'Registration',
+        component: Registration 
+      },
+      { 
+        path: 'signin', 
+        name: 'SignIn',
+        component: SignIn 
+      }
+    ]
   },
   { 
     path: '/primary-dashboard', 

@@ -1,5 +1,15 @@
 <template>
   <div class="monthly-engagement">
+    <!-- Loading State -->
+    <div v-if="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-3">Loading engagement data...</p>
+    </div>
+
+    <!-- Content -->
+    <template v-else>
     <div class="row mb-4">
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
@@ -143,7 +153,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container" style="position: relative; height: 300px;">
-              <canvas ref="engagementChart"></canvas>
+              <canvas ref="engagementChartRef"></canvas>
             </div>
           </div>
         </div>
@@ -192,7 +202,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container" style="position: relative; height: 300px;">
-              <canvas ref="categoryChart"></canvas>
+              <canvas ref="categoryChartRef"></canvas>
             </div>
           </div>
         </div>
@@ -206,7 +216,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container" style="position: relative; height: 300px;">
-              <canvas ref="timeOfDayChart"></canvas>
+              <canvas ref="timeOfDayChartRef"></canvas>
             </div>
           </div>
         </div>
@@ -431,12 +441,17 @@
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
-import Chart from 'chart.js/auto';
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
+import { Chart, registerables } from 'chart.js';
+import api from '../../services/api';
+
+// Register Chart.js components
+Chart.register(...registerables);
 
 // Refs
 const selectedYear = ref(new Date().getFullYear());
@@ -444,9 +459,10 @@ const years = ref(Array.from({ length: 5 }, (_, i) => new Date().getFullYear() -
 const activeChartTab = ref('quizzes');
 const showAddGoalModal = ref(false);
 const editingGoal = ref(null);
-const engagementChart = ref(null);
-const categoryChart = ref(null);
-const timeOfDayChart = ref(null);
+const engagementChartRef = ref(null);
+const categoryChartRef = ref(null);
+const timeOfDayChartRef = ref(null);
+const isLoading = ref(true);
 
 // Form data
 const goalForm = ref({
@@ -458,16 +474,23 @@ const goalForm = ref({
   endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0]
 });
 
-// Sample data - in a real app, this would come from an API
+// Engagement data
 const engagementStats = ref({
-  quizzesCompleted: 18,
-  quizzesChange: 12,
-  averageScore: 85,
-  scoreChange: 5,
-  currentStreak: 7,
-  streakActive: true,
-  ranking: 3,
-  rankingChange: 2
+  quizzesCompleted: 0,
+  quizzesChange: 0,
+  averageScore: 0,
+  scoreChange: 0,
+  currentStreak: 0,
+  streakActive: false,
+  ranking: 0,
+  rankingChange: 0
+});
+
+const dailyTrends = ref({});
+const monthlyEngagement = ref({
+  quizzes: 0,
+  waste_logs: 0,
+  campaigns: 0
 });
 
 const chartTabs = [
@@ -477,60 +500,13 @@ const chartTabs = [
 ];
 
 const activityBreakdown = ref([
-  { name: 'Quizzes Taken', count: 18, icon: 'bi-check-circle', variant: 'primary', description: 'Total quizzes completed' },
-  { name: 'Perfect Scores', count: 5, icon: 'bi-star', variant: 'warning', description: 'Quizzes with 100% score' },
-  { name: 'Daily Streak', count: 7, icon: 'bi-lightning', variant: 'info', description: 'Consecutive days active' },
-  { name: 'Challenges Won', count: 3, icon: 'bi-trophy', variant: 'success', description: 'Competitions won' },
-  { name: 'New Badges', count: 2, icon: 'bi-award', variant: 'danger', description: 'Achievements unlocked' }
+  { name: 'Quizzes Taken', count: 0, icon: 'bi-check-circle', variant: 'primary', description: 'Total quizzes completed' },
+  { name: 'Waste Logs', count: 0, icon: 'bi-trash', variant: 'success', description: 'Total waste entries' },
+  { name: 'Campaigns', count: 0, icon: 'bi-calendar-event', variant: 'info', description: 'Campaigns participated' },
+  { name: 'Points Earned', count: 0, icon: 'bi-star', variant: 'warning', description: 'Total points this month' }
 ]);
 
-const recentActivities = ref([
-  { 
-    title: 'Quiz Completed', 
-    subtitle: 'Waste Management Basics', 
-    details: 'Score: 90%', 
-    points: 50, 
-    timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-    icon: 'bi-check-circle',
-    variant: 'primary'
-  },
-  { 
-    title: 'Achievement Unlocked', 
-    subtitle: 'Quick Learner', 
-    details: 'Completed 3 quizzes in one day', 
-    points: 100, 
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    icon: 'bi-trophy',
-    variant: 'warning'
-  },
-  { 
-    title: 'Daily Login', 
-    subtitle: '7-day streak!', 
-    details: 'Keep it up!', 
-    points: 25, 
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    icon: 'bi-lightning',
-    variant: 'success'
-  },
-  { 
-    title: 'Quiz Completed', 
-    subtitle: 'Recycling 101', 
-    details: 'Score: 80%', 
-    points: 45, 
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 26), // 1 day 2 hours ago
-    icon: 'bi-check-circle',
-    variant: 'primary'
-  },
-  { 
-    title: 'Friend Added', 
-    subtitle: 'You and Sarah are now friends', 
-    details: 'Connect with more friends!', 
-    points: 10, 
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
-    icon: 'bi-person-plus',
-    variant: 'info'
-  }
-]);
+const recentActivities = ref([]);
 
 const goals = ref([
   { 
@@ -602,6 +578,114 @@ let engagementChartInstance = null;
 let categoryChartInstance = null;
 let timeOfDayChartInstance = null;
 
+// Fetch monthly engagement data
+const fetchMonthlyEngagement = async () => {
+  try {
+    isLoading.value = true;
+    const response = await api.get('/primary/monthly-engagement');
+    const data = response.data;
+    
+    // Update monthly engagement stats
+    monthlyEngagement.value = {
+      quizzes: data.monthly_engagement?.quizzes || 0,
+      waste_logs: data.monthly_engagement?.waste_logs || 0,
+      campaigns: data.monthly_engagement?.campaigns || 0
+    };
+    
+    // Update daily trends
+    dailyTrends.value = data.daily_trends || {};
+    
+    // Update activity breakdown
+    activityBreakdown.value = [
+      { name: 'Quizzes Taken', count: monthlyEngagement.value.quizzes, icon: 'bi-check-circle', variant: 'primary', description: 'Total quizzes completed' },
+      { name: 'Waste Logs', count: monthlyEngagement.value.waste_logs, icon: 'bi-trash', variant: 'success', description: 'Total waste entries' },
+      { name: 'Campaigns', count: monthlyEngagement.value.campaigns, icon: 'bi-calendar-event', variant: 'info', description: 'Campaigns participated' },
+      { name: 'Points Earned', count: 0, icon: 'bi-star', variant: 'warning', description: 'Total points this month' }
+    ];
+    
+    // Update engagement stats (calculate from data)
+    engagementStats.value = {
+      quizzesCompleted: monthlyEngagement.value.quizzes,
+      quizzesChange: 0, // Could calculate from previous month
+      averageScore: 0, // Get from quiz performance
+      scoreChange: 0,
+      currentStreak: 0, // Calculate from daily trends
+      streakActive: false,
+      ranking: 0, // Get from leaderboard
+      rankingChange: 0
+    };
+    
+    // Generate recent activities from daily trends
+    generateRecentActivities();
+    
+    // Initialize charts after data is loaded
+    await nextTick();
+    setTimeout(() => {
+      initCharts();
+    }, 100);
+  } catch (error) {
+    console.error('Error fetching monthly engagement:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Generate recent activities from trends
+const generateRecentActivities = () => {
+  const activities = [];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  
+  // Get quiz attempts and waste logs from trends
+  Object.entries(dailyTrends.value).forEach(([day, data]) => {
+    if (data.quizzes > 0) {
+      activities.push({
+        title: 'Quiz Completed',
+        subtitle: 'Waste Management Quiz',
+        details: `Completed ${data.quizzes} quiz${data.quizzes > 1 ? 'zes' : ''}`,
+        points: data.quizzes * 10,
+        timestamp: getDateForDay(day),
+        icon: 'bi-check-circle',
+        variant: 'primary'
+      });
+    }
+    if (data.waste_logs > 0) {
+      activities.push({
+        title: 'Waste Logged',
+        subtitle: 'Daily Waste Entry',
+        details: `Logged ${data.waste_logs} entry${data.waste_logs > 1 ? 'ies' : ''}`,
+        points: data.waste_logs * 5,
+        timestamp: getDateForDay(day),
+        icon: 'bi-trash',
+        variant: 'success'
+      });
+    }
+  });
+  
+  // Sort by timestamp (most recent first) and limit to 10
+  recentActivities.value = activities
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 10);
+};
+
+// Helper to get date for day name (returns date within last 7 days)
+const getDateForDay = (dayName) => {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const today = new Date();
+  const todayDay = today.getDay();
+  const targetDay = days.indexOf(dayName);
+  
+  // Find the most recent occurrence of this day within the last 7 days
+  let diff = targetDay - todayDay;
+  if (diff > 0) {
+    diff -= 7; // Go back to previous week
+  }
+  
+  const date = new Date(today);
+  date.setDate(today.getDate() + diff);
+  date.setHours(12, 0, 0, 0); // Set to noon for consistent time
+  return date;
+};
+
 // Computed properties
 const filteredActivities = computed(() => {
   return recentActivities.value
@@ -612,137 +696,159 @@ const filteredActivities = computed(() => {
 // Methods
 const initCharts = () => {
   // Destroy existing charts if they exist
-  if (engagementChartInstance) engagementChartInstance.destroy();
-  if (categoryChartInstance) categoryChartInstance.destroy();
-  if (timeOfDayChartInstance) timeOfDayChartInstance.destroy();
+  if (engagementChartInstance && typeof engagementChartInstance.destroy === 'function') {
+    engagementChartInstance.destroy();
+    engagementChartInstance = null;
+  }
+  if (categoryChartInstance && typeof categoryChartInstance.destroy === 'function') {
+    categoryChartInstance.destroy();
+    categoryChartInstance = null;
+  }
+  if (timeOfDayChartInstance && typeof timeOfDayChartInstance.destroy === 'function') {
+    timeOfDayChartInstance.destroy();
+    timeOfDayChartInstance = null;
+  }
   
   // Engagement Chart (Line/Bar)
-  const ctx1 = engagementChart.value.getContext('2d');
-  engagementChartInstance = new Chart(ctx1, {
-    type: activeChartTab.value === 'quizzes' ? 'bar' : 'line',
-    data: getEngagementChartData(),
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'top',
-        },
-        tooltip: {
-          mode: 'index',
-          intersect: false,
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            precision: 0
+  if (engagementChartRef.value) {
+    const ctx1 = engagementChartRef.value.getContext('2d');
+    if (ctx1) {
+      engagementChartInstance = new Chart(ctx1, {
+        type: activeChartTab.value === 'quizzes' ? 'bar' : 'line',
+        data: getEngagementChartData(),
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
           }
         }
-      }
+      });
     }
-  });
+  }
   
   // Category Performance Chart (Doughnut)
-  const ctx2 = categoryChart.value.getContext('2d');
-  categoryChartInstance = new Chart(ctx2, {
-    type: 'doughnut',
-    data: {
-      labels: ['Recycling', 'Composting', 'Reduction', 'Reuse', 'Hazardous Waste'],
-      datasets: [{
-        data: [85, 78, 65, 72, 90],
-        backgroundColor: [
-          'rgba(54, 162, 235, 0.8)',
-          'rgba(75, 192, 192, 0.8)',
-          'rgba(255, 206, 86, 0.8)',
-          'rgba(153, 102, 255, 0.8)',
-          'rgba(255, 99, 132, 0.8)'
-        ],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'right',
+  if (categoryChartRef.value) {
+    const ctx2 = categoryChartRef.value.getContext('2d');
+    if (ctx2) {
+      categoryChartInstance = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+          labels: ['Recycling', 'Composting', 'Reduction', 'Reuse', 'Hazardous Waste'],
+          datasets: [{
+            data: [85, 78, 65, 72, 90],
+            backgroundColor: [
+              'rgba(54, 162, 235, 0.8)',
+              'rgba(75, 192, 192, 0.8)',
+              'rgba(255, 206, 86, 0.8)',
+              'rgba(153, 102, 255, 0.8)',
+              'rgba(255, 99, 132, 0.8)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+            }
+          },
+          cutout: '70%'
         }
-      },
-      cutout: '70%'
+      });
     }
-  });
+  }
   
   // Time of Day Activity (Radar)
-  const ctx3 = timeOfDayChart.value.getContext('2d');
-  timeOfDayChartInstance = new Chart(ctx3, {
-    type: 'radar',
-    data: {
-      labels: ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'],
-      datasets: [
-        {
-          label: 'This Week',
-          data: [5, 2, 15, 25, 20, 30, 40, 25],
-          backgroundColor: 'rgba(78, 115, 223, 0.2)',
-          borderColor: 'rgba(78, 115, 223, 1)',
-          pointBackgroundColor: 'rgba(78, 115, 223, 1)',
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: 'rgba(78, 115, 223, 1)'
+  if (timeOfDayChartRef.value) {
+    const ctx3 = timeOfDayChartRef.value.getContext('2d');
+    if (ctx3) {
+      timeOfDayChartInstance = new Chart(ctx3, {
+        type: 'radar',
+        data: {
+          labels: ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'],
+          datasets: [
+            {
+              label: 'This Week',
+              data: [5, 2, 15, 25, 20, 30, 40, 25],
+              backgroundColor: 'rgba(78, 115, 223, 0.2)',
+              borderColor: 'rgba(78, 115, 223, 1)',
+              pointBackgroundColor: 'rgba(78, 115, 223, 1)',
+              pointBorderColor: '#fff',
+              pointHoverBackgroundColor: '#fff',
+              pointHoverBorderColor: 'rgba(78, 115, 223, 1)'
+            },
+            {
+              label: 'Last Week',
+              data: [3, 1, 10, 20, 25, 35, 30, 20],
+              backgroundColor: 'rgba(110, 118, 135, 0.2)',
+              borderColor: 'rgba(110, 118, 135, 1)',
+              pointBackgroundColor: 'rgba(110, 118, 135, 1)',
+              pointBorderColor: '#fff',
+              pointHoverBackgroundColor: '#fff',
+              pointHoverBorderColor: 'rgba(110, 118, 135, 1)'
+            }
+          ]
         },
-        {
-          label: 'Last Week',
-          data: [3, 1, 10, 20, 25, 35, 30, 20],
-          backgroundColor: 'rgba(110, 118, 135, 0.2)',
-          borderColor: 'rgba(110, 118, 135, 1)',
-          pointBackgroundColor: 'rgba(110, 118, 135, 1)',
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: 'rgba(110, 118, 135, 1)'
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              angleLines: {
+                display: true
+              },
+              suggestedMin: 0,
+              suggestedMax: 50
+            }
+          }
         }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        r: {
-          angleLines: {
-            display: true
-          },
-          suggestedMin: 0,
-          suggestedMax: 50
-        }
-      }
+      });
     }
-  });
+  }
 };
 
 const getEngagementChartData = () => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const currentMonth = new Date().getMonth();
+  // Use daily trends data from backend
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const labels = [];
   const data = [];
   
-  // Get last 6 months including current month
-  for (let i = 5; i >= 0; i--) {
-    const monthIndex = (currentMonth - i + 12) % 12;
-    labels.push(months[monthIndex]);
-    
-    // Generate sample data - in a real app, this would come from an API
-    switch (activeChartTab.value) {
-      case 'quizzes':
-        data.push(Math.floor(Math.random() * 20) + 5);
-        break;
-      case 'points':
-        data.push(Math.floor(Math.random() * 500) + 200);
-        break;
-      case 'time':
-        data.push(Math.floor(Math.random() * 300) + 60);
-        break;
+  days.forEach(day => {
+    if (dailyTrends.value[day]) {
+      labels.push(day.substring(0, 3)); // Short day name
+      switch (activeChartTab.value) {
+        case 'quizzes':
+          data.push(dailyTrends.value[day].quizzes || 0);
+          break;
+        case 'points':
+          data.push((dailyTrends.value[day].quizzes || 0) * 10 + (dailyTrends.value[day].waste_logs || 0) * 5);
+          break;
+        case 'time':
+          data.push((dailyTrends.value[day].quizzes || 0) * 5); // Estimate 5 min per quiz
+          break;
+      }
+    } else {
+      labels.push(day.substring(0, 3));
+      data.push(0);
     }
-  }
+  });
   
   return {
     labels,
@@ -856,45 +962,47 @@ const exportData = (format) => {
 
 // Watchers
 watch(activeChartTab, () => {
-  if (engagementChartInstance) {
+  if (engagementChartInstance && typeof engagementChartInstance.destroy === 'function') {
     engagementChartInstance.destroy();
-    nextTick(() => {
-      const ctx = engagementChart.value.getContext('2d');
-      engagementChartInstance = new Chart(ctx, {
-        type: activeChartTab.value === 'quizzes' ? 'bar' : 'line',
-        data: getEngagementChartData(),
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'top',
+    engagementChartInstance = null;
+  }
+  nextTick(() => {
+    if (engagementChartRef.value) {
+      const ctx = engagementChartRef.value.getContext('2d');
+      if (ctx) {
+        engagementChartInstance = new Chart(ctx, {
+          type: activeChartTab.value === 'quizzes' ? 'bar' : 'line',
+          data: getEngagementChartData(),
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+              },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+              }
             },
-            tooltip: {
-              mode: 'index',
-              intersect: false,
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                precision: 0
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  precision: 0
+                }
               }
             }
           }
-        }
-      });
-    });
-  }
+        });
+      }
+    }
+  });
 });
 
 // Lifecycle hooks
 onMounted(() => {
-  // Initialize charts when component is mounted
-  nextTick(() => {
-    initCharts();
-  });
+  fetchMonthlyEngagement();
   
   // Add window resize event listener to handle chart resizing
   window.addEventListener('resize', () => {
@@ -902,6 +1010,19 @@ onMounted(() => {
       initCharts();
     }
   });
+});
+
+onBeforeUnmount(() => {
+  if (engagementChartInstance && typeof engagementChartInstance.destroy === 'function') {
+    engagementChartInstance.destroy();
+  }
+  if (categoryChartInstance && typeof categoryChartInstance.destroy === 'function') {
+    categoryChartInstance.destroy();
+  }
+  if (timeOfDayChartInstance && typeof timeOfDayChartInstance.destroy === 'function') {
+    timeOfDayChartInstance.destroy();
+  }
+  window.removeEventListener('resize', initCharts);
 });
 </script>
 

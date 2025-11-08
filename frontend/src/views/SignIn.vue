@@ -38,22 +38,8 @@
                   </div>
                 </div>
 
-                <div class="mb-3">
-                  <label for="userType" class="form-label">I am a</label>
-                  <select 
-                    class="form-select" 
-                    id="userType" 
-                    v-model="formData.userType"
-                    required
-                  >
-                    <option value="" disabled>Select user type</option>
-                    <option value="primary">Primary User (Individual)</option>
-                    <option value="secondary">Secondary User (Organization)</option>
-                    <option value="tertiary">Tertiary User (Municipality)</option>
-                  </select>
-                  <div class="invalid-feedback">
-                    Please select a user type.
-                  </div>
+                <div v-if="errorMessage" class="alert alert-danger mb-3" role="alert">
+                  {{ errorMessage }}
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -74,8 +60,13 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                  <button type="submit" class="btn btn-primary btn-lg">
-                    Sign In
+                  <button 
+                    type="submit" 
+                    class="btn btn-primary btn-lg"
+                    :disabled="isLoading"
+                  >
+                    <span v-if="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    {{ isLoading ? 'Signing In...' : 'Sign In' }}
                   </button>
                 </div>
               </form>
@@ -97,43 +88,50 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 const formData = ref({
   email: '',
   password: '',
-  userType: '',
   rememberMe: false
 });
 
-const handleSubmit = () => {
+const isLoading = ref(false);
+const errorMessage = ref('');
+
+const handleSubmit = async (event) => {
   const form = document.querySelector('.needs-validation');
+  errorMessage.value = '';
   
   if (form.checkValidity() === false) {
     event.preventDefault();
     event.stopPropagation();
-  } else {
-    // TODO: Implement actual authentication
-    console.log('Signing in with:', formData.value);
-    
-    // Redirect based on user type after successful sign in
-    switch(formData.value.userType) {
-      case 'primary':
-        router.push('/primary-dashboard');
-        break;
-      case 'secondary':
-        router.push('/secondary-dashboard');
-        break;
-      case 'tertiary':
-        router.push('/tertiary-dashboard');
-        break;
-      default:
-        router.push('/');
-    }
+    form.classList.add('was-validated');
+    return;
   }
-  
-  form.classList.add('was-validated');
+
+  isLoading.value = true;
+
+  try {
+    const result = await authStore.login(formData.value.email, formData.value.password);
+    
+    if (result.success) {
+      // Redirect based on user category from backend response
+      const dashboardRoute = authStore.getDashboardRoute();
+      router.push(dashboardRoute);
+    } else {
+      errorMessage.value = result.error || 'Login failed. Please check your credentials.';
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    errorMessage.value = 'An error occurred during login. Please try again.';
+  } finally {
+    isLoading.value = false;
+    form.classList.add('was-validated');
+  }
 };
 </script>
 

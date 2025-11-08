@@ -3,6 +3,7 @@ import { createPinia } from 'pinia';
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 import App from './App.vue';
 import router from './router';
+import { useAuthStore } from './stores/auth';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import './assets/main.css';
@@ -13,5 +14,9 @@ pinia.use(piniaPluginPersistedstate);
 
 app.use(pinia);
 app.use(router);
+
+// Initialize auth store on app startup
+const authStore = useAuthStore();
+authStore.initAuth();
 
 app.mount('#app');

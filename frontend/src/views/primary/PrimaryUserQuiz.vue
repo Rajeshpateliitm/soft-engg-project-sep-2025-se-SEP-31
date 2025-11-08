@@ -16,17 +16,31 @@
             ></div>
           </div>
           <div class="d-flex justify-content-between mt-2">
-            <span>Question {{ currentQuestionIndex + 1 }} of {{ questions.length }}</span>
-            <span>Score: {{ score }}/{{ questions.length }}</span>
+            <span>Question {{ currentQuestionIndex + 1 }} of {{ questions.length || 0 }}</span>
+            <span v-if="!quizCompleted">Score: {{ score }}/{{ questions.length || 0 }}</span>
           </div>
         </div>
       </div>
 
+      <!-- Loading State -->
+      <div v-if="isLoading" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3">Loading quiz questions...</p>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="errorMessage && questions.length === 0" class="alert alert-danger" role="alert">
+        {{ errorMessage }}
+        <button class="btn btn-primary mt-2" @click="fetchQuestions">Retry</button>
+      </div>
+
       <!-- Quiz Content -->
-      <div v-if="!quizCompleted" class="quiz-content">
+      <div v-else-if="!quizCompleted && questions.length > 0 && currentQuestion" class="quiz-content">
         <div class="question-card card shadow-sm mb-4">
           <div class="card-body">
-            <h4 class="question-text mb-4">{{ currentQuestion.question }}</h4>
+            <h4 class="question-text mb-4">{{ currentQuestion.question_text }}</h4>
             
             <div v-if="currentQuestion.image" class="question-image mb-4">
               <img 
@@ -43,22 +57,22 @@
                 class="option-item mb-3"
                 :class="{ 
                   'selected': selectedOption === index,
-                  'correct': showFeedback && option.correct,
-                  'incorrect': showFeedback && selectedOption === index && !option.correct
+                  'correct': showFeedback && option.is_correct,
+                  'incorrect': showFeedback && selectedOption === index && !option.is_correct
                 }"
                 @click="selectOption(index)"
               >
                 <div class="option-content">
                   <span class="option-letter">{{ String.fromCharCode(65 + index) }}.</span>
-                  <span class="option-text">{{ option.text }}</span>
+                  <span class="option-text">{{ option.option_text }}</span>
                 </div>
                 <div v-if="showFeedback" class="feedback-icon">
                   <i 
-                    v-if="option.correct" 
+                    v-if="option.is_correct" 
                     class="bi bi-check-circle-fill text-success"
                   ></i>
                   <i 
-                    v-else-if="selectedOption === index && !option.correct"
+                    v-else-if="selectedOption === index && !option.is_correct"
                     class="bi bi-x-circle-fill text-danger"
                   ></i>
                 </div>
@@ -104,10 +118,16 @@
               <i class="bi bi-trophy-fill" style="font-size: 4rem; color: #ffc107;"></i>
             </div>
             <h3 class="mb-3">Quiz Completed!</h3>
-            <p class="lead">Your Score: {{ score }}/{{ questions.length }}</p>
+            <p class="lead">Your Score: {{ score }}/{{ questions.length || 0 }}</p>
+            <p v-if="submittedScore" class="text-success mb-2">
+              <strong>Points Earned: {{ submittedScore.points_earned }}</strong>
+            </p>
             <p class="text-muted mb-4">
               {{ getResultMessage }}
             </p>
+            <div v-if="errorMessage" class="alert alert-warning mb-3">
+              {{ errorMessage }}
+            </div>
             <div class="d-flex justify-content-center gap-3">
               <button class="btn btn-primary" @click="restartQuiz">
                 <i class="bi bi-arrow-repeat me-2"></i>Retake Quiz
@@ -124,62 +144,62 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import api from '../../services/api';
 
-const questions = [
-  {
-    question: 'Which of the following items can be recycled?',
-    options: [
-      { text: 'Plastic water bottle', correct: true },
-      { text: 'Used pizza box', correct: false },
-      { text: 'Plastic shopping bag', correct: false },
-      { text: 'Styrofoam container', correct: false }
-    ],
-    image: null
-  },
-  {
-    question: 'What is the best way to dispose of electronic waste?',
-    options: [
-      { text: 'Throw in regular trash', correct: false },
-      { text: 'Burn it', correct: false },
-      { text: 'Take to e-waste recycling center', correct: true },
-      { text: 'Bury it in the backyard', correct: false }
-    ],
-    image: null
-  },
-  {
-    question: 'Which bin should you use for food waste?',
-    options: [
-      { text: 'Recycling bin', correct: false },
-      { text: 'Compost bin', correct: true },
-      { text: 'Landfill bin', correct: false },
-      { text: 'None of the above', correct: false }
-    ],
-    image: null
-  },
-  {
-    question: 'How can you reduce waste when shopping?',
-    options: [
-      { text: 'Use reusable shopping bags', correct: false },
-      { text: 'Buy in bulk', correct: false },
-      { text: 'Choose products with minimal packaging', correct: false },
-      { text: 'All of the above', correct: true }
-    ],
-    image: null
-  }
-];
+const router = useRouter();
 
+const questions = ref([]);
+const userAnswers = ref({}); // Store {question_id: selected_option_id}
 const currentQuestionIndex = ref(0);
 const selectedOption = ref(null);
 const score = ref(0);
 const showFeedback = ref(false);
 const quizCompleted = ref(false);
+const isLoading = ref(true);
+const errorMessage = ref('');
+const submittedScore = ref(null);
 
-const currentQuestion = computed(() => questions[currentQuestionIndex.value]);
-const isLastQuestion = computed(() => currentQuestionIndex.value === questions.length - 1);
-const progress = computed(() => (currentQuestionIndex.value / questions.length) * 100);
+// Fetch questions from backend
+const fetchQuestions = async () => {
+  try {
+    isLoading.value = true;
+    const response = await api.get('/primary/quiz/questions?limit=10');
+    questions.value = response.data.questions;
+    
+    if (questions.value.length === 0) {
+      errorMessage.value = 'No quiz questions available. Please try again later.';
+    }
+  } catch (error) {
+    console.error('Error fetching questions:', error);
+    errorMessage.value = 'Failed to load quiz questions. Please try again.';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchQuestions();
+});
+
+const currentQuestion = computed(() => {
+  if (questions.value.length === 0 || currentQuestionIndex.value >= questions.value.length) {
+    return null;
+  }
+  return questions.value[currentQuestionIndex.value];
+});
+const isLastQuestion = computed(() => {
+  if (questions.value.length === 0) return false;
+  return currentQuestionIndex.value === questions.value.length - 1;
+});
+const progress = computed(() => {
+  if (questions.value.length === 0) return 0;
+  return ((currentQuestionIndex.value + 1) / questions.value.length) * 100;
+});
 const getResultMessage = computed(() => {
-  const percentage = (score.value / questions.length) * 100;
+  if (questions.value.length === 0) return '';
+  const percentage = (score.value / questions.value.length) * 100;
   if (percentage >= 80) return 'Excellent! You\'re a waste management expert!';
   if (percentage >= 60) return 'Good job! You know quite a bit about waste management.';
   if (percentage >= 40) return 'Not bad! Keep learning about proper waste disposal.';
@@ -187,27 +207,69 @@ const getResultMessage = computed(() => {
 });
 
 const selectOption = (index) => {
-  if (!showFeedback.value) {
+  if (!showFeedback.value && !quizCompleted.value && currentQuestion.value) {
     selectedOption.value = index;
+    
+    // Store the answer
+    const question = currentQuestion.value;
+    if (question && question.options && question.options[index]) {
+      const selectedOptionObj = question.options[index];
+      userAnswers.value[question.id] = selectedOptionObj.id;
+    }
   }
 };
 
 const checkAnswer = () => {
-  if (selectedOption.value === null) return;
+  if (selectedOption.value === null || !currentQuestion.value) return;
   
   showFeedback.value = true;
   
-  if (currentQuestion.value.options[selectedOption.value].correct) {
-    score.value++;
+  const question = currentQuestion.value;
+  if (question.options && question.options[selectedOption.value]) {
+    const selectedOptionObj = question.options[selectedOption.value];
+    
+    if (selectedOptionObj.is_correct) {
+      score.value++;
+    }
   }
 };
 
-const nextQuestion = () => {
+const nextQuestion = async () => {
   if (isLastQuestion.value) {
+    // Submit quiz when finished
+    await submitQuiz();
     quizCompleted.value = true;
   } else {
     currentQuestionIndex.value++;
     resetQuestion();
+  }
+};
+
+const submitQuiz = async () => {
+  try {
+    // Prepare answers in the format expected by backend
+    const answers = Object.entries(userAnswers.value).map(([question_id, selected_option_id]) => ({
+      question_id: parseInt(question_id),
+      selected_option_id: selected_option_id
+    }));
+
+    const response = await api.post('/primary/quiz/submit', {
+      answers: answers
+    });
+
+    submittedScore.value = {
+      score: response.data.score,
+      total_questions: response.data.total_questions,
+      percentage: response.data.percentage,
+      points_earned: response.data.points_earned,
+      total_points: response.data.total_points
+    };
+
+    // Update score with actual score from backend
+    score.value = response.data.score;
+  } catch (error) {
+    console.error('Error submitting quiz:', error);
+    errorMessage.value = 'Failed to submit quiz. Your answers may not be saved.';
   }
 };
 
@@ -219,7 +281,15 @@ const previousQuestion = () => {
 };
 
 const resetQuestion = () => {
-  selectedOption.value = null;
+  // Restore previously selected option if exists
+  const question = currentQuestion.value;
+  if (question && question.options && userAnswers.value[question.id]) {
+    const selectedOptionId = userAnswers.value[question.id];
+    const optionIndex = question.options.findIndex(opt => opt.id === selectedOptionId);
+    selectedOption.value = optionIndex >= 0 ? optionIndex : null;
+  } else {
+    selectedOption.value = null;
+  }
   showFeedback.value = false;
 };
 
@@ -227,7 +297,11 @@ const restartQuiz = () => {
   currentQuestionIndex.value = 0;
   score.value = 0;
   quizCompleted.value = false;
+  userAnswers.value = {};
+  submittedScore.value = null;
+  errorMessage.value = '';
   resetQuestion();
+  fetchQuestions();
 };
 </script>
 

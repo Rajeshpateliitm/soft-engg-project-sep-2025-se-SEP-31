@@ -85,6 +85,70 @@
                   </div>
                 </div>
 
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="houseNumber" class="form-label">House Number</label>
+                    <input 
+                      type="text" 
+                      class="form-control" 
+                      id="houseNumber" 
+                      v-model="formData.house_number" 
+                      required
+                    >
+                    <div class="invalid-feedback">
+                      Please enter your house number.
+                    </div>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label for="wardNumber" class="form-label">Ward Number</label>
+                    <input 
+                      type="text" 
+                      class="form-control" 
+                      id="wardNumber" 
+                      v-model="formData.ward_number" 
+                      required
+                    >
+                    <div class="invalid-feedback">
+                      Please enter your ward number.
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="familyMembers" class="form-label">Family Members</label>
+                    <input 
+                      type="number" 
+                      class="form-control" 
+                      id="familyMembers" 
+                      v-model="formData.family_members" 
+                      required
+                      min="1"
+                    >
+                    <div class="invalid-feedback">
+                      Please enter number of family members.
+                    </div>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label for="pincode" class="form-label">Pincode</label>
+                    <input 
+                      type="text" 
+                      class="form-control" 
+                      id="pincode" 
+                      v-model="formData.pincode" 
+                      required
+                      pattern="[0-9]{6}"
+                    >
+                    <div class="invalid-feedback">
+                      Please enter a valid 6-digit pincode.
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="errorMessage" class="alert alert-danger" role="alert">
+                  {{ errorMessage }}
+                </div>
+
                 <div class="form-check mb-4">
                   <input 
                     class="form-check-input" 
@@ -102,8 +166,13 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                  <button type="submit" class="btn btn-primary btn-lg">
-                    Create Account
+                  <button 
+                    type="submit" 
+                    class="btn btn-primary btn-lg"
+                    :disabled="isLoading"
+                  >
+                    <span v-if="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    {{ isLoading ? 'Creating Account...' : 'Create Account' }}
                   </button>
                 </div>
               </form>
@@ -125,8 +194,10 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 const formData = ref({
   fullName: '',
@@ -134,37 +205,53 @@ const formData = ref({
   password: '',
   confirmPassword: '',
   userType: '',
+  house_number: '',
+  ward_number: '',
+  family_members: 1,
+  pincode: '',
   agreeTerms: false
 });
 
-const handleSubmit = () => {
+const isLoading = ref(false);
+const errorMessage = ref('');
+
+const handleSubmit = async (event) => {
   const form = document.querySelector('.needs-validation');
+  errorMessage.value = '';
   
   if (form.checkValidity() === false) {
     event.preventDefault();
     event.stopPropagation();
-  } else {
-    // Form is valid, handle registration
-    console.log('Form submitted:', formData.value);
-    // TODO: Add actual registration logic here
-    
-    // Redirect based on user type after successful registration
-    switch(formData.value.userType) {
-      case 'primary':
-        router.push('/primary-dashboard');
-        break;
-      case 'secondary':
-        router.push('/secondary-dashboard');
-        break;
-      case 'tertiary':
-        router.push('/tertiary-dashboard');
-        break;
-      default:
-        router.push('/');
-    }
+    form.classList.add('was-validated');
+    return;
   }
-  
-  form.classList.add('was-validated');
+
+  // Validate password match
+  if (formData.value.password !== formData.value.confirmPassword) {
+    errorMessage.value = 'Passwords do not match';
+    form.classList.add('was-validated');
+    return;
+  }
+
+  isLoading.value = true;
+
+  try {
+    const result = await authStore.register(formData.value);
+    
+    if (result.success) {
+      // Redirect based on user category from backend response
+      const dashboardRoute = authStore.getDashboardRoute();
+      router.push(dashboardRoute);
+    } else {
+      errorMessage.value = result.error || 'Registration failed. Please try again.';
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    errorMessage.value = 'An error occurred during registration. Please try again.';
+  } finally {
+    isLoading.value = false;
+    form.classList.add('was-validated');
+  }
 };
 </script>
 

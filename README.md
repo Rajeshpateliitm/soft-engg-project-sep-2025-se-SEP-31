@@ -1,198 +1,311 @@
-# Waste Management System
+# How to Run the WasteWise Project
 
-A comprehensive waste management application built with Vue 3 (Frontend) and FastAPI (Backend).
+## Prerequisites
 
+Before running the project, make sure you have:
 
+1. **Python 3.8+** installed
+2. **Node.js 16+** and **npm** installed
+3. **Virtual environment** (optional but recommended)
 
-## 🚀 Features
+---
 
-- **Frontend**:
-  - Vue 3 with Composition API
-  - Vue Router for navigation
-  - Pinia for state management
-  - Tailwind CSS for styling
-  - Responsive design
+## Step 1: Setup Backend (Flask)
 
-- **Backend**:
-  - FastAPI framework
-  - JWT Authentication
-  - SQLAlchemy ORM with PostgreSQL
-  - Pydantic for data validation
-  - CORS middleware
+### 1.1 Navigate to backend directory
 
-## 🛠️ Prerequisites
-
-- Node.js (v16+)
-- Python (3.8+)
-- PostgreSQL (v12+)
-- npm or yarn
-- pip (Python package manager)
-
-## 🚀 Getting Started
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/yourusername/windsurf-project.git
-cd windsurf-project
-```
-
-### 2. Backend Setup
-
-1. Create and activate a virtual environment:
-   ```bash
-   # Linux/macOS
-   python -m venv venv
-   source venv/bin/activate
-
-   # Windows
-   python -m venv venv
-   .\venv\Scripts\activate
-   ```
-
-2. Install backend dependencies:
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
-
-3. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-4. Set up the database:
-   ```bash
-   # Install PostgreSQL and create a database
-   # Update DATABASE_URL in .env with your credentials
-   # Example: postgresql://username:password@localhost:5432/windsurf_db
-   ```
-
-5. Run database migrations:
-   ```bash
-   # Install Alembic if not installed
-   pip install alembic
-   
-   # Run migrations
-   alembic upgrade head
-   ```
-
-6. Start the backend server:
-   ```bash
-   python main.py
-   ```
-   The API will be available at `http://localhost:8000`
-   - API Documentation: `http://localhost:8000/docs`
-   - Interactive API Docs: `http://localhost:8000/redoc`
-
-### 3. Frontend Setup
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-   The frontend will be available at `http://localhost:5173`
-
-## 📁 Project Structure
-
-```
-windsurf-project/
-├── backend/               # FastAPI Backend
-│   ├── app/               # Application package
-│   │   ├── api/           # API routes
-│   │   ├── core/          # Core functionality
-│   │   ├── db/            # Database configuration
-│   │   ├── models/        # Database models
-│   │   └── schemas/       # Pydantic models
-│   ├── alembic/           # Database migrations
-│   ├── tests/             # Test files
-│   ├── main.py            # Application entry point
-│   └── requirements.txt   # Python dependencies
-│
-└── frontend/              # Vue 3 Frontend
-    ├── public/            # Static files
-    ├── src/               # Source files
-    │   ├── assets/        # Static assets
-    │   ├── components/    # Vue components
-    │   ├── router/        # Vue Router configuration
-    │   ├── stores/        # Pinia stores
-    │   ├── views/         # Page components
-    │   ├── App.vue        # Root component
-    │   └── main.js        # Application entry point
-    └── package.json       # Frontend dependencies
-```
-
-## 🌐 API Endpoints
-
-### Authentication
-- `POST /api/v1/auth/register` - Register a new user
-- `POST /api/v1/auth/login` - Login and get access token
-- `GET /api/v1/auth/me` - Get current user info (protected)
-
-### Users
-- `GET /api/v1/users/` - List all users (admin only)
-- `GET /api/v1/users/{user_id}` - Get user by ID
-- `PUT /api/v1/users/{user_id}` - Update user (owner or admin)
-- `DELETE /api/v1/users/{user_id}` - Delete user (owner or admin)
-
-## 🔒 Environment Variables
-
-Create a `.env` file in the `backend` directory with the following variables:
-
-```env
-# Backend
-DATABASE_URL=postgresql://username:password@localhost:5432/windsurf_db
-SECRET_KEY=your-secret-key-here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440  # 24 hours
-
-# Frontend (if needed)
-VITE_API_BASE_URL=http://localhost:8000/api/v1
-```
-
-## 🧪 Running Tests
-
-### Backend Tests
 ```bash
 cd backend
-pytest
 ```
 
-### Frontend Tests
+### 1.2 Create and activate virtual environment (if not already done)
+
+```bash
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
+```
+
+### 1.3 Install Python dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 1.4 Run the backend server
+
+```bash
+python main.py
+```
+
+**Expected output:**
+```
+✅ Database initialized with sample data
+ * Running on http://0.0.0.0:8000
+ * Debug mode: on
+```
+
+**Note:** The database will be automatically initialized with sample data on first run. You don't need to run a separate initialization command.
+
+**Keep this terminal window open!** The backend server must be running.
+
+---
+
+## Step 2: Setup Frontend (Vue.js)
+
+### 2.1 Open a NEW terminal window
+
+**Important:** Keep the backend terminal running, open a new terminal for the frontend.
+
+### 2.2 Navigate to frontend directory
+
 ```bash
 cd frontend
-npm run test:unit
 ```
 
-## 🛠️ Development
+### 2.3 Install Node.js dependencies (only needed first time)
 
-### Code Style
-- Backend: Follows PEP 8 with Black formatter and isort
-- Frontend: Follows Vue 3 style guide with ESLint and Prettier
+```bash
+npm install
+```
 
-### Git Workflow
-1. Create a new branch: `git checkout -b feature/your-feature-name`
-2. Make your changes and commit: `git commit -m "Add your feature"`
-3. Push to the branch: `git push origin feature/your-feature-name`
-4. Create a Pull Request
+This will install all required packages including:
+- Vue 3
+- Vue Router
+- Pinia (state management)
+- Axios (API calls)
+- Chart.js (charts)
+- Bootstrap (UI components)
 
-## 📝 License
+### 2.4 Run the frontend development server
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```bash
+npm run dev
+```
 
-## 🙏 Acknowledgments
+**Expected output:**
+```
+  VITE v7.x.x  ready in xxx ms
 
-- Vue.js Team
-- FastAPI Team
-- All contributors and open-source maintainers
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+```
+
+**Keep this terminal window open too!**
+
+---
+
+## Step 3: Access the Application
+
+### Open your web browser and navigate to:
+
+```
+http://localhost:5173
+```
+
+**Important Notes:**
+- ✅ **Use `http://localhost:5173`** - This is your frontend application
+- ❌ **Don't use `http://localhost:8000`** - That's just the API backend
+
+---
+
+## Quick Reference
+
+### Terminal 1 (Backend - Flask):
+
+```bash
+cd backend
+source venv/bin/activate  # If using virtual environment
+python main.py
+# Server runs on http://localhost:8000
+# Database is automatically initialized on first run
+```
+
+### Terminal 2 (Frontend - Vue.js):
+
+```bash
+cd frontend
+npm install              # First time only
+npm run dev
+# App runs on http://localhost:5173
+```
+
+### Browser:
+
+```
+http://localhost:5173  ← Open this URL!
+```
+
+---
+
+## First Time Setup Checklist
+
+- [ ] Python 3.8+ installed (`python3 --version`)
+- [ ] Node.js 16+ installed (`node --version`)
+- [ ] npm installed (`npm --version`)
+- [ ] Backend dependencies installed (`pip install -r backend/requirements.txt`)
+- [ ] Frontend dependencies installed (`npm install` in frontend directory)
+- [ ] Backend server running on port 8000
+- [ ] Frontend server running on port 5173
+- [ ] Browser opened to `http://localhost:5173`
+
+---
+
+## Troubleshooting
+
+### Backend Issues
+
+#### Port 8000 already in use?
+
+```bash
+# Find and kill the process using port 8000
+# On macOS/Linux:
+lsof -ti:8000 | xargs kill -9
+
+# On Windows:
+# netstat -ano | findstr :8000
+# taskkill /PID <PID> /F
+```
+
+#### Database not found?
+
+The SQLite database (`wastewise.db`) will be automatically created when you run `python main.py` for the first time. Sample data will also be seeded automatically.
+
+#### Module not found errors?
+
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+### Frontend Issues
+
+#### Port 5173 already in use?
+
+Vite will automatically use the next available port (5174, 5175, etc.). Check the terminal output for the actual port.
+
+#### npm install fails?
+
+```bash
+# Clear npm cache
+npm cache clean --force
+
+# Delete node_modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
+
+#### Frontend can't connect to backend?
+
+1. Make sure backend is running on `http://localhost:8000`
+2. Check browser console for errors
+3. Verify `frontend/vite.config.js` has proxy configuration (already configured)
+
+#### Module not found errors?
+
+```bash
+cd frontend
+npm install
+```
+
+### General Issues
+
+#### Virtual environment not activating?
+
+```bash
+# Make sure you're in the backend directory
+cd backend
+
+# Try with python3 explicitly
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
+```
+
+#### Permission errors?
+
+```bash
+# On macOS/Linux, you might need sudo for global npm packages
+# But try without sudo first for local project packages
+```
+
+---
+
+## Project Structure
+
+```
+soft-engg-project-sep-2025-se-SEP-31-dev/
+├── backend/              # Flask backend
+│   ├── app/
+│   │   ├── api/          # API endpoints
+│   │   ├── models.py     # Database models
+│   │   └── core/         # Core utilities
+│   ├── main.py           # Backend entry point
+│   ├── init_db.py        # Database initialization
+│   ├── requirements.txt  # Python dependencies
+│   └── wastewise.db     # SQLite database (auto-created)
+│
+└── frontend/             # Vue.js frontend
+    ├── src/
+    │   ├── components/   # Vue components
+    │   ├── views/        # Page views
+    │   ├── stores/       # Pinia stores
+    │   └── router/       # Vue Router
+    ├── package.json      # Node.js dependencies
+    └── vite.config.js    # Vite configuration
+```
+
+---
+
+## What Each Server Does
+
+- **Backend (Port 8000)**: 
+  - Provides REST API endpoints (`/api/*`)
+  - Handles authentication (JWT tokens)
+  - Manages database (SQLite)
+  - Processes business logic
+
+- **Frontend (Port 5173)**: 
+  - Serves the Vue.js application
+  - Makes API calls to backend
+  - Handles user interface and routing
+  - Manages client-side state
+
+The frontend communicates with the backend via HTTP requests through the Vite proxy.
+
+---
+
+## Stopping the Servers
+
+To stop the servers:
+
+1. Go to each terminal window
+2. Press `Ctrl + C` (or `Cmd + C` on Mac)
+3. Confirm if prompted
+
+---
+
+## Next Steps After Running
+
+1. **Register a new user** at `http://localhost:5173/register`
+2. **Login** with your credentials
+3. **Explore the dashboard** based on your user type:
+   - Primary User: Quiz, Waste Log, Leaderboard
+   - Secondary User: RWA Dashboard, Campaigns
+   - Tertiary User: Ward Performance, Analytics
+
+---
+
+## Need Help?
+
+If you encounter any issues:
+
+1. Check the terminal output for error messages
+2. Check browser console (F12) for frontend errors
+3. Verify both servers are running
+4. Ensure all dependencies are installed
+5. Check that ports 8000 and 5173 are available

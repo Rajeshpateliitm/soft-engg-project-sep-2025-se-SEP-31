@@ -1,5 +1,15 @@
 <template>
   <div class="waste-summary">
+    <!-- Loading State -->
+    <div v-if="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-3">Loading waste summary data...</p>
+    </div>
+
+    <!-- Content -->
+    <template v-else>
     <div class="row mb-4">
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
@@ -132,7 +142,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container" style="position: relative; height: 300px;">
-              <canvas ref="wasteChart"></canvas>
+              <canvas ref="wasteChartRef"></canvas>
             </div>
           </div>
         </div>
@@ -181,7 +191,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container" style="position: relative; height: 300px;">
-              <canvas ref="trendsChart"></canvas>
+              <canvas ref="trendsChartRef"></canvas>
             </div>
           </div>
         </div>
@@ -195,7 +205,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container" style="position: relative; height: 300px;">
-              <canvas ref="disposalChart"></canvas>
+              <canvas ref="disposalChartRef"></canvas>
             </div>
           </div>
         </div>
@@ -373,20 +383,26 @@
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue';
-import Chart from 'chart.js/auto';
+import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
+import { Chart, registerables } from 'chart.js';
+import api from '../../services/api';
+
+// Register Chart.js components
+Chart.register(...registerables);
 
 // Refs
 const timeRange = ref('monthly');
 const activeChartTab = ref('weight');
 const selectedTip = ref(null);
-const wasteChart = ref(null);
-const trendsChart = ref(null);
-const disposalChart = ref(null);
+const wasteChartRef = ref(null);
+const trendsChartRef = ref(null);
+const disposalChartRef = ref(null);
+const isLoading = ref(true);
 
 // Chart instances
 let wasteChartInstance = null;
@@ -395,12 +411,12 @@ let disposalChartInstance = null;
 
 // Data
 const summary = ref({
-  totalWaste: 156.8,
-  wasteChange: -12.5,
-  recyclingRate: 68,
-  carbonFootprint: 342.5,
-  carbonChange: -8.2,
-  wasteReduction: 24,
+  totalWaste: 0,
+  wasteChange: 0,
+  recyclingRate: 0,
+  carbonFootprint: 0,
+  carbonChange: 0,
+  wasteReduction: 0,
   lastUpdated: new Date()
 });
 
@@ -410,57 +426,121 @@ const chartTabs = [
   { id: 'impact', label: 'By Impact' }
 ];
 
-const wasteCategories = ref([
-  { id: 1, name: 'Plastic', amount: 45.2, percentage: 29, icon: 'bi-arrow-repeat', variant: 'primary' },
-  { id: 2, name: 'Paper', amount: 38.7, percentage: 25, icon: 'bi-file-text', variant: 'info' },
-  { id: 3, name: 'Organic', amount: 32.5, percentage: 21, icon: 'bi-egg-fried', variant: 'success' },
-  { id: 4, name: 'Glass', amount: 18.3, percentage: 12, icon: 'bi-cup-straw', variant: 'warning' },
-  { id: 5, name: 'Metal', amount: 12.8, percentage: 8, icon: 'bi-cup', variant: 'danger' },
-  { id: 6, name: 'E-Waste', amount: 9.3, percentage: 6, icon: 'bi-laptop', variant: 'secondary' }
-]);
+const wasteCategories = ref([]);
+const recentLogs = ref([]);
+const monthlyTrends = ref({});
 
-const recentLogs = ref([
-  { 
-    id: 1, 
-    date: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    type: 'Plastic Bottles', 
-    amount: 2.5, 
-    method: 'Recycling',
-    carbonImpact: 1.2
-  },
-  { 
-    id: 2, 
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    type: 'Food Waste', 
-    amount: 1.8, 
-    method: 'Composting',
-    carbonImpact: 0.9
-  },
-  { 
-    id: 3, 
-    date: new Date(Date.now() - 1000 * 60 * 60 * 26), // 1 day 2 hours ago
-    type: 'Cardboard Boxes', 
-    amount: 3.2, 
-    method: 'Recycling',
-    carbonImpact: 0.8
-  },
-  { 
-    id: 4, 
-    date: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
-    type: 'Batteries', 
-    amount: 0.5, 
-    method: 'Hazardous',
-    carbonImpact: 2.1
-  },
-  { 
-    id: 5, 
-    date: new Date(Date.now() - 1000 * 60 * 60 * 72), // 3 days ago
-    type: 'Glass Jars', 
-    amount: 1.2, 
-    method: 'Recycling',
-    carbonImpact: 0.3
+// Fetch waste summary data from backend
+const fetchWasteSummary = async () => {
+  try {
+    isLoading.value = true;
+    
+    // Determine months based on time range
+    let months = 1; // default to monthly
+    if (timeRange.value === 'weekly') months = 0.25;
+    else if (timeRange.value === 'yearly') months = 12;
+    else if (timeRange.value === 'all') months = 120; // 10 years
+    
+    const response = await api.get(`/primary/waste-summary?months=${months}`);
+    const data = response.data;
+    
+    // Update category breakdown
+    const categoryBreakdown = data.category_breakdown || {};
+    const categoryTotals = {};
+    let totalWaste = 0;
+    
+    // Calculate totals from percentages (we need to get actual amounts)
+    // Since backend only returns percentages, we'll estimate from waste logs
+    const logsResponse = await api.get('/primary/waste-logs?limit=100');
+    const allLogs = logsResponse.data.waste_logs || [];
+    
+    // Calculate actual totals by category
+    allLogs.forEach(log => {
+      const category = log.category.toLowerCase();
+      if (!categoryTotals[category]) {
+        categoryTotals[category] = 0;
+      }
+      categoryTotals[category] += log.quantity_kg;
+      totalWaste += log.quantity_kg;
+    });
+    
+    // Update waste categories
+    wasteCategories.value = Object.entries(categoryTotals).map(([category, amount]) => {
+      const percentage = totalWaste > 0 ? Math.round((amount / totalWaste) * 100) : 0;
+      return {
+        id: category,
+        name: category.charAt(0).toUpperCase() + category.slice(1),
+        amount: Math.round(amount * 10) / 10,
+        percentage: percentage,
+        icon: getCategoryIcon(category),
+        variant: getCategoryVariant(category)
+      };
+    });
+    
+    // Update monthly trends
+    monthlyTrends.value = data.monthly_trends || {};
+    
+    // Calculate summary statistics
+    const recycledLogs = allLogs.filter(log => log.recycled);
+    const recycledAmount = recycledLogs.reduce((sum, log) => sum + log.quantity_kg, 0);
+    const recyclingRate = totalWaste > 0 ? Math.round((recycledAmount / totalWaste) * 100) : 0;
+    
+    // Estimate carbon footprint (rough calculation: ~2.2 kg CO2 per kg of waste)
+    const carbonFootprint = Math.round(totalWaste * 2.2 * 10) / 10;
+    
+    // Calculate waste reduction (compare with previous period - simplified)
+    const wasteReduction = recyclingRate > 0 ? Math.min(recyclingRate, 50) : 0;
+    
+    summary.value = {
+      totalWaste: Math.round(totalWaste * 10) / 10,
+      wasteChange: 0, // Could calculate from previous period
+      recyclingRate: recyclingRate,
+      carbonFootprint: carbonFootprint,
+      carbonChange: 0, // Could calculate from previous period
+      wasteReduction: wasteReduction,
+      lastUpdated: new Date()
+    };
+    
+    // Update recent logs
+    recentLogs.value = allLogs.slice(0, 10).map(log => ({
+      id: log.id,
+      date: new Date(log.log_date),
+      type: log.category.charAt(0).toUpperCase() + log.category.slice(1),
+      amount: log.quantity_kg,
+      method: log.recycled ? 'Recycling' : (log.separated ? 'Separated' : 'Landfill'),
+      carbonImpact: Math.round(log.quantity_kg * 2.2 * 10) / 10
+    }));
+    
+    // Initialize charts after data is loaded
+    await nextTick();
+    setTimeout(() => {
+      initCharts();
+    }, 100);
+  } catch (error) {
+    console.error('Error fetching waste summary:', error);
+  } finally {
+    isLoading.value = false;
   }
-]);
+};
+
+// Helper functions for category display
+const getCategoryIcon = (category) => {
+  const icons = {
+    wet: 'bi-egg-fried',
+    dry: 'bi-arrow-repeat',
+    hazardous: 'bi-exclamation-triangle'
+  };
+  return icons[category] || 'bi-trash';
+};
+
+const getCategoryVariant = (category) => {
+  const variants = {
+    wet: 'success',
+    dry: 'info',
+    hazardous: 'danger'
+  };
+  return variants[category] || 'secondary';
+};
 
 const wasteReductionTips = ref([
   {
@@ -582,13 +662,24 @@ const wasteReductionTips = ref([
 // Methods
 const initCharts = () => {
   // Destroy existing charts if they exist
-  if (wasteChartInstance) wasteChartInstance.destroy();
-  if (trendsChartInstance) trendsChartInstance.destroy();
-  if (disposalChartInstance) disposalChartInstance.destroy();
+  if (wasteChartInstance && typeof wasteChartInstance.destroy === 'function') {
+    wasteChartInstance.destroy();
+    wasteChartInstance = null;
+  }
+  if (trendsChartInstance && typeof trendsChartInstance.destroy === 'function') {
+    trendsChartInstance.destroy();
+    trendsChartInstance = null;
+  }
+  if (disposalChartInstance && typeof disposalChartInstance.destroy === 'function') {
+    disposalChartInstance.destroy();
+    disposalChartInstance = null;
+  }
   
   // Waste Composition Chart
-  const ctx1 = wasteChart.value.getContext('2d');
-  wasteChartInstance = new Chart(ctx1, {
+  if (wasteChartRef.value && wasteCategories.value.length > 0) {
+    const ctx1 = wasteChartRef.value.getContext('2d');
+    if (ctx1) {
+      wasteChartInstance = new Chart(ctx1, {
     type: 'doughnut',
     data: {
       labels: wasteCategories.value.map(cat => cat.name),
@@ -626,109 +717,136 @@ const initCharts = () => {
       },
       cutout: '70%'
     }
-  });
-  
-  // Waste Trends Over Time Chart
-  const ctx2 = trendsChart.value.getContext('2d');
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const currentMonth = new Date().getMonth();
-  const lastSixMonths = [];
-  
-  for (let i = 5; i >= 0; i--) {
-    const monthIndex = (currentMonth - i + 12) % 12;
-    lastSixMonths.push(months[monthIndex]);
+    });
+    }
   }
   
-  trendsChartInstance = new Chart(ctx2, {
-    type: 'line',
-    data: {
-      labels: lastSixMonths,
-      datasets: [
-        {
-          label: 'Total Waste (kg)',
-          data: [28, 35, 42, 39, 31, 25],
-          borderColor: 'rgba(78, 115, 223, 1)',
-          backgroundColor: 'rgba(78, 115, 223, 0.1)',
-          tension: 0.3,
-          fill: true
+  // Waste Trends Over Time Chart
+  if (trendsChartRef.value && Object.keys(monthlyTrends.value).length > 0) {
+    const ctx2 = trendsChartRef.value.getContext('2d');
+    if (ctx2) {
+      // Use monthly trends data from backend
+      const sortedMonths = Object.keys(monthlyTrends.value).sort();
+      const labels = sortedMonths.map(month => {
+        const [year, monthNum] = month.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${monthNames[parseInt(monthNum) - 1]} ${year.slice(2)}`;
+      });
+      
+      const disposedData = sortedMonths.map(month => monthlyTrends.value[month].disposed || 0);
+      const undisposedData = sortedMonths.map(month => monthlyTrends.value[month].undisposed || 0);
+      
+      trendsChartInstance = new Chart(ctx2, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Properly Disposed (kg)',
+              data: disposedData,
+              borderColor: 'rgba(40, 167, 69, 1)',
+              backgroundColor: 'rgba(40, 167, 69, 0.1)',
+              tension: 0.3,
+              fill: true
+            },
+            {
+              label: 'Not Separated (kg)',
+              data: undisposedData,
+              borderColor: 'rgba(220, 53, 69, 1)',
+              backgroundColor: 'rgba(220, 53, 69, 0.1)',
+              tension: 0.3,
+              fill: true
+            }
+          ]
         },
-        {
-          label: 'Recycled (kg)',
-          data: [15, 20, 25, 24, 18, 15],
-          borderColor: 'rgba(40, 167, 69, 1)',
-          backgroundColor: 'rgba(40, 167, 69, 0.1)',
-          tension: 0.3,
-          fill: true
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'top',
-        },
-        tooltip: {
-          mode: 'index',
-          intersect: false,
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            precision: 0
-          }
-        }
-      }
-    }
-  });
-  
-  // Waste Disposal Methods Chart
-  const ctx3 = disposalChart.value.getContext('2d');
-  disposalChartInstance = new Chart(ctx3, {
-    type: 'bar',
-    data: {
-      labels: ['Recycling', 'Composting', 'Landfill', 'Hazardous', 'Donation'],
-      datasets: [{
-        label: 'Waste by Disposal Method (kg)',
-        data: [65, 32, 42, 8, 12],
-        backgroundColor: [
-          'rgba(40, 167, 69, 0.8)',
-          'rgba(13, 110, 253, 0.8)',
-          'rgba(108, 117, 125, 0.8)',
-          'rgba(220, 53, 69, 0.8)',
-          'rgba(255, 193, 7, 0.8)'
-        ],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              return `${context.parsed.y} kg (${Math.round((context.parsed.y / 159) * 100)}%)`;
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
             }
           }
         }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            precision: 0
+      });
+    }
+  }
+  
+  // Waste Disposal Methods Chart
+  if (disposalChartRef.value && recentLogs.value.length > 0) {
+    const ctx3 = disposalChartRef.value.getContext('2d');
+    if (ctx3) {
+      // Calculate disposal method breakdown from recent logs
+      const disposalMethods = {
+        'Recycling': 0,
+        'Separated': 0,
+        'Landfill': 0,
+        'Hazardous': 0
+      };
+      
+      recentLogs.value.forEach(log => {
+        if (log.method in disposalMethods) {
+          disposalMethods[log.method] += log.amount;
+        }
+      });
+      
+      disposalChartInstance = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(disposalMethods),
+          datasets: [{
+            label: 'Waste by Disposal Method (kg)',
+            data: Object.values(disposalMethods),
+            backgroundColor: [
+              'rgba(40, 167, 69, 0.8)',
+              'rgba(13, 110, 253, 0.8)',
+              'rgba(108, 117, 125, 0.8)',
+              'rgba(220, 53, 69, 0.8)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((context.parsed.y / total) * 100) : 0;
+                  return `${context.parsed.y} kg (${percentage}%)`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
           }
         }
-      }
+      });
     }
-  });
+  }
 };
 
 const formatNumber = (num) => {
@@ -736,7 +854,10 @@ const formatNumber = (num) => {
 };
 
 const formatDate = (date) => {
-  return date.toLocaleDateString('en-US', { 
+  if (!date) return 'N/A';
+  const dateObj = date instanceof Date ? date : new Date(date);
+  if (isNaN(dateObj.getTime())) return 'Invalid Date';
+  return dateObj.toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'short', 
     day: 'numeric' 
@@ -744,7 +865,10 @@ const formatDate = (date) => {
 };
 
 const formatTime = (date) => {
-  return date.toLocaleTimeString('en-US', { 
+  if (!date) return 'N/A';
+  const dateObj = date instanceof Date ? date : new Date(date);
+  if (isNaN(dateObj.getTime())) return 'Invalid Time';
+  return dateObj.toLocaleTimeString('en-US', { 
     hour: '2-digit', 
     minute: '2-digit',
     hour12: true
@@ -797,37 +921,18 @@ const exportReport = () => {
 
 // Watchers
 watch(timeRange, () => {
-  // In a real app, this would fetch new data based on the selected time range
-  console.log('Time range changed to:', timeRange.value);
-  // Simulate loading new data
-  setTimeout(() => {
-    // Update summary data
-    summary.value = {
-      totalWaste: Math.floor(Math.random() * 200) + 100,
-      wasteChange: Math.floor(Math.random() * 40) - 20,
-      recyclingRate: Math.floor(Math.random() * 30) + 50,
-      carbonFootprint: Math.floor(Math.random() * 200) + 200,
-      carbonChange: Math.floor(Math.random() * 40) - 20,
-      wasteReduction: Math.floor(Math.random() * 30) + 10,
-      lastUpdated: new Date()
-    };
-    
-    // Update charts
-    if (wasteChartInstance) wasteChartInstance.update();
-    if (trendsChartInstance) trendsChartInstance.update();
-    if (disposalChartInstance) disposalChartInstance.update();
-  }, 500);
+  fetchWasteSummary();
 });
 
 watch(activeChartTab, () => {
-  // In a real app, this would update the chart based on the selected tab
-  console.log('Chart tab changed to:', activeChartTab.value);
-  
-  // For demo purposes, just update the chart title
-  if (wasteChartInstance) {
+  if (wasteChartInstance && typeof wasteChartInstance.destroy === 'function') {
     wasteChartInstance.destroy();
-    nextTick(() => {
-      const ctx = wasteChart.value.getContext('2d');
+    wasteChartInstance = null;
+  }
+  nextTick(() => {
+    if (wasteChartRef.value && wasteCategories.value.length > 0) {
+      const ctx = wasteChartRef.value.getContext('2d');
+      if (ctx) {
       let title = 'Waste by Weight (kg)';
       let unit = 'kg';
       
@@ -893,16 +998,14 @@ watch(activeChartTab, () => {
           cutout: '70%'
         }
       });
-    });
-  }
+      }
+    }
+  });
 });
 
 // Lifecycle hooks
 onMounted(() => {
-  // Initialize charts when component is mounted
-  nextTick(() => {
-    initCharts();
-  });
+  fetchWasteSummary();
   
   // Add window resize event listener to handle chart resizing
   window.addEventListener('resize', () => {
@@ -910,6 +1013,19 @@ onMounted(() => {
       initCharts();
     }
   });
+});
+
+onBeforeUnmount(() => {
+  if (wasteChartInstance && typeof wasteChartInstance.destroy === 'function') {
+    wasteChartInstance.destroy();
+  }
+  if (trendsChartInstance && typeof trendsChartInstance.destroy === 'function') {
+    trendsChartInstance.destroy();
+  }
+  if (disposalChartInstance && typeof disposalChartInstance.destroy === 'function') {
+    disposalChartInstance.destroy();
+  }
+  window.removeEventListener('resize', initCharts);
 });
 </script>
 

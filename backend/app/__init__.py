@@ -1,29 +1,48 @@
-# Initialize the FastAPI application
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+"""Flask application factory."""
+from flask import Flask, jsonify
+from flask_cors import CORS
+from app.models import db
+from app.core.config import Config
 
-def create_app():
-    app = FastAPI(
-        title="Windsurf API",
-        description="Backend API for the Windsurf application",
-        version="0.1.0",
-    )
 
-    # Configure CORS
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],  # In production, replace with your frontend URL
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+def create_app(config_class=Config):
+    """Create and configure Flask application."""
+    app = Flask(__name__)
+    app.config.from_object(config_class)
 
-    # Include API routes
-    from .api import router as api_router
-    app.include_router(api_router, prefix="/api")
+    # Initialize extensions
+    db.init_app(app)
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-    @app.get("/")
-    async def root():
-        return {"message": "Welcome to the Windsurf API!"}
+    # Register blueprints
+    from app.api.auth import bp as auth_bp
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+
+    from app.api.primary import bp as primary_bp
+    app.register_blueprint(primary_bp, url_prefix="/api/primary")
+
+    from app.api.secondary import bp as secondary_bp
+    app.register_blueprint(secondary_bp, url_prefix="/api/secondary")
+
+    from app.api.tertiary import bp as tertiary_bp
+    app.register_blueprint(tertiary_bp, url_prefix="/api/tertiary")
+
+    from app.api.common import bp as common_bp
+    app.register_blueprint(common_bp, url_prefix="/api/common")
+
+    @app.route("/")
+    def root():
+        return jsonify({"message": "Welcome to WasteWise API!"})
+
+    @app.route("/api/health")
+    def health():
+        return jsonify({"status": "healthy"})
+
+    # Create tables and initialize sample data
+    with app.app_context():
+        db.create_all()
+        # Initialize sample data if database is empty
+        from app.db.init_data import init_sample_data
+        init_sample_data()
 
     return app

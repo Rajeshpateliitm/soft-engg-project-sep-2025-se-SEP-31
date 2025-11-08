@@ -1,5 +1,24 @@
 <template>
   <div class="community-leaderboard">
+    <!-- Loading State -->
+    <div v-if="loading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-3">Loading leaderboard data...</p>
+    </div>
+
+    <!-- Content -->
+    <template v-else>
+    <!-- Error Message -->
+    <div v-if="errorMessage" class="alert alert-danger mb-4" role="alert">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ errorMessage }}
+      <button class="btn btn-sm btn-outline-danger ms-2" @click="fetchLeaderboard">
+        <i class="bi bi-arrow-clockwise me-1"></i> Retry
+      </button>
+    </div>
+    
     <div class="row mb-4">
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
@@ -73,21 +92,190 @@
             <div class="tab-content" id="leaderboardTabsContent">
               <!-- Global Leaderboard -->
               <div class="tab-pane fade show active" id="global" role="tabpanel" aria-labelledby="global-tab">
-                <leaderboard-table 
-                  :users="filteredUsers" 
-                  :current-user-id="currentUser.id"
-                  :loading="loading"
-                />
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>User</th>
+                        <th class="text-end">Points</th>
+                        <th class="text-center">Level</th>
+                        <th class="text-end">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-if="loading">
+                        <td colspan="5" class="text-center py-4">
+                          <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr v-else-if="!filteredUsers || filteredUsers.length === 0">
+                        <td colspan="5" class="text-center py-4">
+                          <p class="text-muted mb-0">No users found</p>
+                        </td>
+                      </tr>
+                      <tr 
+                        v-else
+                        v-for="user in filteredUsers" 
+                        :key="user.id || user.rank"
+                        :class="{ 'table-primary': user.id === currentUser?.id }"
+                      >
+                        <td>
+                          <span 
+                            class="d-flex align-items-center justify-content-center rounded-circle"
+                            :class="{
+                              'bg-warning text-dark': user.rank === 1,
+                              'bg-secondary bg-opacity-25': user.rank === 2,
+                              'bg-danger bg-opacity-25': user.rank === 3,
+                              'bg-light': user.rank > 3
+                            }"
+                            style="width: 32px; height: 32px;"
+                          >
+                            {{ user.rank }}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="d-flex align-items-center">
+                            <img 
+                              :src="user.avatar || 'https://ui-avatars.com/api/?name=' + (user.name || 'User') + '&background=4e73df&color=fff&size=64'" 
+                              class="rounded-circle me-2" 
+                              width="32" 
+                              height="32"
+                              alt="User Avatar"
+                            >
+                            <div>
+                              <div class="fw-medium">{{ user.name || 'Unknown' }}</div>
+                              <small class="text-muted">@{{ user.username || 'user' }}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="text-end">
+                          <span class="fw-medium">{{ (user.points || 0).toLocaleString() }}</span>
+                          <div class="progress mt-1" style="height: 4px;">
+                            <div 
+                              class="progress-bar" 
+                              role="progressbar" 
+                              :style="{ width: (user.activity || 0) + '%' }"
+                              :aria-valuenow="user.activity || 0" 
+                              aria-valuemin="0" 
+                              aria-valuemax="100"
+                            ></div>
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <span class="badge bg-primary">Level {{ user.level || 1 }}</span>
+                          <div v-if="user.remarks" class="small text-muted mt-1">{{ user.remarks }}</div>
+                        </td>
+                        <td class="text-end">
+                          <button 
+                            v-if="user.id !== currentUser?.id"
+                            class="btn btn-sm btn-outline-primary"
+                            @click="toggleFriend(user.id)"
+                          >
+                            <i class="bi bi-person-plus"></i>
+                          </button>
+                          <router-link 
+                            v-else
+                            to="/profile" 
+                            class="btn btn-sm btn-outline-primary"
+                          >
+                            <i class="bi bi-person-lines-fill"></i>
+                          </router-link>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
               
               <!-- Friends Leaderboard -->
               <div class="tab-pane fade" id="friends" role="tabpanel" aria-labelledby="friends-tab">
                 <div v-if="friends.length > 0">
-                  <leaderboard-table 
-                    :users="friends" 
-                    :current-user-id="currentUser.id"
-                    :loading="loading"
-                  />
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                      <thead class="table-light">
+                        <tr>
+                          <th style="width: 50px;">#</th>
+                          <th>User</th>
+                          <th class="text-end">Points</th>
+                          <th class="text-center">Level</th>
+                          <th class="text-end">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr 
+                          v-for="user in friends" 
+                          :key="user.id || user.rank"
+                          :class="{ 'table-primary': user.id === currentUser?.id }"
+                        >
+                          <td>
+                            <span 
+                              class="d-flex align-items-center justify-content-center rounded-circle"
+                              :class="{
+                                'bg-warning text-dark': user.rank === 1,
+                                'bg-secondary bg-opacity-25': user.rank === 2,
+                                'bg-danger bg-opacity-25': user.rank === 3,
+                                'bg-light': user.rank > 3
+                              }"
+                              style="width: 32px; height: 32px;"
+                            >
+                              {{ user.rank }}
+                            </span>
+                          </td>
+                          <td>
+                            <div class="d-flex align-items-center">
+                              <img 
+                                :src="user.avatar || 'https://ui-avatars.com/api/?name=' + (user.name || 'User') + '&background=4e73df&color=fff&size=64'" 
+                                class="rounded-circle me-2" 
+                                width="32" 
+                                height="32"
+                                alt="User Avatar"
+                              >
+                              <div>
+                                <div class="fw-medium">{{ user.name || 'Unknown' }}</div>
+                                <small class="text-muted">@{{ user.username || 'user' }}</small>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="text-end">
+                            <span class="fw-medium">{{ (user.points || 0).toLocaleString() }}</span>
+                            <div class="progress mt-1" style="height: 4px;">
+                              <div 
+                                class="progress-bar" 
+                                role="progressbar" 
+                                :style="{ width: (user.activity || 0) + '%' }"
+                                :aria-valuenow="user.activity || 0" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100"
+                              ></div>
+                            </div>
+                          </td>
+                          <td class="text-center">
+                            <span class="badge bg-primary">Level {{ user.level || 1 }}</span>
+                            <div v-if="user.remarks" class="small text-muted mt-1">{{ user.remarks }}</div>
+                          </td>
+                          <td class="text-end">
+                            <button 
+                              v-if="user.id !== currentUser?.id"
+                              class="btn btn-sm btn-outline-primary"
+                              @click="toggleFriend(user.id)"
+                            >
+                              <i class="bi bi-person-plus"></i>
+                            </button>
+                            <router-link 
+                              v-else
+                              to="/profile" 
+                              class="btn btn-sm btn-outline-primary"
+                            >
+                              <i class="bi bi-person-lines-fill"></i>
+                            </router-link>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
                 <div v-else class="text-center py-5">
                   <div class="mb-3">
@@ -103,11 +291,102 @@
               
               <!-- Local Leaderboard -->
               <div class="tab-pane fade" id="local" role="tabpanel" aria-labelledby="local-tab">
-                <leaderboard-table 
-                  :users="localUsers" 
-                  :current-user-id="currentUser.id"
-                  :loading="loading"
-                />
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>User</th>
+                        <th class="text-end">Points</th>
+                        <th class="text-center">Level</th>
+                        <th class="text-end">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-if="loading">
+                        <td colspan="5" class="text-center py-4">
+                          <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr v-else-if="!localUsers || localUsers.length === 0">
+                        <td colspan="5" class="text-center py-4">
+                          <p class="text-muted mb-0">No users found</p>
+                        </td>
+                      </tr>
+                      <tr 
+                        v-else
+                        v-for="user in localUsers" 
+                        :key="user.id || user.rank"
+                        :class="{ 'table-primary': user.id === currentUser?.id }"
+                      >
+                        <td>
+                          <span 
+                            class="d-flex align-items-center justify-content-center rounded-circle"
+                            :class="{
+                              'bg-warning text-dark': user.rank === 1,
+                              'bg-secondary bg-opacity-25': user.rank === 2,
+                              'bg-danger bg-opacity-25': user.rank === 3,
+                              'bg-light': user.rank > 3
+                            }"
+                            style="width: 32px; height: 32px;"
+                          >
+                            {{ user.rank }}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="d-flex align-items-center">
+                            <img 
+                              :src="user.avatar || 'https://ui-avatars.com/api/?name=' + (user.name || 'User') + '&background=4e73df&color=fff&size=64'" 
+                              class="rounded-circle me-2" 
+                              width="32" 
+                              height="32"
+                              alt="User Avatar"
+                            >
+                            <div>
+                              <div class="fw-medium">{{ user.name || 'Unknown' }}</div>
+                              <small class="text-muted">@{{ user.username || 'user' }}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="text-end">
+                          <span class="fw-medium">{{ (user.points || 0).toLocaleString() }}</span>
+                          <div class="progress mt-1" style="height: 4px;">
+                            <div 
+                              class="progress-bar" 
+                              role="progressbar" 
+                              :style="{ width: (user.activity || 0) + '%' }"
+                              :aria-valuenow="user.activity || 0" 
+                              aria-valuemin="0" 
+                              aria-valuemax="100"
+                            ></div>
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <span class="badge bg-primary">Level {{ user.level || 1 }}</span>
+                          <div v-if="user.remarks" class="small text-muted mt-1">{{ user.remarks }}</div>
+                        </td>
+                        <td class="text-end">
+                          <button 
+                            v-if="user.id !== currentUser?.id"
+                            class="btn btn-sm btn-outline-primary"
+                            @click="toggleFriend(user.id)"
+                          >
+                            <i class="bi bi-person-plus"></i>
+                          </button>
+                          <router-link 
+                            v-else
+                            to="/profile" 
+                            class="btn btn-sm btn-outline-primary"
+                          >
+                            <i class="bi bi-person-lines-fill"></i>
+                          </router-link>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -121,31 +400,31 @@
           <div class="card-body text-center">
             <div class="position-relative d-inline-block mb-3">
               <img 
-                :src="currentUser.avatar || 'https://ui-avatars.com/api/?name=' + currentUser.name + '&background=4e73df&color=fff&size=128'" 
+                :src="currentUser?.avatar || 'https://ui-avatars.com/api/?name=' + (currentUser?.name || 'User') + '&background=4e73df&color=fff&size=128'" 
                 class="rounded-circle border border-3 border-primary" 
                 width="100" 
                 height="100"
                 alt="User Avatar"
               >
-              <span class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+              <span v-if="currentUser?.rank" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
                     style="width: 32px; height: 32px;">
                 {{ currentUser.rank }}
               </span>
             </div>
-            <h4 class="mb-1">{{ currentUser.name }}</h4>
-            <p class="text-muted mb-3">@{{ currentUser.username }}</p>
+            <h4 class="mb-1">{{ currentUser?.name || 'User' }}</h4>
+            <p class="text-muted mb-3">@{{ currentUser?.username || 'username' }}</p>
             
             <div class="d-flex justify-content-center gap-4 mb-3">
               <div>
-                <div class="h4 mb-0">{{ currentUser.points.toLocaleString() }}</div>
+                <div class="h4 mb-0">{{ (currentUser?.points || 0).toLocaleString() }}</div>
                 <small class="text-muted">Points</small>
               </div>
               <div>
-                <div class="h4 mb-0">{{ currentUser.quizzes }}</div>
+                <div class="h4 mb-0">{{ currentUser?.quizzes || 0 }}</div>
                 <small class="text-muted">Quizzes</small>
               </div>
               <div>
-                <div class="h4 mb-0">{{ currentUser.friends }}</div>
+                <div class="h4 mb-0">{{ currentUser?.friends || 0 }}</div>
                 <small class="text-muted">Friends</small>
               </div>
             </div>
@@ -154,14 +433,14 @@
               <div 
                 class="progress-bar bg-success" 
                 role="progressbar" 
-                :style="{ width: currentUser.progress + '%' }"
-                :aria-valuenow="currentUser.progress" 
+                :style="{ width: (currentUser?.progress || 0) + '%' }"
+                :aria-valuenow="currentUser?.progress || 0" 
                 aria-valuemin="0" 
                 aria-valuemax="100"
               ></div>
             </div>
             <p class="small text-muted mb-0">
-              {{ currentUser.pointsToNextLevel }} points to next level
+              {{ (currentUser?.pointsToNextLevel || 0).toLocaleString() }} points to next level
             </p>
           </div>
         </div>
@@ -172,7 +451,7 @@
             <h5 class="mb-0">Your Badges</h5>
           </div>
           <div class="card-body">
-            <div v-if="currentUser.badges.length > 0" class="row g-3">
+            <div v-if="currentUser?.badges && currentUser.badges.length > 0" class="row g-3">
               <div v-for="(badge, index) in currentUser.badges" :key="index" class="col-4 text-center">
                 <div class="badge-icon mb-2" :title="badge.name">
                   <i :class="badge.icon" class="text-warning" style="font-size: 2rem;"></i>
@@ -252,271 +531,190 @@
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import api from '../../services/api';
+import { useAuthStore } from '../../stores/auth';
 
-// Components
-const LeaderboardTable = {
-  props: ['users', 'currentUserId', 'loading'],
-  template: `
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th style="width: 50px;">#</th>
-            <th>User</th>
-            <th class="text-end">Points</th>
-            <th class="text-center">Level</th>
-            <th class="text-end">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading">
-            <td colspan="5" class="text-center py-4">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-              </div>
-            </td>
-          </tr>
-          <tr v-else-if="!users || users.length === 0">
-            <td colspan="5" class="text-center py-4">
-              <p class="text-muted mb-0">No users found</p>
-            </td>
-          </tr>
-          <tr 
-            v-else
-            v-for="(user, index) in users" 
-            :key="user.id"
-            :class="{ 'table-primary': user.id === currentUserId }"
-          >
-            <td>
-              <span 
-                class="d-flex align-items-center justify-content-center rounded-circle"
-                :class="{
-                  'bg-warning text-dark': index === 0,
-                  'bg-secondary bg-opacity-25': index === 1,
-                  'bg-danger bg-opacity-25': index === 2,
-                  'bg-light': index > 2
-                }"
-                style="width: 32px; height: 32px;"
-              >
-                {{ index + 1 }}
-              </span>
-            </td>
-            <td>
-              <div class="d-flex align-items-center">
-                <img 
-                  :src="user.avatar || 'https://ui-avatars.com/api/?name=' + user.name + '&background=4e73df&color=fff&size=64'" 
-                  class="rounded-circle me-2" 
-                  width="32" 
-                  height="32"
-                  alt="User Avatar"
-                >
-                <div>
-                  <div class="fw-medium">{{ user.name }}</div>
-                  <small class="text-muted">@{{ user.username }}</small>
-                </div>
-              </div>
-            </td>
-            <td class="text-end">
-              <span class="fw-medium">{{ user.points.toLocaleString() }}</span>
-              <div class="progress mt-1" style="height: 4px;">
-                <div 
-                  class="progress-bar" 
-                  role="progressbar" 
-                  :style="{ width: user.activity + '%' }"
-                  :aria-valuenow="user.activity" 
-                  aria-valuemin="0" 
-                  aria-valuemax="100"
-                ></div>
-              </div>
-            </td>
-            <td class="text-center">
-              <span class="badge bg-primary">Level {{ user.level }}</span>
-            </td>
-            <td class="text-end">
-              <button 
-                v-if="user.id !== currentUserId"
-                class="btn btn-sm" 
-                :class="user.isFriend ? 'btn-outline-secondary' : 'btn-outline-primary'"
-                @click="$emit('toggle-friend', user.id)"
-              >
-                <i :class="user.isFriend ? 'bi-person-check' : 'bi-person-plus'"></i>
-              </button>
-              <router-link 
-                v-else
-                to="/profile" 
-                class="btn btn-sm btn-outline-primary"
-              >
-                <i class="bi-person-lines-fill"></i>
-              </router-link>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  `
-};
+const authStore = useAuthStore();
 
 // Data
 const timeRange = ref('monthly');
 const searchQuery = ref('');
 const showFindFriends = ref(false);
 const friendSearch = ref('');
-const loading = ref(false);
+const loading = ref(true);
 
 // Current user data
 const currentUser = ref({
-  id: 'user123',
-  name: 'John Doe',
-  username: 'johndoe',
-  avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-  rank: 7,
-  points: 12450,
-  quizzes: 24,
-  friends: 18,
-  progress: 65,
-  pointsToNextLevel: '2,450',
-  level: 8,
-  badges: [
-    { name: 'Quiz Master', icon: 'bi-trophy' },
-    { name: 'Eco Warrior', icon: 'bi-award' },
-    { name: 'Perfect Score', icon: 'bi-stars' },
-    { name: 'Streak Champion', icon: 'bi-lightning' },
-    { name: 'Early Adopter', icon: 'bi-flag' },
-    { name: 'Community Hero', icon: 'bi-heart' }
-  ]
+  id: null,
+  name: '',
+  username: '',
+  avatar: '',
+  rank: 0,
+  points: 0,
+  quizzes: 0,
+  friends: 0,
+  progress: 0,
+  pointsToNextLevel: 0,
+  level: 1,
+  badges: []
 });
 
-// Sample leaderboard data
-const users = ref([
-  { 
-    id: 'user1', 
-    name: 'Alex Johnson', 
-    username: 'alexj', 
-    avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-    points: 24500, 
-    level: 12, 
-    activity: 95,
-    isFriend: true
-  },
-  { 
-    id: 'user2', 
-    name: 'Sarah Williams', 
-    username: 'sarahw', 
-    avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-    points: 23120, 
-    level: 11, 
-    activity: 92,
-    isFriend: false
-  },
-  { 
-    id: 'user3', 
-    name: 'Michael Brown', 
-    username: 'michaelb', 
-    avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
-    points: 21870, 
-    level: 11, 
-    activity: 88,
-    isFriend: true
-  },
-  { 
-    id: 'user4', 
-    name: 'Emily Davis', 
-    username: 'emilyd', 
-    avatar: 'https://randomuser.me/api/portraits/women/4.jpg',
-    points: 19850, 
-    level: 10, 
-    activity: 85,
-    isFriend: false
-  },
-  { 
-    id: 'user5', 
-    name: 'David Wilson', 
-    username: 'davidw', 
-    avatar: 'https://randomuser.me/api/portraits/men/5.jpg',
-    points: 18430, 
-    level: 10, 
-    activity: 82,
-    isFriend: true
-  },
-  { 
-    id: 'user6', 
-    name: 'Jessica Lee', 
-    username: 'jessical', 
-    avatar: 'https://randomuser.me/api/portraits/women/6.jpg',
-    points: 16780, 
-    level: 9, 
-    activity: 78,
-    isFriend: false
-  },
-  // Current user
-  { 
-    id: 'user123',
-    name: 'John Doe', 
-    username: 'johndoe', 
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    points: 12450, 
-    level: 8, 
-    activity: 65,
-    isFriend: true
-  },
-  { 
-    id: 'user8', 
-    name: 'Robert Garcia', 
-    username: 'robertg', 
-    avatar: 'https://randomuser.me/api/portraits/men/8.jpg',
-    points: 11560, 
-    level: 8, 
-    activity: 62,
-    isFriend: false
-  },
-  { 
-    id: 'user9', 
-    name: 'Lisa Martinez', 
-    username: 'lisam', 
-    avatar: 'https://randomuser.me/api/portraits/women/9.jpg',
-    points: 9870, 
-    level: 7, 
-    activity: 58,
-    isFriend: true
-  },
-  { 
-    id: 'user10', 
-    name: 'James Rodriguez', 
-    username: 'jamesr', 
-    avatar: 'https://randomuser.me/api/portraits/men/10.jpg',
-    points: 8760, 
-    level: 7, 
-    activity: 55,
-    isFriend: false
+// Leaderboard data
+const users = ref([]);
+const leaderboardData = ref(null);
+const errorMessage = ref('');
+
+// Helper function to calculate level from points
+const calculateLevel = (points) => {
+  // Level = floor(points / 1000) + 1, minimum level 1
+  return Math.max(1, Math.floor(points / 1000) + 1);
+};
+
+// Helper function to calculate progress to next level
+const calculateProgress = (points) => {
+  const currentLevel = calculateLevel(points);
+  const pointsForCurrentLevel = (currentLevel - 1) * 1000;
+  const pointsInCurrentLevel = points - pointsForCurrentLevel;
+  const pointsNeededForNextLevel = currentLevel * 1000;
+  const progress = (pointsInCurrentLevel / 1000) * 100;
+  const pointsToNext = pointsNeededForNextLevel - points;
+  return { progress: Math.min(100, Math.max(0, progress)), pointsToNext };
+};
+
+// Helper function to calculate activity percentage (simplified)
+const calculateActivity = (points, maxPoints = 50000) => {
+  // Activity based on points relative to max in leaderboard
+  // This is a simplified calculation
+  if (!points || points === 0) return 10;
+  if (maxPoints === 0) return 10;
+  return Math.min(100, Math.max(10, Math.floor((points / maxPoints) * 100)));
+};
+
+// Fetch leaderboard data from backend
+const fetchLeaderboard = async () => {
+  try {
+    loading.value = true;
+    errorMessage.value = '';
+    const response = await api.get('/primary/leaderboard');
+    const data = response.data;
+    
+    console.log('Leaderboard data received:', data);
+    
+    leaderboardData.value = data;
+    
+    // Check if leaderboard data exists
+    if (!data.leaderboard || !Array.isArray(data.leaderboard)) {
+      console.error('Invalid leaderboard data structure:', data);
+      users.value = [];
+      loading.value = false;
+      return;
+    }
+    
+    // Find max points for activity calculation
+    const maxPoints = data.leaderboard.length > 0 
+      ? Math.max(...data.leaderboard.map(e => e.points || 0))
+      : 50000;
+    
+    // Transform backend data to frontend format
+    users.value = data.leaderboard.map((entry) => {
+      const username = entry.user || entry.username || 'Unknown';
+      const name = entry.name || username.split('@')[0] || username;
+      const points = entry.points || 0;
+      
+      return {
+        id: entry.id || `user_${entry.rank}`,
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        username: username,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4e73df&color=fff&size=64`,
+        points: points,
+        level: calculateLevel(points),
+        activity: calculateActivity(points, maxPoints),
+        isFriend: false, // Friends feature not implemented yet
+        rank: entry.rank || 0,
+        remarks: entry.remarks || ''
+      };
+    });
+    
+    console.log('Transformed users:', users.value);
+    
+    // Update current user info
+    if (authStore.user) {
+      const userProgress = calculateProgress(data.user_score || 0);
+      const currentUserId = authStore.user.id;
+      currentUser.value = {
+        id: currentUserId,
+        name: authStore.user.name || authStore.user.username || 'You',
+        username: authStore.user.username || authStore.user.email || 'user',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(authStore.user.name || authStore.user.username || 'User')}&background=4e73df&color=fff&size=128`,
+        rank: data.user_rank || 0,
+        points: data.user_score || 0,
+        quizzes: 0, // Could fetch from dashboard
+        friends: 0, // Friends feature not implemented
+        progress: userProgress.progress,
+        pointsToNextLevel: userProgress.pointsToNext,
+        level: calculateLevel(data.user_score || 0),
+        badges: [] // Badges feature not implemented yet
+      };
+      
+      console.log('Current user:', currentUser.value);
+    } else {
+      console.warn('No user in auth store');
+    }
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    errorMessage.value = error.response?.data?.error || 'Failed to load leaderboard data. Please try again.';
+    users.value = [];
+  } finally {
+    loading.value = false;
   }
-]);
+};
 
 // Computed properties
 const filteredUsers = computed(() => {
-  return users.value
-    .filter(user => 
-      user.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      user.username.toLowerCase().includes(searchQuery.value.toLowerCase())
-    )
-    .sort((a, b) => b.points - a.points);
+  if (!users.value || users.value.length === 0) {
+    return [];
+  }
+  
+  let filtered = users.value;
+  
+  // Apply search filter if search query exists
+  if (searchQuery.value && searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim();
+    filtered = filtered.filter(user => 
+      (user.name && user.name.toLowerCase().includes(query)) ||
+      (user.username && user.username.toLowerCase().includes(query))
+    );
+  }
+  
+  // Sort by points (descending)
+  return filtered.sort((a, b) => (b.points || 0) - (a.points || 0));
 });
 
 const friends = computed(() => {
+  if (!users.value || users.value.length === 0) {
+    return [];
+  }
   return users.value
-    .filter(user => user.isFriend && user.id !== currentUser.value.id)
-    .sort((a, b) => b.points - a.points);
+    .filter(user => user.isFriend && user.id !== currentUser.value?.id)
+    .sort((a, b) => (b.points || 0) - (a.points || 0));
 });
 
 const localUsers = computed(() => {
   // In a real app, this would filter users by location
+  // For now, just show top 10 users
+  if (!users.value || users.value.length === 0) {
+    return [];
+  }
   return users.value
-    .slice(0, 10) // Just show top 10 for demo
-    .sort((a, b) => b.points - a.points);
+    .slice(0, 10)
+    .sort((a, b) => (b.points || 0) - (a.points || 0));
 });
 
 const friendSearchResults = computed(() => {
@@ -546,11 +744,7 @@ const toggleFriend = (userId) => {
 
 // Lifecycle hooks
 onMounted(() => {
-  // In a real app, you would fetch leaderboard data here
-  loading.value = true;
-  setTimeout(() => {
-    loading.value = false;
-  }, 1000);
+  fetchLeaderboard();
 });
 </script>
 
