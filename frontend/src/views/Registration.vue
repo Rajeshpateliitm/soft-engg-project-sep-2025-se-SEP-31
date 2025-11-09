@@ -67,23 +67,8 @@
                   </div>
                 </div>
 
-                <div class="mb-3">
-                  <label for="userType" class="form-label">I am a</label>
-                  <select 
-                    class="form-select" 
-                    id="userType" 
-                    v-model="formData.userType"
-                    required
-                  >
-                    <option value="" disabled>Select user type</option>
-                    <option value="primary">Primary User (Individual)</option>
-                    <option value="secondary">Secondary User (Organization)</option>
-                    <option value="tertiary">Tertiary User (Municipality)</option>
-                  </select>
-                  <div class="invalid-feedback">
-                    Please select a user type.
-                  </div>
-                </div>
+                <!-- Note: Only Primary Users (Individuals) can register through public sign-up -->
+                <!-- Secondary and Tertiary users are provisioned by administrators -->
 
                 <div class="row">
                   <div class="col-md-6 mb-3">
@@ -204,7 +189,6 @@ const formData = ref({
   email: '',
   password: '',
   confirmPassword: '',
-  userType: '',
   house_number: '',
   ward_number: '',
   family_members: 1,

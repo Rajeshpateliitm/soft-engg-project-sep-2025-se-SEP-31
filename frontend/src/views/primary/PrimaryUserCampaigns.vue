@@ -128,7 +128,7 @@
     <div v-if="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
       {{ successMessage }}
       <button type="button" class="btn-close" @click="successMessage = ''"></button>
-    </div>
+          </div>
     <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
       {{ errorMessage }}
       <button type="button" class="btn-close" @click="errorMessage = ''"></button>

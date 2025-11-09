@@ -23,6 +23,8 @@ const SecondaryUserPickupDetails = () => import('@/views/secondary/SecondaryUser
 const SecondaryUserPickupSummary = () => import('@/views/secondary/SecondaryUserPickupSummary.vue');
 const SecondaryUserDailyPickupDetails = () => import('@/views/secondary/SecondaryUserDailyPickupDetails.vue');
 const SecondaryUserCreateCampaign = () => import('@/views/secondary/SecondaryUserCreateCampaign.vue');
+const CollectorNavbar = () => import('@/components/layout/CollectorNavbar.vue');
+const CollectorDashboard = () => import('@/views/collector/CollectorDashboard.vue');
 const TertiaryUserDashboard = () => import('@/views/TertiaryUserDashboard.vue');
 
 const routes = [
@@ -136,6 +138,27 @@ const routes = [
         path: 'daily-pickup-details', 
         name: 'SecondaryUserDailyPickupDetails',
         component: SecondaryUserDailyPickupDetails 
+      }
+    ]
+  },
+  { 
+    path: '/collector-dashboard', 
+    component: CollectorNavbar,
+    children: [
+      { 
+        path: '', 
+        name: 'CollectorDashboard',
+        component: CollectorDashboard 
+      },
+      { 
+        path: 'daily-pickup-details', 
+        name: 'CollectorDailyPickupDetails',
+        component: SecondaryUserDailyPickupDetails 
+      },
+      { 
+        path: 'pickup-summary', 
+        name: 'CollectorPickupSummary',
+        component: SecondaryUserPickupSummary 
       }
     ]
   },

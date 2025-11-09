@@ -7,9 +7,9 @@
             <button class="btn btn-link text-white p-0 me-2" @click="goBack">
               <i class="bi bi-arrow-left" style="font-size: 1.5rem;"></i>
             </button>
-            <h2 class="text-white fw-bold mb-0">CREATE CAMPAIGN</h2>
+            <h2 class="text-white fw-bold mb-0">{{ isEditMode ? 'EDIT CAMPAIGN' : 'CREATE CAMPAIGN' }}</h2>
           </div>
-          <p class="text-white-50">Create a new waste management campaign for your RWA community</p>
+          <p class="text-white-50">{{ isEditMode ? 'Update your waste management campaign' : 'Create a new waste management campaign for your RWA community' }}</p>
         </div>
       </div>
 
@@ -91,7 +91,7 @@
                 <!-- Campaign Date and Time -->
                 <div class="row">
                   <div class="col-md-6 mb-4">
-                    <label class="form-label fw-bold">Start Date</label>
+                    <label class="form-label fw-bold">Event Date</label>
                     <input 
                       type="date" 
                       class="form-control form-control-lg"
@@ -100,7 +100,7 @@
                     >
                   </div>
                   <div class="col-md-6 mb-4">
-                    <label class="form-label fw-bold">Start Time</label>
+                    <label class="form-label fw-bold">Event Time</label>
                     <input 
                       type="time" 
                       class="form-control form-control-lg"
@@ -110,50 +110,30 @@
                   </div>
                 </div>
 
-                <div class="row">
-                  <div class="col-md-6 mb-4">
-                    <label class="form-label fw-bold">End Date</label>
-                    <input 
-                      type="date" 
-                      class="form-control form-control-lg"
-                      v-model="formData.endDate"
-                      required
-                    >
-                  </div>
-                  <div class="col-md-6 mb-4">
-                    <label class="form-label fw-bold">End Time</label>
-                    <input 
-                      type="time" 
-                      class="form-control form-control-lg"
-                      v-model="formData.endTime"
-                      required
-                    >
-                  </div>
-                </div>
-
                 <!-- Additional Fields -->
                 <div class="row">
                   <div class="col-md-6 mb-4">
-                    <label class="form-label fw-bold">Category</label>
-                    <select class="form-select form-select-lg" v-model="formData.category" required>
-                      <option value="">Select a category</option>
+                    <label class="form-label fw-bold">Category <span class="text-muted">(Optional - auto-detected)</span></label>
+                    <select class="form-select form-select-lg" v-model="formData.category">
+                      <option value="">Auto-detect from description</option>
                       <option value="recycling">Recycling</option>
                       <option value="composting">Composting</option>
                       <option value="cleanup">Cleanup</option>
                       <option value="education">Education</option>
                       <option value="other">Other</option>
                     </select>
+                    <small class="text-muted">Category helps organize campaigns. It will be auto-detected from your description if not specified.</small>
                   </div>
                   <div class="col-md-6 mb-4">
-                    <label class="form-label fw-bold">Target Participants</label>
+                    <label class="form-label fw-bold">Pincode <span class="text-muted">(Optional)</span></label>
                     <input 
-                      type="number" 
+                      type="text" 
                       class="form-control form-control-lg"
-                      placeholder="Expected number of participants"
-                      v-model.number="formData.targetParticipants"
-                      min="1"
-                      required
+                      placeholder="Campaign area pincode"
+                      v-model="formData.pincode"
+                      maxlength="12"
                     >
+                    <small class="text-muted">Leave empty to use your RWA's pincode</small>
                   </div>
                 </div>
 
@@ -162,8 +142,10 @@
                   <button type="button" class="btn btn-outline-secondary btn-lg" @click="goBack">
                     Cancel
                   </button>
-                  <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-check-lg me-2"></i>Create
+                  <button type="submit" class="btn btn-primary btn-lg" :disabled="isSubmitting">
+                    <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <i v-else class="bi bi-check-lg me-2"></i>
+                    {{ isSubmitting ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update' : 'Create') }}
                   </button>
                 </div>
               </form>
@@ -176,11 +158,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import api from '@/services/api';
 
 const router = useRouter();
+const route = useRoute();
 const imageInput = ref(null);
+const isSubmitting = ref(false);
+const isEditMode = ref(false);
+const campaignId = ref(null);
 
 const formData = ref({
   campaignName: '',
@@ -188,13 +175,47 @@ const formData = ref({
   campaignLocation: '',
   startDate: '',
   startTime: '',
-  endDate: '',
-  endTime: '',
   category: '',
-  targetParticipants: '',
+  pincode: '',
   imageUrl: '',
   imagePreview: ''
 });
+
+// Check if we're in edit mode
+onMounted(() => {
+  const editId = route.query.edit;
+  if (editId) {
+    isEditMode.value = true;
+    campaignId.value = parseInt(editId);
+    loadCampaignForEdit();
+  }
+});
+
+// Load campaign data for editing
+const loadCampaignForEdit = () => {
+  const campaignData = sessionStorage.getItem('campaignToEdit');
+  if (campaignData) {
+    try {
+      const campaign = JSON.parse(campaignData);
+      formData.value.campaignName = campaign.title || '';
+      formData.value.campaignDetails = campaign.description || '';
+      formData.value.campaignLocation = campaign.location || '';
+      
+      if (campaign.event_datetime) {
+        const eventDate = new Date(campaign.event_datetime);
+        formData.value.startDate = eventDate.toISOString().split('T')[0];
+        formData.value.startTime = eventDate.toTimeString().slice(0, 5);
+      }
+      
+      formData.value.category = campaign.category || '';
+      formData.value.pincode = campaign.pincode || '';
+      formData.value.imageUrl = campaign.image || '';
+      formData.value.imagePreview = campaign.image || '';
+    } catch (error) {
+      console.error('Error loading campaign data:', error);
+    }
+  }
+};
 
 const handleImageUpload = (event) => {
   const file = event.target.files[0];
@@ -202,6 +223,7 @@ const handleImageUpload = (event) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       formData.value.imagePreview = e.target.result;
+      formData.value.imageUrl = e.target.result; // Use base64 or URL
     };
     reader.readAsDataURL(file);
   }
@@ -221,33 +243,55 @@ const removeImage = () => {
   }
 };
 
-const submitForm = () => {
-  // Validate form
+const submitForm = async () => {
+  // Validate form - only check required fields
   if (!formData.value.campaignName || !formData.value.campaignDetails || 
       !formData.value.campaignLocation || !formData.value.startDate || 
-      !formData.value.endDate || !formData.value.category) {
-    alert('Please fill in all required fields');
+      !formData.value.startTime) {
+    alert('Please fill in all required fields (Name, Description, Location, Date, and Time)');
     return;
   }
 
-  // Validate dates
-  const startDateTime = new Date(`${formData.value.startDate}T${formData.value.startTime}`);
-  const endDateTime = new Date(`${formData.value.endDate}T${formData.value.endTime}`);
-
-  if (endDateTime <= startDateTime) {
-    alert('End date and time must be after start date and time');
-    return;
+  try {
+    isSubmitting.value = true;
+    
+    // Combine date and time into format: "YYYY-MM-DD HH:MM"
+    const eventDateTime = `${formData.value.startDate} ${formData.value.startTime}`;
+    
+    const campaignData = {
+      name: formData.value.campaignName,
+      description: formData.value.campaignDetails,
+      location: formData.value.campaignLocation,
+      event_datetime: eventDateTime,
+      image_url: formData.value.imageUrl || null,
+      pincode: formData.value.pincode || null
+    };
+    
+    if (isEditMode.value && campaignId.value) {
+      // Update existing campaign
+      await api.put(`/secondary/campaigns/${campaignId.value}`, campaignData);
+      alert('Campaign updated successfully!');
+    } else {
+      // Create new campaign
+      await api.post('/secondary/campaigns/create', campaignData);
+      alert('Campaign created successfully!');
+    }
+    
+    // Clear session storage
+    sessionStorage.removeItem('campaignToEdit');
+    
+    // Redirect to campaigns page
+    router.push('/secondary-dashboard/campaigns');
+  } catch (error) {
+    console.error('Error saving campaign:', error);
+    alert(error.response?.data?.error || 'Failed to save campaign. Please try again.');
+  } finally {
+    isSubmitting.value = false;
   }
-
-  // Here you would typically send the data to your backend API
-  console.log('Campaign created:', formData.value);
-  
-  // Show success message and redirect
-  alert('Campaign created successfully!');
-  router.push('/secondary-dashboard/campaigns');
 };
 
 const goBack = () => {
+  sessionStorage.removeItem('campaignToEdit');
   router.push('/secondary-dashboard/campaigns');
 };
 </script>

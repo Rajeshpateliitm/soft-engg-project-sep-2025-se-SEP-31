@@ -14,7 +14,7 @@
           <div class="card shadow-lg h-100">
             <div class="card-body text-center">
               <h6 class="card-title text-muted">Total Waste Collected</h6>
-              <h3 class="card-text fw-bold text-primary">250 KG</h3>
+              <h3 class="card-text fw-bold text-primary">{{ totalWaste }} KG</h3>
               <p class="card-text text-muted small">This month</p>
             </div>
           </div>
@@ -24,7 +24,7 @@
           <div class="card shadow-lg h-100">
             <div class="card-body text-center">
               <h6 class="card-title text-muted">Waste Diverted</h6>
-              <h3 class="card-text fw-bold text-success">180 KG</h3>
+              <h3 class="card-text fw-bold text-success">{{ totalDiverted }} KG</h3>
               <p class="card-text text-muted small">Recycled/Composted</p>
             </div>
           </div>
@@ -34,7 +34,7 @@
           <div class="card shadow-lg h-100">
             <div class="card-body text-center">
               <h6 class="card-title text-muted">Landfill Waste</h6>
-              <h3 class="card-text fw-bold text-danger">70 KG</h3>
+              <h3 class="card-text fw-bold text-danger">{{ totalLandfill }} KG</h3>
               <p class="card-text text-muted small">Sent to landfill</p>
             </div>
           </div>
@@ -44,7 +44,7 @@
           <div class="card shadow-lg h-100">
             <div class="card-body text-center">
               <h6 class="card-title text-muted">Diversion Rate</h6>
-              <h3 class="card-text fw-bold text-info">72%</h3>
+              <h3 class="card-text fw-bold text-info">{{ diversionRate }}%</h3>
               <p class="card-text text-muted small">Waste diverted</p>
             </div>
           </div>
@@ -70,29 +70,40 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>Organic Waste</td>
-                      <td>120 KG</td>
-                      <td>48%</td>
-                      <td><span class="badge bg-success">Composted</span></td>
+                    <tr v-if="loading">
+                      <td colspan="4" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="errorMessage">
+                      <td colspan="4" class="text-center py-4">
+                        <div class="alert alert-danger mb-0">{{ errorMessage }}</div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="wasteData.household_details.length === 0">
+                      <td colspan="4" class="text-center py-4 text-muted">
+                        No waste data available
+                      </td>
+                    </tr>
+                    <tr v-else>
+                      <td>Total Households</td>
+                      <td>{{ wasteData.total_households }}</td>
+                      <td>100%</td>
+                      <td><span class="badge bg-info">Active</span></td>
                     </tr>
                     <tr>
-                      <td>Recyclable Waste</td>
-                      <td>80 KG</td>
-                      <td>32%</td>
-                      <td><span class="badge bg-info">Recycled</span></td>
+                      <td>Segregation Rate</td>
+                      <td>{{ wasteData.segregation_rate }}%</td>
+                      <td>{{ wasteData.segregation_rate }}%</td>
+                      <td><span class="badge bg-success">Good</span></td>
                     </tr>
                     <tr>
-                      <td>Hazardous Waste</td>
-                      <td>20 KG</td>
-                      <td>8%</td>
-                      <td><span class="badge bg-warning">Processed</span></td>
-                    </tr>
-                    <tr>
-                      <td>Landfill Waste</td>
-                      <td>30 KG</td>
-                      <td>12%</td>
-                      <td><span class="badge bg-danger">Landfill</span></td>
+                      <td>Recycle/Reuse/Donation Rate</td>
+                      <td>{{ wasteData.recycle_reuse_donations_rate }}%</td>
+                      <td>{{ wasteData.recycle_reuse_donations_rate }}%</td>
+                      <td><span class="badge bg-info">Active</span></td>
                     </tr>
                   </tbody>
                 </table>
@@ -106,7 +117,59 @@
 </template>
 
 <script setup>
-// Secondary User Waste Summary component
+import { ref, onMounted, computed } from 'vue';
+import api from '@/services/api';
+
+const loading = ref(true);
+const errorMessage = ref('');
+const wasteData = ref({
+  total_households: 0,
+  segregation_rate: 0,
+  recycle_reuse_donations_rate: 0,
+  household_details: []
+});
+
+const totalWaste = computed(() => {
+  return wasteData.value.household_details.reduce((sum, hh) => {
+    return sum + hh.per_capita_wet + hh.per_capita_dry + hh.per_capita_hazardous;
+  }, 0).toFixed(0);
+});
+
+const totalDiverted = computed(() => {
+  return wasteData.value.household_details.reduce((sum, hh) => {
+    const diverted = (hh.recycle_reuse_donation_percentage / 100) * (hh.per_capita_wet + hh.per_capita_dry + hh.per_capita_hazardous);
+    return sum + diverted;
+  }, 0).toFixed(0);
+});
+
+const totalLandfill = computed(() => {
+  return (totalWaste.value - totalDiverted.value).toFixed(0);
+});
+
+const diversionRate = computed(() => {
+  if (totalWaste.value > 0) {
+    return ((totalDiverted.value / totalWaste.value) * 100).toFixed(0);
+  }
+  return 0;
+});
+
+const fetchWasteSummary = async () => {
+  try {
+    loading.value = true;
+    errorMessage.value = '';
+    const response = await api.get('/secondary/waste-summary');
+    wasteData.value = response.data;
+  } catch (error) {
+    console.error('Error fetching waste summary:', error);
+    errorMessage.value = error.response?.data?.error || 'Failed to load waste summary. Please try again.';
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchWasteSummary();
+});
 </script>
 
 <style scoped>
