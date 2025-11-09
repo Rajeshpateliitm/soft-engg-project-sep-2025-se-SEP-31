@@ -12,6 +12,7 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => !!state.token,
     userCategory: (state) => state.user?.user_category || null,
     userName: (state) => state.user?.username || state.user?.email || 'User',
+    rwaRole: (state) => state.user?.rwa_role || null, // "admin", "collector", or null
   },
 
   actions: {
@@ -45,12 +46,8 @@ export const useAuthStore = defineStore('auth', {
     // Register user
     async register(userData) {
       try {
-        // Map frontend user type to backend category
-        const categoryMap = {
-          'primary': 'PRIMARY',
-          'secondary': 'SECONDARY',
-          'tertiary': 'TERTIARY'
-        };
+        // Only PRIMARY users can register through public sign-up
+        // SECONDARY and TERTIARY users are provisioned by administrators
 
         const response = await api.post('/auth/register', {
           email: userData.email,
@@ -60,7 +57,7 @@ export const useAuthStore = defineStore('auth', {
           ward_number: userData.ward_number || '',
           family_members: userData.family_members || 1,
           pincode: userData.pincode || '',
-          user_category: categoryMap[userData.userType] || 'PRIMARY'
+          user_category: 'PRIMARY' // Always PRIMARY for public registration
         });
 
         if (response.data.access_token) {
@@ -126,10 +123,22 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // Get dashboard route based on user category
+    // Get dashboard route based on user category and role
     getDashboardRoute() {
       const category = this.userCategory;
       if (!category) return '/';
+
+      // For secondary users, check RWA role
+      if (category === 'SECONDARY') {
+        const rwaRole = this.rwaRole;
+        if (rwaRole === 'collector') {
+          return '/collector-dashboard';
+        } else if (rwaRole === 'admin') {
+          return '/secondary-dashboard';
+        }
+        // Default to secondary dashboard if role is unknown
+        return '/secondary-dashboard';
+      }
 
       const routeMap = {
         'PRIMARY': '/primary-dashboard',

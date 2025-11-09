@@ -10,7 +10,7 @@
             </button>
             <h2 class="text-white fw-bold mb-0">PICKUP DETAILS OF {{ selectedDateFormatted }}</h2>
           </div>
-          <p class="text-white-50">View all pickup requests and their status for the selected date</p>
+          <p class="text-white-50">{{ isCollector ? 'View and manage pickup requests for the selected date' : 'View all pickup requests and their status for the selected date (Read-only)' }}</p>
         </div>
       </div>
 
@@ -24,6 +24,7 @@
                 type="date" 
                 v-model="selectedDate"
                 class="form-control form-control-lg"
+                :max="new Date().toISOString().split('T')[0]"
                 @change="updatePickupDetails"
               >
             </div>
@@ -35,9 +36,10 @@
               <label class="form-label fw-semibold">Filter by Status</label>
               <select v-model="statusFilter" class="form-select form-select-lg" @change="updatePickupDetails">
                 <option value="">All Status</option>
-                <option value="Accept">Accept</option>
-                <option value="Reject">Reject</option>
-                <option value="Pending">Pending</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
               </select>
             </div>
           </div>
@@ -105,53 +107,84 @@
                   <thead class="table-light">
                     <tr>
                       <th>Request No.</th>
-                      <th>User ID</th>
+                      <th>Household Name</th>
+                      <th>House Number</th>
                       <th>Pick Up Location</th>
                       <th>Date of Pickup</th>
                       <th>Time of Pickup</th>
-                      <th>Disposal Quantity</th>
+                      <th>Disposal Quantity (KG)</th>
                       <th>Status</th>
-                      <th>Actions</th>
+                      <th>{{ isCollector ? 'Actions' : 'Status Details' }}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="pickup in filteredPickups" :key="pickup.id">
+                    <tr v-if="loading">
+                      <td colspan="9" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="errorMessage">
+                      <td colspan="9" class="text-center py-4">
+                        <div class="alert alert-danger mb-0">{{ errorMessage }}</div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="!loading && filteredPickups.length === 0 && pickupRequests.length === 0">
+                      <td colspan="9" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox" style="font-size: 2rem; color: #6c757d;"></i>
+                        <p class="mt-3 mb-0">No pickup requests found for the selected date.</p>
+                        <p class="text-muted small">Pickup requests are created when primary users log waste.</p>
+                      </td>
+                    </tr>
+                    <tr v-else-if="!loading && filteredPickups.length === 0 && pickupRequests.length > 0">
+                      <td colspan="9" class="text-center py-4 text-muted">
+                        <i class="bi bi-funnel" style="font-size: 2rem; color: #6c757d;"></i>
+                        <p class="mt-3 mb-0">No pickup requests match the selected status filter.</p>
+                        <p class="text-muted small">Try changing the status filter or select a different date.</p>
+                      </td>
+                    </tr>
+                    <tr v-else v-for="pickup in filteredPickups" :key="pickup.id">
                       <td><strong>{{ pickup.requestNo }}</strong></td>
-                      <td>{{ pickup.userId }}</td>
+                      <td>{{ pickup.userName || 'Unknown' }}</td>
+                      <td>{{ pickup.houseNumber || 'N/A' }}</td>
                       <td>{{ pickup.location }}</td>
                       <td>{{ pickup.date }}</td>
                       <td>{{ pickup.time }}</td>
-                      <td>{{ pickup.quantity }}</td>
+                      <td><strong>{{ pickup.quantity }}</strong></td>
                       <td>
                         <span :class="getStatusBadgeClass(pickup.status)">
-                          {{ pickup.status }}
+                          {{ getStatusDisplay(pickup.status) }}
                         </span>
                       </td>
                       <td>
-                        <div class="btn-group btn-group-sm" role="group">
+                        <div class="btn-group btn-group-sm" role="group" v-if="isCollector">
                           <button 
+                            v-if="pickup.status === 'pending'"
                             class="btn btn-success" 
-                            @click="acceptPickup(pickup.id)"
-                            :disabled="pickup.status !== 'Pending'"
+                            @click="acceptPickup(pickup.requestNo)"
                             title="Accept pickup"
                           >
-                            <i class="bi bi-check-lg"></i>
+                            <i class="bi bi-check-lg"></i> Accept
                           </button>
                           <button 
+                            v-if="pickup.status === 'pending'"
                             class="btn btn-danger" 
-                            @click="rejectPickup(pickup.id)"
-                            :disabled="pickup.status !== 'Pending'"
+                            @click="rejectPickup(pickup.requestNo)"
                             title="Reject pickup"
                           >
-                            <i class="bi bi-x-lg"></i>
+                            <i class="bi bi-x-lg"></i> Reject
                           </button>
                           <button 
                             class="btn btn-info" 
-                            @click="viewDetails(pickup.id)"
+                            @click="viewDetails(pickup.requestNo)"
                             title="View details"
                           >
                             <i class="bi bi-eye"></i>
                           </button>
+                        </div>
+                        <div v-else class="text-muted">
+                          <small>View Only</small>
                         </div>
                       </td>
                     </tr>
@@ -171,26 +204,23 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+import api from '@/services/api';
 
 const router = useRouter();
+const authStore = useAuthStore();
 const selectedDate = ref(new Date().toISOString().split('T')[0]);
 const statusFilter = ref('');
+const loading = ref(false);
+const errorMessage = ref('');
+const pickupRequests = ref([]);
 
-// Sample pickup data
-const pickupRequests = ref([
-  { id: 1, requestNo: 'REQ001', userId: 'USER001', location: 'Block A, Apt 101', date: '15-01-2024', time: '09:00 AM', quantity: '5 KG', status: 'Accept' },
-  { id: 2, requestNo: 'REQ002', userId: 'USER002', location: 'Block B, Apt 205', date: '15-01-2024', time: '09:15 AM', quantity: '3 KG', status: 'Accept' },
-  { id: 3, requestNo: 'REQ003', userId: 'USER003', location: 'Block C, Apt 310', date: '15-01-2024', time: '09:30 AM', quantity: '7 KG', status: 'Reject' },
-  { id: 4, requestNo: 'REQ004', userId: 'USER004', location: 'Block A, Apt 102', date: '15-01-2024', time: '09:45 AM', quantity: '4 KG', status: 'Accept' },
-  { id: 5, requestNo: 'REQ005', userId: 'USER005', location: 'Block D, Apt 401', date: '15-01-2024', time: '10:00 AM', quantity: '6 KG', status: 'Accept' },
-  { id: 6, requestNo: 'REQ006', userId: 'USER006', location: 'Block B, Apt 206', date: '15-01-2024', time: '10:15 AM', quantity: '2 KG', status: 'Reject' },
-  { id: 7, requestNo: 'REQ007', userId: 'USER007', location: 'Block E, Apt 501', date: '15-01-2024', time: '10:30 AM', quantity: '8 KG', status: 'Accept' },
-  { id: 8, requestNo: 'REQ008', userId: 'USER008', location: 'Block C, Apt 311', date: '15-01-2024', time: '10:45 AM', quantity: '5 KG', status: 'Pending' },
-  { id: 9, requestNo: 'REQ009', userId: 'USER009', location: 'Block A, Apt 103', date: '15-01-2024', time: '11:00 AM', quantity: '4 KG', status: 'Accept' },
-  { id: 10, requestNo: 'REQ010', userId: 'USER010', location: 'Block D, Apt 402', date: '15-01-2024', time: '11:15 AM', quantity: '6 KG', status: 'Pending' },
-]);
+// Check if user is a collector (not RWA manager)
+const isCollector = computed(() => {
+  return authStore.rwaRole === 'collector';
+});
 
 const selectedDateFormatted = computed(() => {
   if (!selectedDate.value) return '';
@@ -209,56 +239,171 @@ const filteredPickups = computed(() => {
 });
 
 const acceptedCount = computed(() => {
-  return filteredPickups.value.filter(p => p.status === 'Accept').length;
+  return pickupRequests.value.filter(p => p.status === 'accepted').length;
 });
 
 const rejectedCount = computed(() => {
-  return filteredPickups.value.filter(p => p.status === 'Reject').length;
+  return pickupRequests.value.filter(p => p.status === 'rejected').length;
 });
 
 const pendingCount = computed(() => {
-  return filteredPickups.value.filter(p => p.status === 'Pending').length;
+  return pickupRequests.value.filter(p => p.status === 'pending').length;
 });
 
 const getStatusBadgeClass = (status) => {
   const classes = {
-    'Accept': 'badge bg-success',
-    'Reject': 'badge bg-danger',
-    'Pending': 'badge bg-warning text-dark'
+    'accepted': 'badge bg-success',
+    'rejected': 'badge bg-danger',
+    'pending': 'badge bg-warning text-dark',
+    'completed': 'badge bg-info'
   };
   return classes[status] || 'badge bg-secondary';
 };
 
+const getStatusDisplay = (status) => {
+  const display = {
+    'accepted': 'Accepted',
+    'rejected': 'Rejected',
+    'pending': 'Pending',
+    'completed': 'Completed'
+  };
+  return display[status] || status;
+};
+
+const fetchPickupDetails = async () => {
+  try {
+    loading.value = true;
+    errorMessage.value = '';
+    
+    const response = await api.get('/secondary/pickup-details', {
+      params: { date: selectedDate.value }
+    });
+    
+    // Transform backend data to frontend format
+    if (response.data && response.data.pickups) {
+      pickupRequests.value = response.data.pickups.map(pickup => ({
+        pickupId: pickup.pickup_id,
+        id: pickup.request_no,
+        requestNo: pickup.request_no,
+        userId: pickup.user_id,
+        userName: pickup.user_name || 'Unknown',
+        userEmail: pickup.user_email || 'N/A',
+        houseNumber: pickup.house_number || 'N/A',
+        location: pickup.pickup_location || 'N/A',
+        date: pickup.date_of_pickup ? new Date(pickup.date_of_pickup).toLocaleDateString('en-GB') : 'N/A',
+        time: pickup.time_of_pickup || 'N/A',
+        quantity: pickup.disposal_quantity ? `${parseFloat(pickup.disposal_quantity).toFixed(2)}` : '0.00',
+        status: pickup.status || 'pending'
+      }));
+    } else {
+      pickupRequests.value = [];
+    }
+  } catch (error) {
+    console.error('Error fetching pickup details:', error);
+    errorMessage.value = error.response?.data?.error || 'Failed to load pickup details. Please try again.';
+    pickupRequests.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
 const updatePickupDetails = () => {
-  console.log('Updated pickup details for:', selectedDateFormatted.value);
+  fetchPickupDetails();
 };
 
-const acceptPickup = (id) => {
-  const pickup = pickupRequests.value.find(p => p.id === id);
-  if (pickup && pickup.status === 'Pending') {
-    pickup.status = 'Accept';
-    alert(`Pickup ${pickup.requestNo} accepted successfully!`);
+const acceptPickup = async (requestNo) => {
+  try {
+    // Find the pickup by request_no
+    const pickup = pickupRequests.value.find(p => p.requestNo === requestNo);
+    if (!pickup) {
+      alert('Pickup request not found');
+      return;
+    }
+    
+    // Use the pickup ID from the backend response
+    const pickupId = pickup.pickupId;
+    
+    if (!pickupId) {
+      alert('Unable to identify pickup request');
+      return;
+    }
+    
+    await api.post(`/secondary/pickup/${pickupId}/accept`);
+    
+    // Refresh the list
+    await fetchPickupDetails();
+    
+    alert(`Pickup ${requestNo} accepted successfully!`);
+  } catch (error) {
+    console.error('Error accepting pickup:', error);
+    alert(error.response?.data?.error || 'Failed to accept pickup. Please try again.');
   }
 };
 
-const rejectPickup = (id) => {
-  const pickup = pickupRequests.value.find(p => p.id === id);
-  if (pickup && pickup.status === 'Pending') {
-    pickup.status = 'Reject';
-    alert(`Pickup ${pickup.requestNo} rejected successfully!`);
+const rejectPickup = async (requestNo) => {
+  try {
+    // Find the pickup by request_no
+    const pickup = pickupRequests.value.find(p => p.requestNo === requestNo);
+    if (!pickup) {
+      alert('Pickup request not found');
+      return;
+    }
+    
+    // Use the pickup ID from the backend response
+    const pickupId = pickup.pickupId;
+    
+    if (!pickupId) {
+      alert('Unable to identify pickup request');
+      return;
+    }
+    
+    await api.post(`/secondary/pickup/${pickupId}/reject`);
+    
+    // Refresh the list
+    await fetchPickupDetails();
+    
+    alert(`Pickup ${requestNo} rejected successfully!`);
+  } catch (error) {
+    console.error('Error rejecting pickup:', error);
+    alert(error.response?.data?.error || 'Failed to reject pickup. Please try again.');
   }
 };
 
-const viewDetails = (id) => {
-  const pickup = pickupRequests.value.find(p => p.id === id);
+const viewDetails = (requestNo) => {
+  const pickup = pickupRequests.value.find(p => p.requestNo === requestNo);
   if (pickup) {
-    alert(`Viewing details for ${pickup.requestNo}\nLocation: ${pickup.location}\nQuantity: ${pickup.quantity}`);
+    let details = `Pickup Request Details:\n\n`;
+    details += `Request No: ${pickup.requestNo}\n`;
+    details += `Household: ${pickup.userName}\n`;
+    details += `House Number: ${pickup.houseNumber || 'N/A'}\n`;
+    details += `Email: ${pickup.userEmail || 'N/A'}\n`;
+    details += `Location: ${pickup.location}\n`;
+    details += `Date: ${pickup.date}\n`;
+    details += `Time: ${pickup.time}\n`;
+    details += `Quantity: ${pickup.quantity}\n`;
+    details += `Status: ${getStatusDisplay(pickup.status)}\n`;
+    alert(details);
   }
 };
 
 const goBack = () => {
   router.push('/secondary-dashboard/pickup-details');
 };
+
+// Watch for date changes
+watch(selectedDate, (newDate) => {
+  if (newDate) {
+    fetchPickupDetails();
+  }
+});
+
+onMounted(() => {
+  // Set default date to today if not set
+  if (!selectedDate.value) {
+    selectedDate.value = new Date().toISOString().split('T')[0];
+  }
+  fetchPickupDetails();
+});
 </script>
 
 <style scoped>

@@ -29,7 +29,7 @@
           <ul class="navbar-nav me-auto">
             <li class="nav-item">
               <router-link 
-                to="/secondary-dashboard" 
+                to="/collector-dashboard" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -38,25 +38,7 @@
             </li>
             <li class="nav-item">
               <router-link 
-                to="/secondary-dashboard/waste-summary" 
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
-              >
-                WASTE SUMMARY
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link 
-                to="/secondary-dashboard/campaigns" 
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
-              >
-                CAMPAIGNS
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link 
-                to="/secondary-dashboard/daily-pickup-details" 
+                to="/collector-dashboard/daily-pickup-details" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -65,7 +47,7 @@
             </li>
             <li class="nav-item">
               <router-link 
-                to="/secondary-dashboard/pickup-summary" 
+                to="/collector-dashboard/pickup-summary" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -111,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 
@@ -121,7 +103,6 @@ const currentDateTime = ref('');
 
 const updateDateTime = () => {
   const now = new Date();
-  // Format as ISO 8601 format
   currentDateTime.value = now.toISOString().split('T')[0] + ' ' + now.toISOString().split('T')[1].substring(0, 8);
 };
 
@@ -134,7 +115,7 @@ let datetimeInterval;
 
 onMounted(() => {
   updateDateTime();
-  datetimeInterval = setInterval(updateDateTime, 1000); // Update every second for ISO format
+  datetimeInterval = setInterval(updateDateTime, 1000);
 });
 
 onUnmounted(() => {
@@ -242,3 +223,4 @@ onUnmounted(() => {
   }
 }
 </style>
+

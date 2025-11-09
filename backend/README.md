@@ -97,9 +97,57 @@ export DATABASE_URL="sqlite:///path/to/database.db"
 
 ## User Categories
 
-- **PRIMARY**: Regular household users
-- **SECONDARY**: RWA managers and waste collectors
-- **TERTIARY**: Government bodies and NGOs
+- **PRIMARY**: Regular household users (can register through public sign-up)
+- **SECONDARY**: RWA managers and waste collectors (predefined, provisioned by administrators)
+- **TERTIARY**: Government bodies and NGOs (predefined, provisioned by administrators)
+
+## Predefined Secondary Users
+
+Secondary users (Waste Collectors and RWA Managers) are automatically created during database initialization. They **cannot** register through the public sign-up flow. Use the following credentials to login:
+
+### Waste Collectors
+
+1. **Waste Collector 1 (Park Street Ward)**
+   - Email: `collector1@wastewise.com`
+   - Password: `Collector@123`
+   - Ward: Park Street (Ward 1)
+   - Pincode: 700001
+
+2. **Waste Collector 2 (Salt Lake Ward)**
+   - Email: `collector2@wastewise.com`
+   - Password: `Collector@123`
+   - Ward: Salt Lake (Ward 2)
+   - Pincode: 700064
+
+### RWA Managers
+
+1. **RWA Manager 1 (Park Street)**
+   - Email: `rwa_manager1@wastewise.com`
+   - Password: `RWA@Manager123`
+   - Ward: Park Street (Ward 1)
+   - Pincode: 700001
+
+2. **RWA Manager 2 (Salt Lake)**
+   - Email: `rwa_manager2@wastewise.com`
+   - Password: `RWA@Manager123`
+   - Ward: Salt Lake (Ward 2)
+   - Pincode: 700064
+
+**Note:** These users are created automatically when you run the application for the first time. They can login using the standard login endpoint but cannot be created through the public registration flow.
+
+## Predefined Tertiary User
+
+Tertiary users (Government/NGO) are automatically created during database initialization. They **cannot** register through the public sign-up flow. Use the following credentials to login:
+
+### Government/NGO Admin
+
+1. **Government Admin**
+   - Email: `tertiary@wastewise.com`
+   - Password: `Tertiary@123`
+   - Category: Tertiary (Government/NGO)
+   - Note: This user has access to all wards and can view city-wide statistics
+
+**Note:** This user is created automatically when you run the application for the first time. They can login using the standard login endpoint but cannot be created through the public registration flow.
 
 ## Sample Request Examples
 

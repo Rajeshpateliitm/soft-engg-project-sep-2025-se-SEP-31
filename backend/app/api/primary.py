@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify
 from app.models import (
     User, QuizQuestion, QuizOption, QuizAttempt, QuizAnswer,
-    WasteLog, Campaign, CampaignRegistration, Engagement, db
+    WasteLog, Campaign, CampaignRegistration, Engagement, PickupRequest, Ward, db
 )
 from app.core.security import token_required
 from sqlalchemy import func, desc, and_
@@ -330,6 +330,55 @@ def log_waste(user):
     if data["recycled"]:
         user.points += 10
     
+    # Create pickup request automatically when waste is logged
+    total_waste = data["wet_waste"] + data["dry_waste"] + data["hazardous_waste"]
+    if total_waste > 0:
+        # Generate request code
+        import random
+        import string
+        request_code = "REQ-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        
+        # Set scheduled date/time (default to log_date at 10:00 AM)
+        from datetime import time as dt_time
+        scheduled_datetime = datetime.combine(log_date, dt_time(hour=10, minute=0))
+        
+        # Create pickup location from user's address with ward information
+        location_parts = []
+        
+        # Add house number
+        if user.house_number:
+            location_parts.append(user.house_number)
+        else:
+            # Fallback to username if no house number
+            location_parts.append(user.username or user.email.split('@')[0])
+        
+        # Add ward information if available
+        if user.ward_id:
+            ward = Ward.query.get(user.ward_id)
+            if ward:
+                # Use ward name if available, otherwise use ward number
+                ward_display = ward.name if ward.name else f"Ward {ward.ward_number}"
+                location_parts.append(ward_display)
+        
+        # Add pincode
+        if user.pincode:
+            location_parts.append(user.pincode)
+        
+        # Join all parts with commas
+        pickup_location = ", ".join(location_parts)
+        
+        pickup_request = PickupRequest(
+            request_code=request_code,
+            requester_id=user.id,
+            scheduled_at=scheduled_datetime,
+            pickup_location=pickup_location,
+            pincode=user.pincode,
+            quantity=total_waste,
+            notes=f"Waste logged: Wet={data['wet_waste']}kg, Dry={data['dry_waste']}kg, Hazardous={data['hazardous_waste']}kg",
+            status="pending"
+        )
+        db.session.add(pickup_request)
+    
     db.session.commit()
     
     return jsonify({"message": "Waste logged successfully", "points": user.points}), 201
@@ -560,6 +609,12 @@ def get_campaigns(user):
     result = []
     for campaign in campaigns:
         is_registered = campaign.id in registered_ids
+        # Count total registrations
+        registration_count = CampaignRegistration.query.filter_by(
+            campaign_id=campaign.id,
+            is_active=True
+        ).count()
+        
         result.append({
             "id": campaign.id,
             "name": campaign.name,
@@ -567,7 +622,8 @@ def get_campaigns(user):
             "event_datetime": campaign.event_datetime.isoformat() if campaign.event_datetime else None,
             "location": campaign.location,
             "image_url": campaign.image_url,
-            "is_registered": is_registered
+            "is_registered": is_registered,
+            "registration_count": registration_count
         })
     
     return jsonify({"campaigns": result}), 200

@@ -3,21 +3,26 @@
     <div class="container">
       <div class="row mb-4">
         <div class="col-12">
-          <h2 class="text-white fw-bold mb-3">PICKUP DETAILS</h2>
-          <p class="text-white-50">View scheduled waste pickup details for your RWA</p>
+          <h2 class="text-white fw-bold mb-3">DAILY WASTE COLLECTION LOG</h2>
+          <p class="text-white-50">View daily waste logs from households in your RWA area</p>
         </div>
       </div>
 
       <!-- Action Buttons -->
       <div class="row mb-4">
-        <div class="col-md-6 mb-3">
+        <div class="col-md-4 mb-3">
           <button class="btn btn-info btn-lg w-100" @click="navigateToPickupSummary">
             <i class="bi bi-graph-up me-2"></i>Pickup Summary
           </button>
         </div>
-        <div class="col-md-6 mb-3">
+        <div class="col-md-4 mb-3">
           <button class="btn btn-warning btn-lg w-100" @click="navigateToDailyDetails">
-            <i class="bi bi-calendar-day me-2"></i>Daily Details
+            <i class="bi bi-calendar-day me-2"></i>Daily Pickup Requests
+          </button>
+        </div>
+        <div class="col-md-4 mb-3">
+          <button class="btn btn-secondary btn-lg w-100" @click="navigateToDashboard">
+            <i class="bi bi-house me-2"></i>Back to Dashboard
           </button>
         </div>
       </div>
@@ -29,17 +34,19 @@
             <div class="card-body">
               <div class="row align-items-center">
                 <div class="col-md-6">
-                  <label for="pickupDate" class="form-label fw-semibold">Select Date (DD-MM-YYYY)</label>
+                  <label for="wasteLogDate" class="form-label fw-semibold">Select Date to View Waste Logs</label>
                   <input 
                     type="date" 
-                    id="pickupDate" 
+                    id="wasteLogDate" 
                     v-model="selectedDate"
                     class="form-control"
+                    :max="new Date().toISOString().split('T')[0]"
                   >
                 </div>
                 <div class="col-md-6 d-flex align-items-end">
-                  <button class="btn btn-primary w-100" @click="filterPickups">
-                    <i class="bi bi-search me-2"></i>SEARCH
+                  <button class="btn btn-primary w-100" @click="filterWasteLogs" :disabled="loading">
+                    <span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <i v-else class="bi bi-search me-2"></i>SEARCH
                   </button>
                 </div>
               </div>
@@ -48,150 +55,170 @@
         </div>
       </div>
 
-      <!-- Pickup Details Cards -->
-      <div class="row">
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="card shadow-lg h-100">
-            <div class="card-header bg-primary text-white">
-              <h5 class="card-title mb-0">ORGANIC WASTE PICKUP</h5>
-            </div>
-            <div class="card-body d-flex flex-column">
-              <p class="card-text"><strong>Date:</strong> {{ formattedDate }}</p>
-              <p class="card-text"><strong>Time:</strong> 08:00 AM - 10:00 AM</p>
-              <p class="card-text"><strong>Location:</strong> Main Gate</p>
-              <p class="card-text"><strong>Quantity Expected:</strong> 50-75 KG</p>
-              <p class="card-text"><strong>Status:</strong> <span class="badge bg-success">Scheduled</span></p>
-              <p class="card-text text-muted small">Collect organic waste from households</p>
+      <!-- Summary Statistics Cards -->
+      <div class="row mb-4" v-if="!loading && wasteSummary">
+        <div class="col-md-3 mb-3">
+          <div class="card shadow-lg h-100 border-primary">
+            <div class="card-body text-center">
+              <h6 class="card-title text-muted">Total Households</h6>
+              <h3 class="card-text fw-bold text-primary">{{ wasteSummary.total_households }}</h3>
+              <small class="text-muted">{{ wasteSummary.households_logged }} logged today</small>
             </div>
           </div>
         </div>
-
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="card shadow-lg h-100">
-            <div class="card-header bg-info text-white">
-              <h5 class="card-title mb-0">RECYCLABLE WASTE PICKUP</h5>
-            </div>
-            <div class="card-body d-flex flex-column">
-              <p class="card-text"><strong>Date:</strong> {{ formattedDate }}</p>
-              <p class="card-text"><strong>Time:</strong> 10:30 AM - 12:30 PM</p>
-              <p class="card-text"><strong>Location:</strong> Community Center</p>
-              <p class="card-text"><strong>Quantity Expected:</strong> 30-50 KG</p>
-              <p class="card-text"><strong>Status:</strong> <span class="badge bg-success">Scheduled</span></p>
-              <p class="card-text text-muted small">Collect recyclable materials (paper, plastic, metal)</p>
+        <div class="col-md-3 mb-3">
+          <div class="card shadow-lg h-100 border-success">
+            <div class="card-body text-center">
+              <h6 class="card-title text-muted">Total Waste</h6>
+              <h3 class="card-text fw-bold text-success">{{ wasteSummary.total_waste }} KG</h3>
+              <small class="text-muted">Collected today</small>
             </div>
           </div>
         </div>
-
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="card shadow-lg h-100">
-            <div class="card-header bg-warning text-dark">
-              <h5 class="card-title mb-0">HAZARDOUS WASTE PICKUP</h5>
-            </div>
-            <div class="card-body d-flex flex-column">
-              <p class="card-text"><strong>Date:</strong> {{ formattedDate }}</p>
-              <p class="card-text"><strong>Time:</strong> 02:00 PM - 04:00 PM</p>
-              <p class="card-text"><strong>Location:</strong> Storage Area</p>
-              <p class="card-text"><strong>Quantity Expected:</strong> 10-20 KG</p>
-              <p class="card-text"><strong>Status:</strong> <span class="badge bg-warning">Pending</span></p>
-              <p class="card-text text-muted small">Collect hazardous household waste safely</p>
+        <div class="col-md-3 mb-3">
+          <div class="card shadow-lg h-100 border-info">
+            <div class="card-body text-center">
+              <h6 class="card-title text-muted">Separated</h6>
+              <h3 class="card-text fw-bold text-info">{{ wasteSummary.households_separated }}</h3>
+              <small class="text-muted">Households</small>
             </div>
           </div>
         </div>
-
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="card shadow-lg h-100">
-            <div class="card-header bg-success text-white">
-              <h5 class="card-title mb-0">BULK WASTE PICKUP</h5>
-            </div>
-            <div class="card-body d-flex flex-column">
-              <p class="card-text"><strong>Date:</strong> {{ formattedDate }}</p>
-              <p class="card-text"><strong>Time:</strong> 04:30 PM - 06:30 PM</p>
-              <p class="card-text"><strong>Location:</strong> Parking Area</p>
-              <p class="card-text"><strong>Quantity Expected:</strong> 100-150 KG</p>
-              <p class="card-text"><strong>Status:</strong> <span class="badge bg-success">Scheduled</span></p>
-              <p class="card-text text-muted small">Collect large items and bulk waste</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="card shadow-lg h-100">
-            <div class="card-header bg-secondary text-white">
-              <h5 class="card-title mb-0">E-WASTE PICKUP</h5>
-            </div>
-            <div class="card-body d-flex flex-column">
-              <p class="card-text"><strong>Date:</strong> {{ formattedDate }}</p>
-              <p class="card-text"><strong>Time:</strong> 07:00 PM - 08:30 PM</p>
-              <p class="card-text"><strong>Location:</strong> Main Gate</p>
-              <p class="card-text"><strong>Quantity Expected:</strong> 5-15 KG</p>
-              <p class="card-text"><strong>Status:</strong> <span class="badge bg-secondary">Scheduled</span></p>
-              <p class="card-text text-muted small">Collect electronic waste for recycling</p>
+        <div class="col-md-3 mb-3">
+          <div class="card shadow-lg h-100 border-warning">
+            <div class="card-body text-center">
+              <h6 class="card-title text-muted">Recycled</h6>
+              <h3 class="card-text fw-bold text-warning">{{ wasteSummary.households_recycled }}</h3>
+              <small class="text-muted">Households</small>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Pickup Summary Table -->
+      <!-- Waste Category Summary -->
+      <div class="row mb-4" v-if="!loading && wasteSummary">
+        <div class="col-md-4 mb-3">
+          <div class="card shadow-lg border-success">
+            <div class="card-body">
+              <h6 class="card-title text-muted">Wet Waste</h6>
+              <h4 class="card-text fw-bold text-success">{{ wasteSummary.total_wet_waste }} KG</h4>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <div class="card shadow-lg border-info">
+            <div class="card-body">
+              <h6 class="card-title text-muted">Dry Waste</h6>
+              <h4 class="card-text fw-bold text-info">{{ wasteSummary.total_dry_waste }} KG</h4>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <div class="card shadow-lg border-danger">
+            <div class="card-body">
+              <h6 class="card-title text-muted">Hazardous Waste</h6>
+              <h4 class="card-text fw-bold text-danger">{{ wasteSummary.total_hazardous_waste }} KG</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Household Waste Logs Table -->
       <div class="row mt-4">
         <div class="col-12">
           <div class="card shadow-lg">
-            <div class="card-header bg-primary text-white">
-              <h5 class="card-title mb-0">PICKUP SUMMARY FOR {{ formattedDate }}</h5>
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+              <h5 class="card-title mb-0">HOUSEHOLD WASTE LOGS FOR {{ formattedDate }}</h5>
+              <button class="btn btn-sm btn-light" @click="fetchWasteLogs">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+              </button>
             </div>
             <div class="card-body">
-              <div class="table-responsive">
+              <div v-if="loading" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+              <div v-else-if="errorMessage" class="alert alert-danger" role="alert">
+                {{ errorMessage }}
+              </div>
+              <div v-else-if="householdWaste.length === 0" class="text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
+                <p class="text-muted mt-3">No households found in your area.</p>
+              </div>
+              <div v-else class="table-responsive">
                 <table class="table table-hover">
                   <thead class="table-light">
                     <tr>
-                      <th>Waste Type</th>
-                      <th>Time Slot</th>
-                      <th>Location</th>
-                      <th>Expected Quantity</th>
+                      <th>House No.</th>
+                      <th>Household Name</th>
+                      <th>Family Members</th>
+                      <th>Wet Waste (KG)</th>
+                      <th>Dry Waste (KG)</th>
+                      <th>Hazardous (KG)</th>
+                      <th>Total (KG)</th>
                       <th>Status</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>Organic Waste</td>
-                      <td>08:00 AM - 10:00 AM</td>
-                      <td>Main Gate</td>
-                      <td>50-75 KG</td>
-                      <td><span class="badge bg-success">Scheduled</span></td>
-                    </tr>
-                    <tr>
-                      <td>Recyclable Waste</td>
-                      <td>10:30 AM - 12:30 PM</td>
-                      <td>Community Center</td>
-                      <td>30-50 KG</td>
-                      <td><span class="badge bg-success">Scheduled</span></td>
-                    </tr>
-                    <tr>
-                      <td>Hazardous Waste</td>
-                      <td>02:00 PM - 04:00 PM</td>
-                      <td>Storage Area</td>
-                      <td>10-20 KG</td>
-                      <td><span class="badge bg-warning">Pending</span></td>
-                    </tr>
-                    <tr>
-                      <td>Bulk Waste</td>
-                      <td>04:30 PM - 06:30 PM</td>
-                      <td>Parking Area</td>
-                      <td>100-150 KG</td>
-                      <td><span class="badge bg-success">Scheduled</span></td>
-                    </tr>
-                    <tr>
-                      <td>E-Waste</td>
-                      <td>07:00 PM - 08:30 PM</td>
-                      <td>Main Gate</td>
-                      <td>5-15 KG</td>
-                      <td><span class="badge bg-secondary">Scheduled</span></td>
-                    </tr>
-                    <tr class="table-active fw-bold">
-                      <td colspan="3">TOTAL EXPECTED WASTE</td>
-                      <td>195-310 KG</td>
-                      <td></td>
+                    <tr v-for="household in householdWaste" :key="household.user_id" :class="{ 'table-warning': !household.has_logged }">
+                      <td><strong>{{ household.house_number || 'N/A' }}</strong></td>
+                      <td>{{ household.user_name }}</td>
+                      <td>{{ household.family_members }}</td>
+                      <td>
+                        <span v-if="household.has_logged" class="badge bg-success">{{ household.wet_waste.toFixed(2) }}</span>
+                        <span v-else class="text-muted">-</span>
+                      </td>
+                      <td>
+                        <span v-if="household.has_logged" class="badge bg-info text-dark">{{ household.dry_waste.toFixed(2) }}</span>
+                        <span v-else class="text-muted">-</span>
+                      </td>
+                      <td>
+                        <span v-if="household.has_logged" class="badge bg-danger">{{ household.hazardous_waste.toFixed(2) }}</span>
+                        <span v-else class="text-muted">-</span>
+                      </td>
+                      <td>
+                        <strong v-if="household.has_logged">{{ household.total_waste.toFixed(2) }}</strong>
+                        <span v-else class="text-muted">Not logged</span>
+                      </td>
+                      <td>
+                        <span v-if="household.has_logged" class="badge bg-success">
+                          <i class="bi bi-check-circle me-1"></i>Logged
+                        </span>
+                        <span v-else class="badge bg-warning text-dark">
+                          <i class="bi bi-clock me-1"></i>Pending
+                        </span>
+                        <span v-if="household.separated" class="badge bg-info ms-1" title="Waste was properly separated">
+                          <i class="bi bi-check2"></i>Separated
+                        </span>
+                        <span v-if="household.recycled" class="badge bg-success ms-1" title="Waste was recycled/reused">
+                          <i class="bi bi-recycle"></i>Recycled
+                        </span>
+                      </td>
+                      <td>
+                        <button 
+                          v-if="household.has_logged"
+                          class="btn btn-sm btn-info" 
+                          @click="viewHouseholdDetails(household)"
+                          title="View details"
+                        >
+                          <i class="bi bi-eye"></i>
+                        </button>
+                        <span v-else class="text-muted">-</span>
+                      </td>
                     </tr>
                   </tbody>
+                  <tfoot v-if="householdWaste.length > 0" class="table-active">
+                    <tr>
+                      <td colspan="3" class="fw-bold">TOTAL</td>
+                      <td class="fw-bold">{{ totalWetWaste.toFixed(2) }} KG</td>
+                      <td class="fw-bold">{{ totalDryWaste.toFixed(2) }} KG</td>
+                      <td class="fw-bold">{{ totalHazardousWaste.toFixed(2) }} KG</td>
+                      <td class="fw-bold">{{ totalWaste.toFixed(2) }} KG</td>
+                      <td colspan="2"></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
@@ -203,11 +230,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import api from '@/services/api';
 
 const router = useRouter();
 const selectedDate = ref(new Date().toISOString().split('T')[0]);
+const loading = ref(false);
+const errorMessage = ref('');
+const householdWaste = ref([]);
+const wasteSummary = ref(null);
 
 const formattedDate = computed(() => {
   if (!selectedDate.value) return '';
@@ -218,9 +250,70 @@ const formattedDate = computed(() => {
   return `${day}-${month}-${year}`;
 });
 
-const filterPickups = () => {
-  console.log('Filtering pickups for date:', formattedDate.value);
-  // Add filtering logic here
+const totalWetWaste = computed(() => {
+  return householdWaste.value.reduce((sum, h) => sum + (h.wet_waste || 0), 0);
+});
+
+const totalDryWaste = computed(() => {
+  return householdWaste.value.reduce((sum, h) => sum + (h.dry_waste || 0), 0);
+});
+
+const totalHazardousWaste = computed(() => {
+  return householdWaste.value.reduce((sum, h) => sum + (h.hazardous_waste || 0), 0);
+});
+
+const totalWaste = computed(() => {
+  return totalWetWaste.value + totalDryWaste.value + totalHazardousWaste.value;
+});
+
+const fetchWasteLogs = async () => {
+  try {
+    loading.value = true;
+    errorMessage.value = '';
+    const response = await api.get('/secondary/waste-logs', {
+      params: { date: selectedDate.value }
+    });
+    
+    wasteSummary.value = response.data.summary;
+    householdWaste.value = response.data.household_waste || [];
+  } catch (error) {
+    console.error('Error fetching waste logs:', error);
+    errorMessage.value = error.response?.data?.error || 'Failed to load waste logs. Please try again.';
+    householdWaste.value = [];
+    wasteSummary.value = null;
+  } finally {
+    loading.value = false;
+  }
+};
+
+const viewHouseholdDetails = (household) => {
+  let details = `Household Waste Details:\n\n`;
+  details += `House Number: ${household.house_number || 'N/A'}\n`;
+  details += `Household: ${household.user_name}\n`;
+  details += `Family Members: ${household.family_members}\n`;
+  details += `Pincode: ${household.pincode || 'N/A'}\n\n`;
+  details += `Waste Categories:\n`;
+  details += `- Wet Waste: ${household.wet_waste.toFixed(2)} KG\n`;
+  details += `- Dry Waste: ${household.dry_waste.toFixed(2)} KG\n`;
+  details += `- Hazardous Waste: ${household.hazardous_waste.toFixed(2)} KG\n`;
+  details += `- Total: ${household.total_waste.toFixed(2)} KG\n\n`;
+  details += `Status:\n`;
+  details += `- Separated: ${household.separated ? 'Yes' : 'No'}\n`;
+  details += `- Recycled: ${household.recycled ? 'Yes' : 'No'}\n`;
+  
+  if (household.questions_doubts) {
+    details += `\nQuestions/Doubts: ${household.questions_doubts}\n`;
+  }
+  
+  if (household.feedback) {
+    details += `\nFeedback: ${household.feedback}\n`;
+  }
+  
+  alert(details);
+};
+
+const filterWasteLogs = () => {
+  fetchWasteLogs();
 };
 
 const navigateToPickupSummary = () => {
@@ -230,6 +323,19 @@ const navigateToPickupSummary = () => {
 const navigateToDailyDetails = () => {
   router.push('/secondary-dashboard/daily-pickup-details');
 };
+
+const navigateToDashboard = () => {
+  router.push('/secondary-dashboard');
+};
+
+// Watch for date changes
+watch(selectedDate, () => {
+  fetchWasteLogs();
+});
+
+onMounted(() => {
+  fetchWasteLogs();
+});
 </script>
 
 <style scoped>

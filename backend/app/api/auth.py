@@ -22,12 +22,29 @@ def register():
         return jsonify({"error": "Email already registered"}), 400
     
     # Get or create user category (default to PRIMARY)
+    # Only PRIMARY users can register through public sign-up
+    # SECONDARY and TERTIARY users are provisioned by administrators
     user_category_key = data.get("user_category", "PRIMARY")
+    
+    # Restrict registration to PRIMARY users only
+    if user_category_key not in ["PRIMARY", None]:
+        return jsonify({"error": "Only primary users can register through public sign-up. Secondary and Tertiary users are provisioned by administrators."}), 403
+    
+    # Ensure it's PRIMARY
+    user_category_key = "PRIMARY"
     user_category = UserCategory.query.filter_by(key=user_category_key).first()
     if not user_category:
         user_category = UserCategory(key=user_category_key, label=user_category_key.title())
         db.session.add(user_category)
         db.session.flush()
+    
+    # Get ward_id from ward_number if provided
+    ward_id = None
+    if data.get("ward_number"):
+        from app.models import Ward
+        ward = Ward.query.filter_by(ward_number=data["ward_number"]).first()
+        if ward:
+            ward_id = ward.id
     
     # Create new user
     user = User(
@@ -35,6 +52,7 @@ def register():
         username=data.get("username") or data["email"].split("@")[0],
         house_number=data["house_number"],
         ward_number=data["ward_number"],
+        ward_id=ward_id,
         family_members_count=data["family_members"],
         pincode=data["pincode"],
         user_category_id=user_category.id
@@ -43,6 +61,28 @@ def register():
     
     try:
         db.session.add(user)
+        db.session.flush()  # Flush to get user.id
+        
+        # Auto-add primary user to RWA group based on ward
+        if ward_id:
+            from app.models import RwaGroup, RwaMembership
+            # Find RWA group for this ward
+            rwa_group = RwaGroup.query.filter_by(ward_number=data["ward_number"]).first()
+            if rwa_group:
+                # Check if membership already exists
+                existing_membership = RwaMembership.query.filter_by(
+                    user_id=user.id,
+                    rwa_group_id=rwa_group.id
+                ).first()
+                
+                if not existing_membership:
+                    membership = RwaMembership(
+                        rwa_group_id=rwa_group.id,
+                        user_id=user.id,
+                        role="member"
+                    )
+                    db.session.add(membership)
+        
         db.session.commit()
         
         # Create access token
@@ -88,6 +128,14 @@ def login():
     # Create access token
     access_token = create_access_token(user.id)
     
+    # Get RWA membership role if user is secondary
+    rwa_role = None
+    if user.user_category and user.user_category.key == "SECONDARY":
+        from app.models import RwaMembership
+        membership = RwaMembership.query.filter_by(user_id=user.id, is_active=True).first()
+        if membership:
+            rwa_role = membership.role
+    
     return jsonify({
         "access_token": access_token,
         "token_type": "bearer",
@@ -96,7 +144,8 @@ def login():
             "email": user.email,
             "username": user.username,
             "user_category": user.user_category.key if user.user_category else None,
-            "points": user.points
+            "points": user.points,
+            "rwa_role": rwa_role  # "admin", "collector", or None
         }
     }), 200
 
@@ -105,6 +154,14 @@ def login():
 @token_required
 def get_current_user_info(user):
     """Get current user information."""
+    # Get RWA membership role if user is secondary
+    rwa_role = None
+    if user.user_category and user.user_category.key == "SECONDARY":
+        from app.models import RwaMembership
+        membership = RwaMembership.query.filter_by(user_id=user.id, is_active=True).first()
+        if membership:
+            rwa_role = membership.role
+    
     return jsonify({
         "id": user.id,
         "email": user.email,
@@ -114,6 +171,7 @@ def get_current_user_info(user):
         "family_members_count": user.family_members_count,
         "pincode": user.pincode,
         "points": user.points,
-        "user_category": user.user_category.key if user.user_category else None
+        "user_category": user.user_category.key if user.user_category else None,
+        "rwa_role": rwa_role  # "admin", "collector", or None
     }), 200
 

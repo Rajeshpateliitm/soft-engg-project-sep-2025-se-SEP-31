@@ -679,7 +679,7 @@ const initCharts = () => {
   if (wasteChartRef.value && wasteCategories.value.length > 0) {
     const ctx1 = wasteChartRef.value.getContext('2d');
     if (ctx1) {
-      wasteChartInstance = new Chart(ctx1, {
+  wasteChartInstance = new Chart(ctx1, {
     type: 'doughnut',
     data: {
       labels: wasteCategories.value.map(cat => cat.name),
@@ -717,7 +717,7 @@ const initCharts = () => {
       },
       cutout: '70%'
     }
-    });
+  });
     }
   }
   
@@ -735,52 +735,52 @@ const initCharts = () => {
       
       const disposedData = sortedMonths.map(month => monthlyTrends.value[month].disposed || 0);
       const undisposedData = sortedMonths.map(month => monthlyTrends.value[month].undisposed || 0);
-      
-      trendsChartInstance = new Chart(ctx2, {
-        type: 'line',
-        data: {
+  
+  trendsChartInstance = new Chart(ctx2, {
+    type: 'line',
+    data: {
           labels: labels,
-          datasets: [
-            {
+      datasets: [
+        {
               label: 'Properly Disposed (kg)',
               data: disposedData,
               borderColor: 'rgba(40, 167, 69, 1)',
               backgroundColor: 'rgba(40, 167, 69, 0.1)',
-              tension: 0.3,
-              fill: true
-            },
-            {
+          tension: 0.3,
+          fill: true
+        },
+        {
               label: 'Not Separated (kg)',
               data: undisposedData,
               borderColor: 'rgba(220, 53, 69, 1)',
               backgroundColor: 'rgba(220, 53, 69, 0.1)',
-              tension: 0.3,
-              fill: true
-            }
-          ]
+          tension: 0.3,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'top',
-            },
-            tooltip: {
-              mode: 'index',
-              intersect: false,
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                precision: 0
-              }
-            }
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0
           }
         }
-      });
+      }
+    }
+  });
     }
   }
   
@@ -802,49 +802,49 @@ const initCharts = () => {
         }
       });
       
-      disposalChartInstance = new Chart(ctx3, {
-        type: 'bar',
-        data: {
+  disposalChartInstance = new Chart(ctx3, {
+    type: 'bar',
+    data: {
           labels: Object.keys(disposalMethods),
-          datasets: [{
-            label: 'Waste by Disposal Method (kg)',
+      datasets: [{
+        label: 'Waste by Disposal Method (kg)',
             data: Object.values(disposalMethods),
-            backgroundColor: [
-              'rgba(40, 167, 69, 0.8)',
-              'rgba(13, 110, 253, 0.8)',
-              'rgba(108, 117, 125, 0.8)',
+        backgroundColor: [
+          'rgba(40, 167, 69, 0.8)',
+          'rgba(13, 110, 253, 0.8)',
+          'rgba(108, 117, 125, 0.8)',
               'rgba(220, 53, 69, 0.8)'
-            ],
-            borderWidth: 1
-          }]
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
+        tooltip: {
+          callbacks: {
+            label: function(context) {
                   const total = context.dataset.data.reduce((a, b) => a + b, 0);
                   const percentage = total > 0 ? Math.round((context.parsed.y / total) * 100) : 0;
                   return `${context.parsed.y} kg (${percentage}%)`;
-                }
-              }
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                precision: 0
-              }
             }
           }
         }
-      });
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0
+          }
+        }
+      }
+    }
+  });
     }
   }
 };
@@ -929,7 +929,7 @@ watch(activeChartTab, () => {
     wasteChartInstance.destroy();
     wasteChartInstance = null;
   }
-  nextTick(() => {
+    nextTick(() => {
     if (wasteChartRef.value && wasteCategories.value.length > 0) {
       const ctx = wasteChartRef.value.getContext('2d');
       if (ctx) {
@@ -997,9 +997,9 @@ watch(activeChartTab, () => {
           },
           cutout: '70%'
         }
-      });
+    });
       }
-    }
+  }
   });
 });
 

@@ -14,7 +14,7 @@
           <div class="card shadow-lg h-100">
             <div class="card-body text-center">
               <h6 class="card-title text-muted">Total RWAs</h6>
-              <h3 class="card-text fw-bold text-primary">45</h3>
+              <h3 class="card-text fw-bold text-primary">{{ totalRwas }}</h3>
               <p class="card-text text-muted small">Participating</p>
             </div>
           </div>
@@ -24,8 +24,8 @@
           <div class="card shadow-lg h-100">
             <div class="card-body text-center">
               <h6 class="card-title text-muted">Your Rank</h6>
-              <h3 class="card-text fw-bold text-success">5</h3>
-              <p class="card-text text-muted small">Out of 45</p>
+              <h3 class="card-text fw-bold text-success">{{ userRwaRank || '-' }}</h3>
+              <p class="card-text text-muted small" v-if="totalRwas > 0">Out of {{ totalRwas }}</p>
             </div>
           </div>
         </div>
@@ -34,7 +34,7 @@
           <div class="card shadow-lg h-100">
             <div class="card-body text-center">
               <h6 class="card-title text-muted">Your Points</h6>
-              <h3 class="card-text fw-bold text-info">8500</h3>
+              <h3 class="card-text fw-bold text-info">{{ userRwaPoints }}</h3>
               <p class="card-text text-muted small">Total score</p>
             </div>
           </div>
@@ -72,85 +72,30 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td><span class="badge bg-warning text-dark">1</span></td>
-                      <td><strong>Green Valley RWA</strong></td>
-                      <td>9200</td>
-                      <td>450 KG</td>
-                      <td>85%</td>
-                      <td><span class="badge bg-success">Leader</span></td>
+                    <tr v-if="loading">
+                      <td colspan="6" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                      </td>
                     </tr>
-                    <tr>
-                      <td><span class="badge bg-secondary">2</span></td>
-                      <td><strong>Eco Homes RWA</strong></td>
-                      <td>8900</td>
-                      <td>420 KG</td>
-                      <td>82%</td>
-                      <td><span class="badge bg-info">Active</span></td>
+                    <tr v-else-if="errorMessage">
+                      <td colspan="6" class="text-center py-4">
+                        <div class="alert alert-danger mb-0">{{ errorMessage }}</div>
+                      </td>
                     </tr>
-                    <tr>
-                      <td><span class="badge bg-secondary">3</span></td>
-                      <td><strong>Clean City RWA</strong></td>
-                      <td>8700</td>
-                      <td>400 KG</td>
-                      <td>80%</td>
-                      <td><span class="badge bg-info">Active</span></td>
+                    <tr v-else-if="leaderboardData.length === 0">
+                      <td colspan="6" class="text-center py-4 text-muted">
+                        No RWA data available
+                      </td>
                     </tr>
-                    <tr>
-                      <td><span class="badge bg-secondary">4</span></td>
-                      <td><strong>Waste Warriors RWA</strong></td>
-                      <td>8600</td>
-                      <td>390 KG</td>
-                      <td>78%</td>
-                      <td><span class="badge bg-info">Active</span></td>
-                    </tr>
-                    <tr class="table-active">
-                      <td><span class="badge bg-primary">5</span></td>
-                      <td><strong>Your RWA</strong></td>
-                      <td>8500</td>
-                      <td>380 KG</td>
-                      <td>72%</td>
-                      <td><span class="badge bg-primary">You</span></td>
-                    </tr>
-                    <tr>
-                      <td><span class="badge bg-secondary">6</span></td>
-                      <td><strong>Sustainable Living RWA</strong></td>
-                      <td>8300</td>
-                      <td>360 KG</td>
-                      <td>70%</td>
-                      <td><span class="badge bg-info">Active</span></td>
-                    </tr>
-                    <tr>
-                      <td><span class="badge bg-secondary">7</span></td>
-                      <td><strong>Green Initiative RWA</strong></td>
-                      <td>8100</td>
-                      <td>340 KG</td>
-                      <td>68%</td>
-                      <td><span class="badge bg-info">Active</span></td>
-                    </tr>
-                    <tr>
-                      <td><span class="badge bg-secondary">8</span></td>
-                      <td><strong>Community Care RWA</strong></td>
-                      <td>7900</td>
-                      <td>320 KG</td>
-                      <td>65%</td>
-                      <td><span class="badge bg-info">Active</span></td>
-                    </tr>
-                    <tr>
-                      <td><span class="badge bg-secondary">9</span></td>
-                      <td><strong>Eco Friendly RWA</strong></td>
-                      <td>7700</td>
-                      <td>300 KG</td>
-                      <td>62%</td>
-                      <td><span class="badge bg-info">Active</span></td>
-                    </tr>
-                    <tr>
-                      <td><span class="badge bg-secondary">10</span></td>
-                      <td><strong>Future Green RWA</strong></td>
-                      <td>7500</td>
-                      <td>280 KG</td>
-                      <td>60%</td>
-                      <td><span class="badge bg-info">Active</span></td>
+                    <tr v-else v-for="rwa in leaderboardData" :key="rwa.rwa_id">
+                      <td><span :class="getRankBadgeClass(rwa.rank)">{{ rwa.rank }}</span></td>
+                      <td><strong>{{ rwa.rwa_name }}</strong></td>
+                      <td>{{ rwa.points }}</td>
+                      <td>{{ Math.round(rwa.points / 20) }} KG</td>
+                      <td>{{ Math.round((rwa.points / 20) / (rwa.points / 20 + 10) * 100) }}%</td>
+                      <td><span :class="`badge ${getStatusBadge(rwa.rank).class}`">{{ rwa.remarks || getStatusBadge(rwa.rank).text }}</span></td>
                     </tr>
                   </tbody>
                 </table>
@@ -164,7 +109,58 @@
 </template>
 
 <script setup>
-// Secondary User RWA Leaderboard component
+import { ref, onMounted, computed } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+import api from '@/services/api';
+
+const authStore = useAuthStore();
+const loading = ref(true);
+const errorMessage = ref('');
+const leaderboardData = ref([]);
+const userRwaRank = ref(null);
+const userRwaPoints = ref(0);
+
+const totalRwas = computed(() => leaderboardData.value.length);
+
+const fetchRwaLeaderboard = async () => {
+  try {
+    loading.value = true;
+    errorMessage.value = '';
+    const response = await api.get('/secondary/rwa-leaderboard');
+    leaderboardData.value = response.data.leaderboard || [];
+    
+    // Find user's RWA rank (if they have an RWA membership)
+    // This would require additional backend endpoint or data
+    // For now, we'll use the first RWA as placeholder
+    if (leaderboardData.value.length > 0) {
+      userRwaRank.value = leaderboardData.value[0].rank || 1;
+      userRwaPoints.value = leaderboardData.value[0].points || 0;
+    }
+  } catch (error) {
+    console.error('Error fetching RWA leaderboard:', error);
+    errorMessage.value = error.response?.data?.error || 'Failed to load RWA leaderboard. Please try again.';
+    leaderboardData.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
+const getRankBadgeClass = (rank) => {
+  if (rank === 1) return 'badge bg-warning text-dark';
+  if (rank <= 3) return 'badge bg-secondary';
+  return 'badge bg-secondary';
+};
+
+const getStatusBadge = (rank) => {
+  if (rank === 1) return { class: 'bg-success', text: 'Leader' };
+  if (rank <= 3) return { class: 'bg-info', text: 'Top Performer' };
+  if (rank <= 10) return { class: 'bg-info', text: 'Active' };
+  return { class: 'bg-info', text: 'Active' };
+};
+
+onMounted(() => {
+  fetchRwaLeaderboard();
+});
 </script>
 
 <style scoped>

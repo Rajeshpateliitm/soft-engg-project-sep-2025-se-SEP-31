@@ -16,14 +16,35 @@
             <div class="nav-right">
               <!-- <span class="nav-item">&lt;&lt;&gt;&gt;</span>
               <span class="nav-item">&lt;&lt;&gt;&gt;</span> -->
-              <span class="nav-item logout">LOGOUT</span>
+              <span class="nav-item logout" @click="handleLogout">LOGOUT</span>
             </div>
           </div>
         </div>
       </div>
 
+      <!-- Loading State -->
+      <div v-if="loading" class="row">
+        <div class="col-12 text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-3 text-muted">Loading dashboard data...</p>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="errorMessage" class="row">
+        <div class="col-12">
+          <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Error</h4>
+            <p>{{ errorMessage }}</p>
+            <button class="btn btn-primary" @click="fetchDashboardData">Retry</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Main Content -->
-      <div class="row">
+      <div v-else class="row">
         <div class="col-12">
           <div class="card shadow-lg">
             <div class="card-body p-4">
@@ -45,18 +66,47 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="ward in wardData" :key="ward.id">
-                      <td class="ward-name"><strong>{{ ward.wardNo }}</strong></td>
-                      <td class="text-center">{{ ward.totalHouseholds }}</td>
-                      <td class="text-center">{{ ward.avgWetWaste }}</td>
-                      <td class="text-center">{{ ward.avgDryWaste }}</td>
-                      <td class="text-center">{{ ward.avgHazardousWaste }}</td>
+                    <tr v-if="wardData.length === 0">
+                      <td colspan="7" class="text-center text-muted py-4">
+                        No wards found. Please ensure there are active wards in the system.
+                      </td>
+                    </tr>
+                    <tr v-for="ward in sortedWardData" :key="ward.id" :class="{ 'no-data-row': ward.totalHouseholds === 0 }">
+                      <td class="ward-name">
+                        <strong>{{ ward.wardNo }}</strong>
+                        <span v-if="ward.pincode" class="text-muted small d-block">Pincode: {{ ward.pincode }}</span>
+                      </td>
                       <td class="text-center">
-                        <span :class="getComplianceBadgeClass(ward.segregationCompliance)">
-                          {{ ward.segregationCompliance }}
+                        <span :class="{ 'text-muted': ward.totalHouseholds === 0 }">
+                          {{ ward.totalHouseholds }}
                         </span>
                       </td>
-                      <td class="remarks">{{ ward.remarks }}</td>
+                      <td class="text-center">
+                        <span :class="{ 'text-muted': ward.totalHouseholds === 0 }">
+                          {{ ward.avgWetWaste }}
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span :class="{ 'text-muted': ward.totalHouseholds === 0 }">
+                          {{ ward.avgDryWaste }}
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span :class="{ 'text-muted': ward.totalHouseholds === 0 }">
+                          {{ ward.avgHazardousWaste }}
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span v-if="ward.totalHouseholds > 0" :class="getComplianceBadgeClass(ward.segregationCompliance)">
+                          {{ ward.segregationCompliance }}
+                        </span>
+                        <span v-else class="text-muted">-</span>
+                      </td>
+                      <td class="remarks">
+                        <span :class="{ 'text-muted font-italic': ward.totalHouseholds === 0 }">
+                          {{ ward.remarks }}
+                        </span>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -69,7 +119,7 @@
                     <h5 class="summary-title">Overall Statistics</h5>
                     <div class="stat-item">
                       <span class="stat-label">Total Wards:</span>
-                      <span class="stat-value">{{ wardData.length }}</span>
+                      <span class="stat-value">{{ totalWards }}</span>
                     </div>
                     <div class="stat-item">
                       <span class="stat-label">Total Households:</span>
@@ -87,15 +137,15 @@
                     <h5 class="summary-title">Daily Waste Collection</h5>
                     <div class="stat-item">
                       <span class="stat-label">Total Wet Waste:</span>
-                      <span class="stat-value">{{ totalWetWaste }} kg</span>
+                      <span class="stat-value">{{ formatNumber(totalWetWaste) }} kg</span>
                     </div>
                     <div class="stat-item">
                       <span class="stat-label">Total Dry Waste:</span>
-                      <span class="stat-value">{{ totalDryWaste }} kg</span>
+                      <span class="stat-value">{{ formatNumber(totalDryWaste) }} kg</span>
                     </div>
                     <div class="stat-item">
                       <span class="stat-label">Total Hazardous Waste:</span>
-                      <span class="stat-value">{{ totalHazardousWaste }} kg</span>
+                      <span class="stat-value">{{ formatNumber(totalHazardousWaste) }} kg</span>
                     </div>
                   </div>
                 </div>
@@ -113,7 +163,7 @@
                         </div>
                         <div class="indicator-content">
                           <div class="indicator-label">Excellent Performance</div>
-                          <div class="indicator-count">{{ excellentCount }} Wards</div>
+                          <div class="indicator-count">{{ dashboardData.excellentCount || 0 }} Wards</div>
                         </div>
                       </div>
                     </div>
@@ -124,7 +174,7 @@
                         </div>
                         <div class="indicator-content">
                           <div class="indicator-label">Good Performance</div>
-                          <div class="indicator-count">{{ goodCount }} Wards</div>
+                          <div class="indicator-count">{{ dashboardData.goodCount || 0 }} Wards</div>
                         </div>
                       </div>
                     </div>
@@ -135,7 +185,7 @@
                         </div>
                         <div class="indicator-content">
                           <div class="indicator-label">Needs Improvement</div>
-                          <div class="indicator-count">{{ needsImprovementCount }} Wards</div>
+                          <div class="indicator-count">{{ dashboardData.needsImprovementCount || 0 }} Wards</div>
                         </div>
                       </div>
                     </div>
@@ -147,8 +197,8 @@
               <div class="row mt-4">
                 <div class="col-12">
                   <h5 class="section-subtitle mb-3">Priority Action Items</h5>
-                  <div class="action-items">
-                    <div v-for="(action, index) in priorityActions" :key="index" class="action-item">
+                  <div class="action-items" v-if="dashboardData.priorityActions && dashboardData.priorityActions.length > 0">
+                    <div v-for="(action, index) in dashboardData.priorityActions" :key="index" class="action-item">
                       <div class="action-number">{{ index + 1 }}</div>
                       <div class="action-content">
                         <div class="action-ward">{{ action.ward }}</div>
@@ -158,6 +208,9 @@
                         {{ action.priority }}
                       </div>
                     </div>
+                  </div>
+                  <div v-else class="text-muted py-3">
+                    No priority actions at this time.
                   </div>
                 </div>
               </div>
@@ -170,144 +223,101 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
+import api from '../services/api';
 
-const wardData = ref([
-  {
-    id: 1,
-    wardNo: 'Ward 1 - Park Street',
-    totalHouseholds: 1200,
-    avgWetWaste: '1,850 kg',
-    avgDryWaste: '940 kg',
-    avgHazardousWaste: '60 kg',
-    segregationCompliance: '88%',
-    remarks: 'Good segregation; increase composting outreach'
-  },
-  {
-    id: 2,
-    wardNo: 'Ward 2 - Ballygunge',
-    totalHouseholds: 1000,
-    avgWetWaste: '2,100 kg',
-    avgDryWaste: '710 kg',
-    avgHazardousWaste: '110 kg',
-    segregationCompliance: '61%',
-    remarks: 'Low segregation; run awareness campaign'
-  },
-  {
-    id: 3,
-    wardNo: 'Ward 3 - Behala South',
-    totalHouseholds: 1500,
-    avgWetWaste: '1,970 kg',
-    avgDryWaste: '810 kg',
-    avgHazardousWaste: '95 kg',
-    segregationCompliance: '73%',
-    remarks: 'Moderate performance; improve dry waste recovery'
-  },
-  {
-    id: 4,
-    wardNo: 'Ward 4 - Gum Dum',
-    totalHouseholds: 980,
-    avgWetWaste: '2,250 kg',
-    avgDryWaste: '600 kg',
-    avgHazardousWaste: '140 kg',
-    segregationCompliance: '54%',
-    remarks: 'High wet load; train collectors on waste segregation'
-  },
-  {
-    id: 5,
-    wardNo: 'Ward 5 - New Town',
-    totalHouseholds: 1400,
-    avgWetWaste: '1,620 kg',
-    avgDryWaste: '1,020 kg',
-    avgHazardousWaste: '55 kg',
-    segregationCompliance: '91%',
-    remarks: 'Model ward; showcase composting and recycling'
+const router = useRouter();
+const authStore = useAuthStore();
+
+// Dashboard data
+const loading = ref(true);
+const errorMessage = ref('');
+const dashboardData = ref({
+  wardData: [],
+  totalWards: 0,
+  totalHouseholds: 0,
+  averageCompliance: 0,
+  totalWetWaste: 0,
+  totalDryWaste: 0,
+  totalHazardousWaste: 0,
+  excellentCount: 0,
+  goodCount: 0,
+  needsImprovementCount: 0,
+  priorityActions: []
+});
+
+// Computed properties
+const wardData = computed(() => dashboardData.value.wardData || []);
+const totalWards = computed(() => dashboardData.value.totalWards || 0);
+const totalHouseholds = computed(() => dashboardData.value.totalHouseholds || 0);
+const averageCompliance = computed(() => dashboardData.value.averageCompliance || 0);
+const totalWetWaste = computed(() => dashboardData.value.totalWetWaste || 0);
+const totalDryWaste = computed(() => dashboardData.value.totalDryWaste || 0);
+const totalHazardousWaste = computed(() => dashboardData.value.totalHazardousWaste || 0);
+
+// Sort wards by ward number (extract numeric part for proper sorting)
+const sortedWardData = computed(() => {
+  const sorted = [...wardData.value].sort((a, b) => {
+    // Extract ward number from wardNo (e.g., "Ward 1" -> 1)
+    const getWardNumber = (ward) => {
+      const match = ward.wardNumber ? ward.wardNumber.match(/\d+/) : ward.wardNo.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+    return getWardNumber(a) - getWardNumber(b);
+  });
+  return sorted;
+});
+
+// Fetch dashboard data
+const fetchDashboardData = async () => {
+  loading.value = true;
+  errorMessage.value = '';
+  
+  try {
+    const response = await api.get('/tertiary/dashboard');
+    dashboardData.value = response.data;
+    console.log('Dashboard data received:', response.data);
+    console.log('Ward data:', response.data.wardData);
+    if (response.data.wardData && response.data.wardData.length > 0) {
+      console.log('First ward sample:', response.data.wardData[0]);
+    }
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    errorMessage.value = error.response?.data?.error || 'Failed to load dashboard data. Please try again.';
+  } finally {
+    loading.value = false;
   }
-]);
+};
 
-const totalHouseholds = computed(() => {
-  return wardData.value.reduce((sum, ward) => sum + ward.totalHouseholds, 0);
-});
+// Handle logout
+const handleLogout = () => {
+  authStore.logout();
+  router.push('/signin');
+};
 
-const totalWetWaste = computed(() => {
-  return wardData.value.reduce((sum, ward) => {
-    const value = parseInt(ward.avgWetWaste.replace(/,/g, ''));
-    return sum + value;
-  }, 0);
-});
+// Format number with commas
+const formatNumber = (num) => {
+  return num.toLocaleString('en-US');
+};
 
-const totalDryWaste = computed(() => {
-  return wardData.value.reduce((sum, ward) => {
-    const value = parseInt(ward.avgDryWaste.replace(/,/g, ''));
-    return sum + value;
-  }, 0);
-});
-
-const totalHazardousWaste = computed(() => {
-  return wardData.value.reduce((sum, ward) => {
-    const value = parseInt(ward.avgHazardousWaste.replace(/,/g, ''));
-    return sum + value;
-  }, 0);
-});
-
-const averageCompliance = computed(() => {
-  const total = wardData.value.reduce((sum, ward) => {
-    const value = parseInt(ward.segregationCompliance);
-    return sum + value;
-  }, 0);
-  return Math.round(total / wardData.value.length);
-});
-
-const excellentCount = computed(() => {
-  return wardData.value.filter(ward => {
-    const compliance = parseInt(ward.segregationCompliance);
-    return compliance >= 85;
-  }).length;
-});
-
-const goodCount = computed(() => {
-  return wardData.value.filter(ward => {
-    const compliance = parseInt(ward.segregationCompliance);
-    return compliance >= 70 && compliance < 85;
-  }).length;
-});
-
-const needsImprovementCount = computed(() => {
-  return wardData.value.filter(ward => {
-    const compliance = parseInt(ward.segregationCompliance);
-    return compliance < 70;
-  }).length;
-});
-
-const priorityActions = ref([
-  {
-    ward: 'Ward 4 - Gum Dum',
-    description: 'High wet load; train collectors on waste segregation',
-    priority: 'High'
-  },
-  {
-    ward: 'Ward 2 - Ballygunge',
-    description: 'Low segregation; run awareness campaign',
-    priority: 'High'
-  },
-  {
-    ward: 'Ward 3 - Behala South',
-    description: 'Improve dry waste recovery and recycling initiatives',
-    priority: 'Medium'
-  },
-  {
-    ward: 'Ward 1 - Park Street',
-    description: 'Increase composting outreach and community engagement',
-    priority: 'Medium'
-  }
-]);
-
+// Get compliance badge class
 const getComplianceBadgeClass = (compliance) => {
-  const value = parseInt(compliance);
+  // Extract numeric value from percentage string (e.g., "88%" -> 88)
+  const value = typeof compliance === 'string' 
+    ? parseInt(compliance.replace('%', '')) 
+    : compliance;
+  
   if (value >= 85) return 'compliance-badge excellent';
   if (value >= 70) return 'compliance-badge good';
   return 'compliance-badge needsImprovement';
 };
+
+// Fetch data on component mount
+onMounted(() => {
+  fetchDashboardData();
+});
 </script>
 
 <style scoped>
@@ -421,6 +431,14 @@ const getComplianceBadgeClass = (compliance) => {
 
 .performance-table tbody tr:hover {
   background-color: #f8f9fa;
+}
+
+.performance-table tbody tr.no-data-row {
+  opacity: 0.7;
+}
+
+.performance-table tbody tr.no-data-row:hover {
+  background-color: #f0f0f0;
 }
 
 .performance-table tbody td {
