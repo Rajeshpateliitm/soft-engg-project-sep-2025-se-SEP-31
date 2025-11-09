@@ -78,7 +78,7 @@
               <span 
                 class="nav-link fw-semibold text-dark"
               >
-                <i class="bi bi-person me-1"></i> XYZABC
+                <i class="bi bi-person me-1"></i> {{ authStore.userName }}
               </span>
             </li>
             <li class="nav-item">
@@ -111,8 +111,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '../../stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 const currentDateTime = ref('');
 
 const updateDateTime = () => {
@@ -129,9 +131,8 @@ const updateDateTime = () => {
 };
 
 const handleLogout = () => {
-  // Add logout logic here
-  console.log('Logging out...');
-  // router.push('/login'); // Uncomment when you have a login route
+  authStore.logout();
+  router.push('/signin');
 };
 
 let datetimeInterval;

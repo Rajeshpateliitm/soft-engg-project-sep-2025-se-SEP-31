@@ -52,8 +52,8 @@
             <h5 class="card-title mb-0">QUIZ PERFORMANCE</h5>
           </div>
           <div class="card-body d-flex flex-column">
-            <p class="card-text fs-5">85 % AVERAGE SCORE</p>
-            <p class="card-text text-muted">Great quiz performance in daily quizzes</p>
+            <p class="card-text fs-5">{{ quizPerformance.average_score }}% AVERAGE SCORE</p>
+            <p class="card-text text-muted">{{ quizPerformance.message }}</p>
             <div class="mt-auto">
               <router-link to="/primary-dashboard/quiz-performance" class="btn btn-primary w-100">
                 DETAILS
@@ -70,8 +70,8 @@
             <h5 class="card-title mb-0">COMMUNITY LEADERBOARD</h5>
           </div>
           <div class="card-body d-flex flex-column">
-            <p class="card-text fs-5">RANK 7 , 1200 Points</p>
-            <p class="card-text text-muted">Keep climbing for ecomind</p>
+            <p class="card-text fs-5">RANK {{ leaderboard.rank }}, {{ leaderboard.points }} Points</p>
+            <p class="card-text text-muted">{{ leaderboard.message }}</p>
             <div class="mt-auto">
               <router-link to="/primary-dashboard/community-leaderboard" class="btn btn-primary w-100">
                 DETAILS
@@ -88,8 +88,8 @@
             <h5 class="card-title mb-0">MONTHLY ENGAGEMENT</h5>
           </div>
           <div class="card-body d-flex flex-column">
-            <p class="card-text fs-5">18 QUIZZES , 25 LOG ENTRIES , 2 CAMPAIGNS</p>
-            <p class="card-text text-muted">Your active participation</p>
+            <p class="card-text fs-5">{{ monthlyEngagement.quizzes }} QUIZZES, {{ monthlyEngagement.waste_logs }} LOG ENTRIES, {{ monthlyEngagement.campaigns }} CAMPAIGNS</p>
+            <p class="card-text text-muted">{{ monthlyEngagement.message }}</p>
             <div class="mt-auto">
               <router-link to="/primary-dashboard/monthly-engagement" class="btn btn-primary w-100">
                 DETAILS
@@ -106,8 +106,8 @@
             <h5 class="card-title mb-0">WASTE SUMMARY</h5>
           </div>
           <div class="card-body d-flex flex-column">
-            <p class="card-text fs-5">45 KG WASTE DIVERTED</p>
-            <p class="card-text text-muted">Your contribution to a cleaner planet</p>
+            <p class="card-text fs-5">{{ (wasteSummary.wet_kg + wasteSummary.dry_kg + wasteSummary.hazardous_kg).toFixed(1) }} KG WASTE</p>
+            <p class="card-text text-muted">Wet: {{ wasteSummary.wet_kg }}kg, Dry: {{ wasteSummary.dry_kg }}kg, Hazardous: {{ wasteSummary.hazardous_kg }}kg</p>
             <div class="mt-auto">
               <router-link to="/primary-dashboard/waste-summary" class="btn btn-primary w-100">
                 DETAILS
@@ -169,7 +169,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
+import api from '../../services/api';
+
+const router = useRouter();
 
 const userMessage = ref('');
 const isChatOpen = ref(false);
@@ -177,6 +181,80 @@ const chatContainer = ref(null);
 const chatMessages = ref([
   { text: 'Hello! I\'m your WasteWise assistant. How can I help you with waste management today?', sender: 'bot' }
 ]);
+
+// Dashboard data
+const quizPerformance = ref({
+  average_score: 0,
+  message: 'Start taking quizzes to see your performance!'
+});
+const leaderboard = ref({
+  rank: 0,
+  points: 0,
+  message: 'Start earning points!'
+});
+const monthlyEngagement = ref({
+  quizzes: 0,
+  waste_logs: 0,
+  campaigns: 0,
+  message: 'Your active participation.'
+});
+const wasteSummary = ref({
+  wet_kg: 0,
+  dry_kg: 0,
+  hazardous_kg: 0
+});
+
+// Fetch dashboard data
+const fetchDashboardData = async () => {
+  try {
+    const response = await api.get('/primary/dashboard');
+    const data = response.data;
+    
+    quizPerformance.value = {
+      average_score: data.quiz_performance.average_score,
+      message: data.quiz_performance.message
+    };
+    
+    leaderboard.value = {
+      rank: data.leaderboard.rank,
+      points: data.leaderboard.points,
+      message: data.leaderboard.message
+    };
+    
+    monthlyEngagement.value = {
+      quizzes: data.monthly_engagement.quizzes,
+      waste_logs: data.monthly_engagement.waste_logs,
+      campaigns: data.monthly_engagement.campaigns,
+      message: data.monthly_engagement.message
+    };
+    
+    wasteSummary.value = {
+      wet_kg: data.waste_summary.wet_kg,
+      dry_kg: data.waste_summary.dry_kg,
+      hazardous_kg: data.waste_summary.hazardous_kg
+    };
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+  }
+};
+
+let focusHandler = null;
+
+onMounted(() => {
+  fetchDashboardData();
+  
+  // Refresh data when window regains focus (e.g., after completing quiz)
+  focusHandler = () => {
+    fetchDashboardData();
+  };
+  window.addEventListener('focus', focusHandler);
+});
+
+onUnmounted(() => {
+  if (focusHandler) {
+    window.removeEventListener('focus', focusHandler);
+  }
+});
 
 const sendMessage = async () => {
   if (!userMessage.value.trim()) return;

@@ -1,74 +1,85 @@
+"""Security utilities for authentication."""
 from datetime import datetime, timedelta
-from typing import Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from functools import wraps
+from flask import request, jsonify, current_app
+from jose import jwt, JWTError
+from app.models import User, db
 
-from app.core.config import settings
-from app.db.base import get_db
-from app.models.user import User
-from app.schemas.token import TokenData
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
+def create_access_token(user_id: int, expires_delta: timedelta = None):
+    """Create JWT access token."""
+    if expires_delta is None:
+        expires_delta = timedelta(minutes=current_app.config["JWT_ACCESS_TOKEN_EXPIRE_MINUTES"])
+    
+    expire = datetime.utcnow() + expires_delta
+    to_encode = {"sub": str(user_id), "exp": expire}
     encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+        to_encode,
+        current_app.config["JWT_SECRET_KEY"],
+        algorithm=current_app.config["JWT_ALGORITHM"]
     )
     return encoded_jwt
 
-async def get_current_user(
-    db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
-) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+
+def verify_token(token: str):
+    """Verify JWT token and return user_id."""
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            token,
+            current_app.config["JWT_SECRET_KEY"],
+            algorithms=[current_app.config["JWT_ALGORITHM"]]
         )
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        return int(user_id)
     except JWTError:
-        raise credentials_exception
+        return None
+
+
+def get_current_user():
+    """Get current user from token."""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return None
     
-    user = db.query(User).filter(User.username == token_data.username).first()
-    if user is None:
-        raise credentials_exception
-    return user
+    try:
+        token = auth_header.split(" ")[1]  # Bearer <token>
+    except IndexError:
+        return None
+    
+    user_id = verify_token(token)
+    if user_id is None:
+        return None
+    
+    return User.query.get(user_id)
 
-async def get_current_active_user(
-    current_user: User = Depends(get_current_user),
-) -> User:
-    if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
 
-async def get_current_active_superuser(
-    current_user: User = Depends(get_current_user),
-) -> User:
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges",
-        )
-    return current_user
+def token_required(f):
+    """Decorator to require authentication."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()
+        if user is None:
+            return jsonify({"error": "Authentication required"}), 401
+        if not user.is_active:
+            return jsonify({"error": "User account is inactive"}), 403
+        return f(user, *args, **kwargs)
+    return decorated
+
+
+def role_required(*allowed_roles):
+    """Decorator to require specific user role/category."""
+    def decorator(f):
+        @wraps(f)
+        @token_required
+        def decorated(user, *args, **kwargs):
+            if user.user_category:
+                user_role = user.user_category.key
+                if user_role not in allowed_roles:
+                    return jsonify({"error": "Insufficient permissions"}), 403
+            else:
+                return jsonify({"error": "User role not assigned"}), 403
+            return f(user, *args, **kwargs)
+        return decorated
+    return decorator

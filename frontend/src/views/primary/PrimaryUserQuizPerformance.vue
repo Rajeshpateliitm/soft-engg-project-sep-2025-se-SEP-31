@@ -1,5 +1,15 @@
 <template>
   <div class="quiz-performance">
+    <!-- Loading State -->
+    <div v-if="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-3">Loading quiz performance data...</p>
+    </div>
+
+    <!-- Content -->
+    <template v-else>
     <div class="row mb-4">
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
@@ -106,7 +116,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container" style="position: relative; height: 300px;">
-              <canvas ref="scoreTrendChart"></canvas>
+              <canvas ref="scoreTrendChartRef"></canvas>
             </div>
           </div>
         </div>
@@ -120,7 +130,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container" style="position: relative; height: 300px;">
-              <canvas ref="categoryChart"></canvas>
+              <canvas ref="categoryChartRef"></canvas>
             </div>
           </div>
         </div>
@@ -197,121 +207,154 @@
         </button>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
 import { Chart, registerables } from 'chart.js';
 import { useRouter } from 'vue-router';
+import api from '../../services/api';
 
 // Register Chart.js components
 Chart.register(...registerables);
 
 const router = useRouter();
+const scoreTrendChartRef = ref(null);
+const categoryChartRef = ref(null);
 let scoreTrendChart = null;
 let categoryChart = null;
 
-// Sample data - in a real app, this would come from an API
 const timeRange = ref('30');
 const stats = ref({
-  averageScore: 82,
-  scoreTrend: 5.2,
-  quizzesTaken: 24,
-  quizzesTrend: 12.5,
-  correctAnswers: 189,
-  totalQuestions: 240,
-  accuracyTrend: 3.8,
-  bestCategory: 'Recycling',
-  bestCategoryScore: 89,
-  worstCategory: 'Composting',
-  worstCategoryScore: 68
+  averageScore: 0,
+  scoreTrend: 0,
+  quizzesTaken: 0,
+  quizzesTrend: 0,
+  correctAnswers: 0,
+  totalQuestions: 0,
+  accuracyTrend: 0,
+  bestCategory: 'N/A',
+  bestCategoryScore: 0,
+  worstCategory: 'N/A',
+  worstCategoryScore: 0
 });
 
-const recentAttempts = ref([
-  {
-    id: 1,
-    date: '2023-10-28T14:30:00',
-    quizName: 'Advanced Recycling',
-    score: 92,
-    timeSpent: '4:32',
-    correct: 23,
-    total: 25,
-    status: 'Completed'
-  },
-  {
-    id: 2,
-    date: '2023-10-25T09:15:00',
-    quizName: 'Composting Basics',
-    score: 76,
-    timeSpent: '3:48',
-    correct: 19,
-    total: 25,
-    status: 'Completed'
-  },
-  {
-    id: 3,
-    date: '2023-10-20T16:45:00',
-    quizName: 'E-Waste Management',
-    score: 84,
-    timeSpent: '5:12',
-    correct: 21,
-    total: 25,
-    status: 'Completed'
-  },
-  {
-    id: 4,
-    date: '2023-10-15T11:20:00',
-    quizName: 'Plastic Waste',
-    score: 88,
-    timeSpent: '4:05',
-    correct: 22,
-    total: 25,
-    status: 'Completed'
-  },
-  {
-    id: 5,
-    date: '2023-10-10T13:10:00',
-    quizName: 'Hazardous Waste',
-    score: 68,
-    timeSpent: '6:23',
-    correct: 17,
-    total: 25,
-    status: 'Completed'
+const recentAttempts = ref([]);
+const isLoading = ref(true);
+
+// Fetch quiz performance data
+const fetchQuizPerformance = async () => {
+  try {
+    isLoading.value = true;
+    const response = await api.get('/primary/quiz/performance');
+    const data = response.data;
+    
+    // Calculate stats
+    const pastQuizzes = data.past_quizzes || [];
+    const totalCorrect = pastQuizzes.reduce((sum, q) => sum + q.score, 0);
+    const totalQuestions = pastQuizzes.reduce((sum, q) => sum + q.total_questions, 0);
+    const categoryBreakdown = data.category_breakdown || {};
+    const categoryKeys = Object.keys(categoryBreakdown);
+    const categoryValues = Object.values(categoryBreakdown);
+    
+    stats.value = {
+      averageScore: data.average_quiz_score || data.overall_accuracy || 0,
+      scoreTrend: 0, // Calculate from previous attempts if needed
+      quizzesTaken: pastQuizzes.length,
+      quizzesTrend: 0,
+      correctAnswers: totalCorrect,
+      totalQuestions: totalQuestions,
+      accuracyTrend: 0,
+      bestCategory: categoryKeys.length > 0 ? categoryKeys[0] : 'N/A',
+      bestCategoryScore: categoryValues.length > 0 ? Math.max(...categoryValues) : 0,
+      worstCategory: categoryKeys.length > 0 ? categoryKeys[categoryKeys.length - 1] : 'N/A',
+      worstCategoryScore: categoryValues.length > 0 ? Math.min(...categoryValues) : 0
+    };
+    
+    // Update recent attempts
+    recentAttempts.value = (data.past_quizzes || []).slice(0, 10).map(attempt => ({
+      id: attempt.id,
+      date: attempt.date,
+      quizName: 'Waste Management Quiz',
+      score: attempt.percentage,
+      timeSpent: 'N/A',
+      correct: attempt.score,
+      total: attempt.total_questions,
+      status: 'Completed'
+    }));
+    
+    // Initialize charts after data is loaded and DOM is ready
+    await nextTick();
+    // Small delay to ensure canvas elements are rendered
+    setTimeout(() => {
+      initCharts();
+    }, 100);
+  } catch (error) {
+    console.error('Error fetching quiz performance:', error);
+  } finally {
+    isLoading.value = false;
   }
-]);
+};
 
 // Chart data
 const scoreTrendData = computed(() => {
-  // In a real app, this would be fetched based on the selected time range
+  const attempts = recentAttempts.value.slice(0, 10).reverse();
+  if (attempts.length === 0) {
+    return {
+      labels: ['No Data'],
+      datasets: [
+        {
+          label: 'Your Score',
+          data: [0],
+          borderColor: '#4e73df',
+          backgroundColor: 'rgba(78, 115, 223, 0.1)',
+          tension: 0.3,
+          fill: true
+        }
+      ]
+    };
+  }
   return {
-    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+    labels: attempts.map((_, index) => `Quiz ${index + 1}`),
     datasets: [
       {
         label: 'Your Score',
-        data: [72, 78, 75, 82],
+        data: attempts.map(a => a.score),
         borderColor: '#4e73df',
         backgroundColor: 'rgba(78, 115, 223, 0.1)',
         tension: 0.3,
         fill: true
-      },
-      {
-        label: 'Community Average',
-        data: [65, 68, 70, 72],
-        borderColor: '#858796',
-        borderDash: [5, 5],
-        backgroundColor: 'transparent',
-        tension: 0.3
       }
     ]
   };
 });
 
 const categoryData = computed(() => {
+  const breakdown = stats.value.bestCategory !== 'N/A' ? {
+    [stats.value.bestCategory]: stats.value.bestCategoryScore
+  } : {};
+  
+  const labels = Object.keys(breakdown);
+  const data = Object.values(breakdown);
+  
+  if (labels.length === 0) {
+    return {
+      labels: ['No Data'],
+      datasets: [{
+        data: [100],
+        backgroundColor: ['rgba(200, 200, 200, 0.8)'],
+        borderColor: '#fff',
+        borderWidth: 2
+      }]
+    };
+  }
+  
   return {
-    labels: ['Recycling', 'Composting', 'E-Waste', 'Plastic', 'Hazardous'],
+    labels: labels,
     datasets: [{
-      data: [89, 68, 82, 85, 72],
+      data: data,
       backgroundColor: [
         'rgba(78, 115, 223, 0.8)',
         'rgba(28, 200, 138, 0.8)',
@@ -384,79 +427,87 @@ const exportData = () => {
 // Initialize charts
 const initCharts = () => {
   // Destroy existing charts if they exist
-  if (scoreTrendChart) scoreTrendChart.destroy();
-  if (categoryChart) categoryChart.destroy();
+  if (scoreTrendChart && typeof scoreTrendChart.destroy === 'function') {
+    scoreTrendChart.destroy();
+    scoreTrendChart = null;
+  }
+  if (categoryChart && typeof categoryChart.destroy === 'function') {
+    categoryChart.destroy();
+    categoryChart = null;
+  }
 
   // Score Trend Chart (Line)
-  const scoreCtx = document.querySelector('canvas[ref="scoreTrendChart"]')?.getContext('2d');
-  if (scoreCtx) {
-    scoreTrendChart = new Chart(scoreCtx, {
-      type: 'line',
-      data: scoreTrendData.value,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
+  if (scoreTrendChartRef.value) {
+    const scoreCtx = scoreTrendChartRef.value.getContext('2d');
+    if (scoreCtx && scoreTrendData.value && scoreTrendData.value.datasets && scoreTrendData.value.datasets[0] && scoreTrendData.value.datasets[0].data.length > 0) {
+      scoreTrendChart = new Chart(scoreCtx, {
+        type: 'line',
+        data: scoreTrendData.value,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+            }
           },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 100,
-            ticks: {
-              callback: function(value) {
-                return value + '%';
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                callback: function(value) {
+                  return value + '%';
+                }
               }
             }
           }
         }
-      }
-    });
+      });
+    }
   }
 
   // Category Performance Chart (Doughnut)
-  const categoryCtx = document.querySelector('canvas[ref="categoryChart"]')?.getContext('2d');
-  if (categoryCtx) {
-    categoryChart = new Chart(categoryCtx, {
-      type: 'doughnut',
-      data: categoryData.value,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '70%',
-        plugins: {
-          legend: {
-            position: 'right',
-          },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                return `${context.label}: ${context.raw}%`;
+  if (categoryChartRef.value) {
+    const categoryCtx = categoryChartRef.value.getContext('2d');
+    if (categoryCtx && categoryData.value && categoryData.value.datasets && categoryData.value.datasets[0] && categoryData.value.datasets[0].data.length > 0) {
+      categoryChart = new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: categoryData.value,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: {
+            legend: {
+              position: 'right',
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.label}: ${context.raw}%`;
+                }
               }
             }
           }
         }
-      }
-    });
+      });
+    }
   }
 };
 
 // Watch for time range changes
 watch(timeRange, () => {
-  // In a real app, this would refetch data based on the selected time range
-  console.log('Time range changed to:', timeRange.value);
-  initCharts();
+  fetchQuizPerformance();
 });
 
 // Initialize component
 onMounted(() => {
-  initCharts();
+  fetchQuizPerformance();
   
   // Add resize event listener to handle chart resizing
   window.addEventListener('resize', initCharts);
@@ -464,8 +515,12 @@ onMounted(() => {
 
 // Clean up
 onBeforeUnmount(() => {
-  if (scoreTrendChart) scoreTrendChart.destroy();
-  if (categoryChart) categoryChart.destroy();
+  if (scoreTrendChart && typeof scoreTrendChart.destroy === 'function') {
+    scoreTrendChart.destroy();
+  }
+  if (categoryChart && typeof categoryChart.destroy === 'function') {
+    categoryChart.destroy();
+  }
   window.removeEventListener('resize', initCharts);
 });
 </script>

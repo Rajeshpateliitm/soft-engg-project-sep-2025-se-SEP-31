@@ -62,7 +62,7 @@
 
 <style scoped>
 .home {
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - 76px);
   background-color: #f8f9fa;
 }
 
