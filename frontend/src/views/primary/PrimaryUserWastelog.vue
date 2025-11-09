@@ -121,6 +121,9 @@
               <button type="button" class="btn btn-outline-secondary ms-2" @click="resetForm">
                 Reset
               </button>
+              <router-link to="/primary-dashboard/local-recyclers" class="btn btn-info ms-2">
+                Local Recyclers
+              </router-link>
             </div>
           </div>
         </form>
