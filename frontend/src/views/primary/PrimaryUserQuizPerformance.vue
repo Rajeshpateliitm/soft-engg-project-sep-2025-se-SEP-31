@@ -38,9 +38,6 @@
               <div>
                 <h6 class="text-muted mb-2">Average Score</h6>
                 <h3 class="mb-0">{{ stats.averageScore }}%</h3>
-                <span :class="getTrendClass(stats.scoreTrend)">
-                  <i :class="getTrendIcon(stats.scoreTrend)"></i> {{ Math.abs(stats.scoreTrend) }}%
-                </span>
               </div>
               <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
                 <i class="bi bi-graph-up text-primary" style="font-size: 1.5rem;"></i>
@@ -57,9 +54,6 @@
               <div>
                 <h6 class="text-muted mb-2">Quizzes Taken</h6>
                 <h3 class="mb-0">{{ stats.quizzesTaken }}</h3>
-                <span :class="getTrendClass(stats.quizzesTrend)">
-                  <i :class="getTrendIcon(stats.quizzesTrend)"></i> {{ Math.abs(stats.quizzesTrend) }}%
-                </span>
               </div>
               <div class="bg-success bg-opacity-10 p-3 rounded-circle">
                 <i class="bi bi-check2-circle text-success" style="font-size: 1.5rem;"></i>
@@ -76,9 +70,6 @@
               <div>
                 <h6 class="text-muted mb-2">Correct Answers</h6>
                 <h3 class="mb-0">{{ stats.correctAnswers }}/{{ stats.totalQuestions }}</h3>
-                <span :class="getTrendClass(stats.accuracyTrend)">
-                  <i :class="getTrendIcon(stats.accuracyTrend)"></i> {{ Math.abs(stats.accuracyTrend) }}%
-                </span>
               </div>
               <div class="bg-info bg-opacity-10 p-3 rounded-circle">
                 <i class="bi bi-check-all text-info" style="font-size: 1.5rem;"></i>
@@ -95,7 +86,6 @@
               <div>
                 <h6 class="text-muted mb-2">Best Category</h6>
                 <h3 class="mb-0">{{ stats.bestCategory || 'N/A' }}</h3>
-                <span class="text-success">{{ stats.bestCategoryScore }}% Accuracy</span>
               </div>
               <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
                 <i class="bi bi-trophy-fill text-warning" style="font-size: 1.5rem;"></i>
