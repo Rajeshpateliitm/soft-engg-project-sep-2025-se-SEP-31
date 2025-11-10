@@ -9,6 +9,7 @@ const PrimaryUserNavbar = () => import('@/components/layout/PrimaryUserNavbar.vu
 const PrimaryUserDashboard = () => import('@/views/primary/PrimaryUserDashboard.vue');
 const PrimaryUserQuiz = () => import('@/views/primary/PrimaryUserQuiz.vue');
 const PrimaryUserWastelog = () => import('@/views/primary/PrimaryUserWastelog.vue');
+const PrimaryUserRecycler = () => import('@/views/primary/PrimaryUserRecycler.vue');
 const PrimaryUserCampaigns = () => import('@/views/primary/PrimaryUserCampaigns.vue');
 const PrimaryUserQuizPerformance = () => import('@/views/primary/PrimaryUserQuizPerformance.vue');
 const PrimaryUserCommunityLeaderboard = () => import('@/views/primary/PrimaryUserCommunityLeaderboard.vue');
@@ -67,6 +68,11 @@ const routes = [
         path: 'wastelog', 
         name: 'PrimaryUserWastelog',
         component: PrimaryUserWastelog 
+      },
+      { 
+        path: 'local-recyclers', 
+        name: 'PrimaryUserRecycler',
+        component: PrimaryUserRecycler 
       },
       { 
         path: 'campaigns', 
