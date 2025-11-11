@@ -30,6 +30,9 @@ def create_app(config_class=Config):
     from app.api.common import bp as common_bp
     app.register_blueprint(common_bp, url_prefix="/api/common")
 
+    from app.api.genai import bp as genai_bp
+    app.register_blueprint(genai_bp, url_prefix="/api/genai")
+
     @app.route("/")
     def root():
         return jsonify({"message": "Welcome to WasteWise API!"})
