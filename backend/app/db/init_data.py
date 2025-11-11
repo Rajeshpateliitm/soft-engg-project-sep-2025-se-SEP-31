@@ -235,15 +235,48 @@ def init_sample_data():
             
             db.session.commit()
             
-            # Create sample recycler locations
+            # Create sample recycler locations with coordinates for Kolkata (pincode 700001)
+            # Coordinates are approximate locations in Kolkata area
             recyclers_data = [
+                {
+                    "name": "GreenCycle Recyclers",
+                    "address": "123, Girish Park, Kolkata-700031",
+                    "pincode": "700001",
+                    "phone": "+91 98765 43210",
+                    "website": "https://greencyclerecyclers.com",
+                    "ward_id": ward_1.id,
+                    "latitude": 22.5726,  # Approximate Kolkata coordinates
+                    "longitude": 88.3639
+                },
+                {
+                    "name": "Hazardous E-Waste Solutions Hub",
+                    "address": "45, Bypass Road, Kolkata 700002",
+                    "pincode": "700001",
+                    "phone": "+91 9123456789",
+                    "website": "https://ewastesolutions.com",
+                    "ward_id": ward_1.id,
+                    "latitude": 22.5626,
+                    "longitude": 88.3630
+                },
+                {
+                    "name": "Goonj",
+                    "address": "10, Central Avenue, Kolkata-700041",
+                    "pincode": "700001",
+                    "phone": "+91 76543 21098",
+                    "website": "https://goonj.org",
+                    "ward_id": ward_1.id,
+                    "latitude": 22.5826,
+                    "longitude": 88.3739
+                },
                 {
                     "name": "Green Recyclers",
                     "address": "123 Main Street, Park Street",
                     "pincode": "700001",
                     "phone": "+91-9876543210",
                     "website": "https://greenrecyclers.com",
-                    "ward_id": ward_1.id
+                    "ward_id": ward_1.id,
+                    "latitude": 22.5526,
+                    "longitude": 88.3539
                 },
                 {
                     "name": "Eco Waste Solutions",
@@ -251,14 +284,44 @@ def init_sample_data():
                     "pincode": "700064",
                     "phone": "+91-9876543211",
                     "website": None,
-                    "ward_id": ward_2.id
+                    "ward_id": ward_2.id,
+                    "latitude": 22.5726,
+                    "longitude": 88.4039
                 }
             ]
             
             for rec_data in recyclers_data:
-                if not RecyclerLocation.query.filter_by(name=rec_data["name"]).first():
+                existing_recycler = RecyclerLocation.query.filter_by(name=rec_data["name"]).first()
+                if not existing_recycler:
                     recycler = RecyclerLocation(**rec_data)
                     db.session.add(recycler)
+                else:
+                    # Update existing recycler with coordinates and other details if missing
+                    updated = False
+                    if not existing_recycler.latitude or not existing_recycler.longitude:
+                        existing_recycler.latitude = rec_data.get("latitude")
+                        existing_recycler.longitude = rec_data.get("longitude")
+                        updated = True
+                    
+                    if rec_data.get("address") and (not existing_recycler.address or existing_recycler.address != rec_data["address"]):
+                        existing_recycler.address = rec_data["address"]
+                        updated = True
+                    
+                    if rec_data.get("phone") and (not existing_recycler.phone or existing_recycler.phone != rec_data["phone"]):
+                        existing_recycler.phone = rec_data["phone"]
+                        updated = True
+                    
+                    if rec_data.get("website") is not None and existing_recycler.website != rec_data["website"]:
+                        existing_recycler.website = rec_data["website"]
+                        updated = True
+                    
+                    if rec_data.get("pincode") and existing_recycler.pincode != rec_data["pincode"]:
+                        existing_recycler.pincode = rec_data["pincode"]
+                        updated = True
+                    
+                    if rec_data.get("ward_id") and existing_recycler.ward_id != rec_data["ward_id"]:
+                        existing_recycler.ward_id = rec_data["ward_id"]
+                        updated = True
             
             db.session.commit()
             
@@ -339,4 +402,147 @@ def init_sample_data():
     except Exception as e:
         print(f"⚠️  Warning: Could not initialize sample data: {e}")
         db.session.rollback()
+
+
+def update_recyclers_data():
+    """Update existing recyclers with coordinates and add new ones."""
+    try:
+        ward_1 = Ward.query.filter_by(ward_number="1").first()
+        ward_2 = Ward.query.filter_by(ward_number="2").first()
+        
+        if not ward_1:
+            print("❌ Error: Ward 1 not found. Please run database initialization first.")
+            return
+        
+        # Recycler data with coordinates
+        recyclers_data = [
+            {
+                "name": "GreenCycle Recyclers",
+                "address": "123, Girish Park, Kolkata-700031",
+                "pincode": "700001",
+                "phone": "+91 98765 43210",
+                "website": "https://greencyclerecyclers.com",
+                "ward_id": ward_1.id,
+                "latitude": 22.5726,
+                "longitude": 88.3639
+            },
+            {
+                "name": "Hazardous E-Waste Solutions Hub",
+                "address": "45, Bypass Road, Kolkata 700002",
+                "pincode": "700001",
+                "phone": "+91 9123456789",
+                "website": "https://ewastesolutions.com",
+                "ward_id": ward_1.id,
+                "latitude": 22.5626,
+                "longitude": 88.3630
+            },
+            {
+                "name": "Goonj",
+                "address": "10, Central Avenue, Kolkata-700041",
+                "pincode": "700001",
+                "phone": "+91 76543 21098",
+                "website": "https://goonj.org",
+                "ward_id": ward_1.id,
+                "latitude": 22.5826,
+                "longitude": 88.3739
+            },
+            {
+                "name": "Green Recyclers",
+                "address": "123 Main Street, Park Street",
+                "pincode": "700001",
+                "phone": "+91-9876543210",
+                "website": "https://greenrecyclers.com",
+                "ward_id": ward_1.id,
+                "latitude": 22.5526,
+                "longitude": 88.3539
+            },
+            {
+                "name": "Eco Waste Solutions",
+                "address": "456 Eco Road, Salt Lake",
+                "pincode": "700064",
+                "phone": "+91-9876543211",
+                "website": None,
+                "ward_id": ward_2.id if ward_2 else ward_1.id,
+                "latitude": 22.5726,
+                "longitude": 88.4039
+            }
+        ]
+        
+        added_count = 0
+        updated_count = 0
+        
+        print("=" * 60)
+        print("Updating Recyclers with Coordinates")
+        print("=" * 60)
+        
+        for rec_data in recyclers_data:
+            existing_recycler = RecyclerLocation.query.filter_by(name=rec_data["name"]).first()
+            
+            if not existing_recycler:
+                recycler = RecyclerLocation(**rec_data)
+                db.session.add(recycler)
+                added_count += 1
+                print(f"✅ Added: {rec_data['name']}")
+            else:
+                updated = False
+                updates = []
+                
+                if not existing_recycler.latitude or not existing_recycler.longitude:
+                    existing_recycler.latitude = rec_data.get("latitude")
+                    existing_recycler.longitude = rec_data.get("longitude")
+                    updated = True
+                    updates.append("coordinates")
+                
+                if rec_data.get("address") and (not existing_recycler.address or existing_recycler.address != rec_data["address"]):
+                    existing_recycler.address = rec_data["address"]
+                    updated = True
+                    updates.append("address")
+                
+                if rec_data.get("phone") and (not existing_recycler.phone or existing_recycler.phone != rec_data["phone"]):
+                    existing_recycler.phone = rec_data["phone"]
+                    updated = True
+                    updates.append("phone")
+                
+                if rec_data.get("website") is not None and existing_recycler.website != rec_data["website"]:
+                    existing_recycler.website = rec_data["website"]
+                    updated = True
+                    updates.append("website")
+                
+                if rec_data.get("pincode") and existing_recycler.pincode != rec_data["pincode"]:
+                    existing_recycler.pincode = rec_data["pincode"]
+                    updated = True
+                    updates.append("pincode")
+                
+                if rec_data.get("ward_id") and existing_recycler.ward_id != rec_data["ward_id"]:
+                    existing_recycler.ward_id = rec_data["ward_id"]
+                    updated = True
+                    updates.append("ward_id")
+                
+                if updated:
+                    updated_count += 1
+                    print(f"🔄 Updated: {rec_data['name']} ({', '.join(updates)})")
+        
+        db.session.commit()
+        
+        total_recyclers = RecyclerLocation.query.filter_by(is_active=True).count()
+        recyclers_with_coords = RecyclerLocation.query.filter(
+            RecyclerLocation.latitude.isnot(None),
+            RecyclerLocation.longitude.isnot(None),
+            RecyclerLocation.is_active == True
+        ).count()
+        
+        print("=" * 60)
+        print(f"✅ Update completed!")
+        print(f"   - Added: {added_count} recyclers")
+        print(f"   - Updated: {updated_count} recyclers")
+        print(f"   - Total active recyclers: {total_recyclers}")
+        print(f"   - Recyclers with coordinates: {recyclers_with_coords}")
+        print("=" * 60)
+        
+    except Exception as e:
+        print(f"❌ Error updating recyclers: {str(e)}")
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        raise
 

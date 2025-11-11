@@ -521,7 +521,7 @@ def get_pickup_details(user):
 @bp.route("/pickup/<int:pickup_id>/accept", methods=["POST"])
 @token_required
 def accept_pickup(user, pickup_id):
-    """Accept a pickup request - only for collectors."""
+    """Accept a pickup request - only for collectors. Awards points to the primary user."""
     # Verify user is a collector
     membership = RwaMembership.query.filter_by(user_id=user.id, is_active=True).first()
     if not membership or membership.role != "collector":
@@ -534,6 +534,32 @@ def accept_pickup(user, pickup_id):
     if pickup.status != "pending":
         return jsonify({"error": "Pickup request is not pending"}), 400
     
+    # Find related waste logs by pickup_request_id stored in notes
+    waste_logs = WasteLog.query.filter(
+        and_(
+            WasteLog.user_id == pickup.requester_id,
+            WasteLog.is_active == True,
+            WasteLog.notes.like(f"%PICKUP_REQ_ID:{pickup_id}%")
+        )
+    ).all()
+    
+    # Award points based on waste log data
+    points_awarded = 0
+    if waste_logs:
+        # Get the first waste log to check separated/recycled flags
+        # (all waste logs for the same pickup request should have the same flags)
+        first_log = waste_logs[0]
+        if first_log.separated:
+            points_awarded += 5
+        if first_log.recycled:
+            points_awarded += 10
+        
+        # Award points to the requester
+        requester = User.query.get(pickup.requester_id)
+        if requester:
+            requester.points += points_awarded
+    
+    # Update pickup request status
     pickup.status = "accepted"
     pickup.assigned_collector_id = user.id
     pickup.decision_by_user_id = user.id
@@ -541,13 +567,16 @@ def accept_pickup(user, pickup_id):
     
     db.session.commit()
     
-    return jsonify({"message": "Pickup request accepted"}), 200
+    return jsonify({
+        "message": "Pickup request accepted",
+        "points_awarded": points_awarded
+    }), 200
 
 
 @bp.route("/pickup/<int:pickup_id>/reject", methods=["POST"])
 @token_required
 def reject_pickup(user, pickup_id):
-    """Reject a pickup request - only for collectors."""
+    """Reject a pickup request - only for collectors. Deducts 5 points from the primary user."""
     # Verify user is a collector
     membership = RwaMembership.query.filter_by(user_id=user.id, is_active=True).first()
     if not membership or membership.role != "collector":
@@ -560,13 +589,22 @@ def reject_pickup(user, pickup_id):
     if pickup.status != "pending":
         return jsonify({"error": "Pickup request is not pending"}), 400
     
+    # Deduct 5 points from the requester
+    requester = User.query.get(pickup.requester_id)
+    if requester:
+        requester.points = max(0, requester.points - 5)  # Ensure points don't go below 0
+    
+    # Update pickup request status
     pickup.status = "rejected"
     pickup.decision_by_user_id = user.id
     pickup.decision_at = datetime.utcnow()
     
     db.session.commit()
     
-    return jsonify({"message": "Pickup request rejected"}), 200
+    return jsonify({
+        "message": "Pickup request rejected",
+        "points_deducted": 5
+    }), 200
 
 
 @bp.route("/waste-summary", methods=["GET"])
@@ -600,19 +638,23 @@ def get_waste_summary(user):
     
     primary_users = primary_users_query.all()
     
-    # Get current month
-    current_month = date.today().replace(day=1)
-    month_start = current_month
-    if current_month.month == 12:
-        month_end = date(current_month.year + 1, 1, 1)
+    # Get current month date range
+    today = date.today()
+    month_start = today.replace(day=1)
+    if month_start.month == 12:
+        month_end = date(month_start.year + 1, 1, 1)
     else:
-        month_end = date(current_month.year, current_month.month + 1, 1)
+        month_end = date(month_start.year, month_start.month + 1, 1)
     
-    # Calculate metrics for all primary users in the area
-    household_data = []
+    # Calculate number of days in current month (for per capita per day calculation)
+    days_in_month = (month_end - month_start).days
+    
+    # Aggregate metrics across all households for overall rates
+    all_waste_logs = []
     total_households = len(primary_users)
-    total_segregated = 0
-    total_recycled = 0
+    
+    # Calculate metrics for each household
+    household_data = []
     
     for primary_user in primary_users:
         # Get waste logs for current month
@@ -625,67 +667,74 @@ def get_waste_summary(user):
             )
         ).all()
         
+        # Add to aggregate list for overall metrics
+        all_waste_logs.extend(waste_logs)
+        
+        family_size = primary_user.family_members_count or 1
+        
         if not waste_logs:
             # Still include household even if no waste logs
             household_data.append({
                 "household_number": primary_user.house_number or f"HH-{primary_user.id}",
                 "user_id": primary_user.id,
-                "user_name": primary_user.username or primary_user.email,
-                "family_size": primary_user.family_members_count or 1,
-                "segregation_percentage": 0,
-                "per_capita_wet": 0,
-                "per_capita_dry": 0,
-                "per_capita_hazardous": 0,
-                "recycle_reuse_donation_percentage": 0,
-                "engagement_score": primary_user.points
+                "family_size": family_size,
+                "segregation_percentage": 0.0,
+                "per_capita_wet": 0.0,
+                "per_capita_dry": 0.0,
+                "per_capita_hazardous": 0.0,
+                "recycle_reuse_donation_percentage": 0.0,
+                "engagement_score": round(float(primary_user.points or 0), 1)
             })
             continue
         
-        # Calculate metrics
-        total_wet = sum(log.quantity_kg for log in waste_logs if log.category.lower() == "wet")
-        total_dry = sum(log.quantity_kg for log in waste_logs if log.category.lower() == "dry")
-        total_hazardous = sum(log.quantity_kg for log in waste_logs if log.category.lower() == "hazardous")
+        # Calculate total waste by category for this household
+        total_wet = sum(log.quantity_kg for log in waste_logs if log.category and log.category.lower() == "wet")
+        total_dry = sum(log.quantity_kg for log in waste_logs if log.category and log.category.lower() == "dry")
+        total_hazardous = sum(log.quantity_kg for log in waste_logs if log.category and log.category.lower() == "hazardous")
         
-        segregated_count = len([log for log in waste_logs if log.separated])
-        segregation_pct = (segregated_count / len(waste_logs) * 100) if waste_logs else 0
+        # Calculate segregation percentage for this household
+        segregated_logs = [log for log in waste_logs if log.separated]
+        segregation_pct = (len(segregated_logs) / len(waste_logs) * 100) if waste_logs else 0.0
         
-        recycled_count = len([log for log in waste_logs if log.recycled])
-        recycle_pct = (recycled_count / len(waste_logs) * 100) if waste_logs else 0
+        # Calculate recycle/reuse/donation percentage for this household
+        recycled_logs = [log for log in waste_logs if log.recycled]
+        recycle_pct = (len(recycled_logs) / len(waste_logs) * 100) if waste_logs else 0.0
         
-        family_size = primary_user.family_members_count or 1
-        per_capita_wet = total_wet / family_size if family_size > 0 else 0
-        per_capita_dry = total_dry / family_size if family_size > 0 else 0
-        per_capita_hazardous = total_hazardous / family_size if family_size > 0 else 0
+        # Calculate per capita waste per day (divide total by family size and days in month)
+        per_capita_wet_per_day = (total_wet / family_size / days_in_month) if family_size > 0 and days_in_month > 0 else 0.0
+        per_capita_dry_per_day = (total_dry / family_size / days_in_month) if family_size > 0 and days_in_month > 0 else 0.0
+        per_capita_hazardous_per_day = (total_hazardous / family_size / days_in_month) if family_size > 0 and days_in_month > 0 else 0.0
         
-        # Engagement score
-        engagement_score = primary_user.points
-        
-        if segregation_pct > 0:
-            total_segregated += 1
-        if recycle_pct > 0:
-            total_recycled += 1
+        # Engagement score - use user points
+        engagement_score = round(float(primary_user.points or 0), 1)
         
         household_data.append({
             "household_number": primary_user.house_number or f"HH-{primary_user.id}",
             "user_id": primary_user.id,
-            "user_name": primary_user.username or primary_user.email,
             "family_size": family_size,
             "segregation_percentage": round(segregation_pct, 1),
-            "per_capita_wet": round(per_capita_wet, 2),
-            "per_capita_dry": round(per_capita_dry, 2),
-            "per_capita_hazardous": round(per_capita_hazardous, 2),
+            "per_capita_wet": round(per_capita_wet_per_day, 2),
+            "per_capita_dry": round(per_capita_dry_per_day, 2),
+            "per_capita_hazardous": round(per_capita_hazardous_per_day, 2),
             "recycle_reuse_donation_percentage": round(recycle_pct, 1),
             "engagement_score": engagement_score
         })
     
-    # Overall metrics
-    segregation_rate = (total_segregated / total_households * 100) if total_households > 0 else 0
-    recycle_rate = (total_recycled / total_households * 100) if total_households > 0 else 0
+    # Calculate overall metrics from all waste logs
+    overall_segregation_rate = 0.0
+    overall_recycle_rate = 0.0
+    
+    if all_waste_logs:
+        segregated_count = len([log for log in all_waste_logs if log.separated])
+        overall_segregation_rate = (segregated_count / len(all_waste_logs) * 100)
+        
+        recycled_count = len([log for log in all_waste_logs if log.recycled])
+        overall_recycle_rate = (recycled_count / len(all_waste_logs) * 100)
     
     return jsonify({
         "total_households": total_households,
-        "segregation_rate": round(segregation_rate, 1),
-        "recycle_reuse_donations_rate": round(recycle_rate, 1),
+        "segregation_rate": round(overall_segregation_rate, 1),
+        "recycle_reuse_donations_rate": round(overall_recycle_rate, 1),
         "household_details": household_data
     }), 200
 

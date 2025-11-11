@@ -23,8 +23,26 @@ def get_recyclers():
         )
     ).all()
     
+    # Mapping of recycler names to materials they recycle (can be moved to database later)
+    materials_mapping = {
+        "GreenCycle Recyclers": ["Paper", "Plastics"],
+        "Hazardous E-Waste Solutions Hub": ["Electronics"],
+        "Goonj": ["Clothes"],
+        "Green Recyclers": ["Paper", "Plastics", "Metal"],
+        "Eco Waste Solutions": ["Plastics", "Glass", "Metal"],
+        "EcoRecycle Solutions": ["Plastic", "Paper", "Metal"],
+        "Green Earth Recyclers": ["Organic", "Inorganic", "Hazardous"],
+        "Waste Warriors": ["Paper", "Plastics", "Organic"],
+        "Urban Waste Solutions": ["Plastics", "Paper", "Glass"],
+        "Eco Friendly Disposal": ["Organic", "Plastics", "Paper"],
+        "Sustainable Recycling Hub": ["Paper", "Plastics", "Metal", "Glass"]
+    }
+    
     result = []
     for recycler in recyclers:
+        # Get materials from mapping or use default
+        materials = materials_mapping.get(recycler.name, ["General Waste"])
+        
         result.append({
             "id": recycler.id,
             "name": recycler.name,
@@ -33,7 +51,8 @@ def get_recyclers():
             "phone": recycler.phone,
             "website": recycler.website,
             "latitude": recycler.latitude,
-            "longitude": recycler.longitude
+            "longitude": recycler.longitude,
+            "materials": materials
         })
     
     return jsonify({"recyclers": result}), 200

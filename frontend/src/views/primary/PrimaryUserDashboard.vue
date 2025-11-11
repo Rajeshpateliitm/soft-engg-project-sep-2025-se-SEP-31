@@ -134,46 +134,17 @@
           </div>
         </div>
       </div>
-      
-      <!-- Container 6: WasteWise Chatbot -->
-      <div class="col-md-6 col-lg-8 mb-4">
-        <div class="card shadow-lg h-100">
-          <div class="card-header bg-dark text-white">
-            <h5 class="card-title mb-0">WASTEWISE CHATBOT</h5>
-          </div>
-          <div class="card-body p-0 d-flex flex-column">
-            <div class="chat-messages p-3 flex-grow-1 overflow-auto" style="max-height: 300px;">
-              <div v-for="(message, index) in chatMessages" :key="index" class="mb-2">
-                <div :class="['p-2 rounded', message.sender === 'user' ? 'bg-light text-end ms-5' : 'bg-primary text-white me-5']">
-                  {{ message.text }}
-                </div>
-              </div>
-            </div>
-            <div class="input-group p-3 border-top">
-              <input 
-                v-model="userMessage" 
-                type="text" 
-                class="form-control" 
-                placeholder="Ask me about waste management..."
-                @keyup.enter="sendMessage"
-              >
-              <button class="btn btn-primary" @click="sendMessage">
-                <i class="bi bi-send"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import api from '../../services/api';
 
 const router = useRouter();
+const route = useRoute();
 
 const userMessage = ref('');
 const isChatOpen = ref(false);
@@ -240,20 +211,60 @@ const fetchDashboardData = async () => {
 
 let focusHandler = null;
 
+// Check if chat should be auto-opened from query parameter
+const checkAutoOpenChat = () => {
+  if (route.query.openChat === 'true') {
+    // Small delay to ensure component is fully mounted
+    setTimeout(() => {
+      isChatOpen.value = true;
+      nextTick(() => {
+        scrollToBottom();
+        // Add a welcome message if coming from quiz performance
+        if (route.query.quizId) {
+          const quizId = route.query.quizId;
+          setTimeout(() => {
+            chatMessages.value.push({
+              text: `I see you're asking about quiz attempt #${quizId}. How can I help you understand your quiz performance or answer any questions about waste management?`,
+              sender: 'bot'
+            });
+            scrollToBottom();
+          }, 500);
+        }
+      });
+      // Remove query parameter from URL without reload
+      router.replace({ path: route.path, query: {} });
+    }, 300);
+  }
+};
+
+// Watch for route query changes to auto-open chat
+watch(() => route.query.openChat, (newVal) => {
+  if (newVal === 'true') {
+    checkAutoOpenChat();
+  }
+}, { immediate: false });
+
 onMounted(() => {
   fetchDashboardData();
+  
+  // Check if chat should be auto-opened
+  checkAutoOpenChat();
   
   // Refresh data when window regains focus (e.g., after completing quiz)
   focusHandler = () => {
     fetchDashboardData();
   };
   window.addEventListener('focus', focusHandler);
+  
+  // Add click outside listener for chat
+  document.addEventListener('click', handleClickOutside);
 });
 
 onUnmounted(() => {
   if (focusHandler) {
     window.removeEventListener('focus', focusHandler);
   }
+  document.removeEventListener('click', handleClickOutside);
 });
 
 const sendMessage = async () => {
@@ -301,15 +312,13 @@ const handleClickOutside = (event) => {
   const chatButton = document.querySelector('.chat-button');
   
   if (isChatOpen.value && 
+      chatWindow && 
+      chatButton &&
       !chatWindow.contains(event.target) && 
       !chatButton.contains(event.target)) {
     isChatOpen.value = false;
   }
 };
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside);
-});
 </script>
 
 <style scoped>

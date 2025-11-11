@@ -121,6 +121,9 @@
               <button type="button" class="btn btn-outline-secondary ms-2" @click="resetForm">
                 Reset
               </button>
+              <router-link to="/primary-dashboard/local-recyclers" class="btn btn-info ms-2">
+                Local Recyclers
+              </router-link>
             </div>
           </div>
         </form>
@@ -129,7 +132,7 @@
     
     <div class="recent-entries mt-4">
       <h4 class="mb-3">Recent Entries</h4>
-      <div v-if="recentEntries.length === 0" class="text-center py-4 text-muted">
+      <div v-if="groupedEntries.length === 0" class="text-center py-4 text-muted">
         <p>No waste entries logged yet. Start by adding your first entry above.</p>
       </div>
       <div v-else class="table-responsive">
@@ -137,20 +140,27 @@
           <thead class="table-light">
             <tr>
               <th>Date</th>
-              <th>Category</th>
-              <th>Weight (kg)</th>
+              <th class="text-end">Wet Waste (kg)</th>
+              <th class="text-end">Dry Waste (kg)</th>
+              <th class="text-end">Hazardous Waste (kg)</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="entry in recentEntries" :key="entry.id">
-              <td>{{ formatDate(entry.log_date) }}</td>
-              <td>
-                <span class="badge" :class="getWasteTypeBadge(entry.category)">
-                  {{ formatWasteType(entry.category) }}
-                </span>
+            <tr v-for="(entry, index) in groupedEntries" :key="entry.date">
+              <td>{{ formatDate(entry.date) }}</td>
+              <td class="text-end">
+                <span v-if="entry.wet > 0" class="fw-medium">{{ entry.wet.toFixed(1) }} kg</span>
+                <span v-else class="text-muted">—</span>
               </td>
-              <td>{{ entry.quantity_kg }} kg</td>
+              <td class="text-end">
+                <span v-if="entry.dry > 0" class="fw-medium">{{ entry.dry.toFixed(1) }} kg</span>
+                <span v-else class="text-muted">—</span>
+              </td>
+              <td class="text-end">
+                <span v-if="entry.hazardous > 0" class="fw-medium">{{ entry.hazardous.toFixed(1) }} kg</span>
+                <span v-else class="text-muted">—</span>
+              </td>
               <td>
                 <div v-if="entry.separated" class="badge bg-success me-1">Separated</div>
                 <div v-if="entry.recycled" class="badge bg-info">Recycled</div>
@@ -165,7 +175,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import api from '../../services/api';
 import { useRouter } from 'vue-router';
 
@@ -187,10 +197,61 @@ const isSubmitting = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
 
+// Group entries by date with separate columns for each category
+const groupedEntries = computed(() => {
+  const grouped = {};
+  
+  // Group entries by date
+  recentEntries.value.forEach(entry => {
+    // Extract date part (handle both ISO string and date object)
+    let dateKey;
+    if (typeof entry.log_date === 'string') {
+      dateKey = entry.log_date.split('T')[0]; // Use date as key (YYYY-MM-DD)
+    } else {
+      dateKey = entry.log_date;
+    }
+    
+    if (!grouped[dateKey]) {
+      grouped[dateKey] = {
+        date: dateKey,
+        wet: 0,
+        dry: 0,
+        hazardous: 0,
+        separated: false,
+        recycled: false
+      };
+    }
+    
+    // Sum quantities by category
+    const category = entry.category?.toLowerCase();
+    if (category === 'wet') {
+      grouped[dateKey].wet += parseFloat(entry.quantity_kg) || 0;
+    } else if (category === 'dry') {
+      grouped[dateKey].dry += parseFloat(entry.quantity_kg) || 0;
+    } else if (category === 'hazardous') {
+      grouped[dateKey].hazardous += parseFloat(entry.quantity_kg) || 0;
+    }
+    
+    // If any entry for this date has separated/recycled, mark it as true
+    if (entry.separated) {
+      grouped[dateKey].separated = true;
+    }
+    if (entry.recycled) {
+      grouped[dateKey].recycled = true;
+    }
+  });
+  
+  // Convert to array and sort by date (most recent first)
+  return Object.values(grouped).sort((a, b) => {
+    return new Date(b.date) - new Date(a.date);
+  });
+});
+
 // Fetch waste logs from backend
 const fetchWasteLogs = async () => {
   try {
-    const response = await api.get('/primary/waste-logs?limit=20');
+    // Fetch more entries to ensure we have enough data for grouping
+    const response = await api.get('/primary/waste-logs?limit=100');
     recentEntries.value = response.data.waste_logs || [];
   } catch (error) {
     console.error('Error fetching waste logs:', error);

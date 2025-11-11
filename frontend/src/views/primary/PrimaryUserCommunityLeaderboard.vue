@@ -22,7 +22,10 @@
     <div class="row mb-4">
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
-          <h2 class="mb-0">Community Leaderboard</h2>
+          <div>
+            <h2 class="mb-0">Community Leaderboard</h2>
+            <p class="text-muted small mb-0">Ward Rankings</p>
+          </div>
           <div class="d-flex gap-2">
             <select v-model="timeRange" class="form-select form-select-sm" style="width: auto;">
               <option value="weekly">This Week</option>
@@ -53,45 +56,21 @@
               <li class="nav-item" role="presentation">
                 <button 
                   class="nav-link active" 
-                  id="global-tab" 
+                  id="ward-tab" 
                   data-bs-toggle="tab" 
-                  data-bs-target="#global" 
+                  data-bs-target="#ward" 
                   type="button" 
                   role="tab"
                 >
-                  <i class="bi bi-globe me-1"></i> Global
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button 
-                  class="nav-link" 
-                  id="friends-tab" 
-                  data-bs-toggle="tab" 
-                  data-bs-target="#friends" 
-                  type="button" 
-                  role="tab"
-                >
-                  <i class="bi bi-people me-1"></i> Friends
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button 
-                  class="nav-link" 
-                  id="local-tab" 
-                  data-bs-toggle="tab" 
-                  data-bs-target="#local" 
-                  type="button" 
-                  role="tab"
-                >
-                  <i class="bi bi-geo-alt me-1"></i> Local
+                  <i class="bi bi-people me-1"></i> My Ward
                 </button>
               </li>
             </ul>
           </div>
           <div class="card-body p-0">
             <div class="tab-content" id="leaderboardTabsContent">
-              <!-- Global Leaderboard -->
-              <div class="tab-pane fade show active" id="global" role="tabpanel" aria-labelledby="global-tab">
+              <!-- Ward Leaderboard -->
+              <div class="tab-pane fade show active" id="ward" role="tabpanel" aria-labelledby="ward-tab">
                 <div class="table-responsive">
                   <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
@@ -100,20 +79,27 @@
                         <th>User</th>
                         <th class="text-end">Points</th>
                         <th class="text-center">Level</th>
-                        <th class="text-end">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-if="loading">
-                        <td colspan="5" class="text-center py-4">
+                        <td colspan="4" class="text-center py-4">
                           <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                           </div>
                         </td>
                       </tr>
+                      <tr v-else-if="leaderboardData?.message">
+                        <td colspan="4" class="text-center py-4">
+                          <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            {{ leaderboardData.message }}
+                          </div>
+                        </td>
+                      </tr>
                       <tr v-else-if="!filteredUsers || filteredUsers.length === 0">
-                        <td colspan="5" class="text-center py-4">
-                          <p class="text-muted mb-0">No users found</p>
+                        <td colspan="4" class="text-center py-4">
+                          <p class="text-muted mb-0">No users found in your ward</p>
                         </td>
                       </tr>
                       <tr 
@@ -148,8 +134,8 @@
                             <div>
                               <div class="fw-medium">{{ user.name || 'Unknown' }}</div>
                               <small class="text-muted">@{{ user.username || 'user' }}</small>
-                            </div>
-                          </div>
+              </div>
+                </div>
                         </td>
                         <td class="text-end">
                           <span class="fw-medium">{{ (user.points || 0).toLocaleString() }}</span>
@@ -162,226 +148,11 @@
                               aria-valuemin="0" 
                               aria-valuemax="100"
                             ></div>
-                          </div>
+                  </div>
                         </td>
                         <td class="text-center">
                           <span class="badge bg-primary">Level {{ user.level || 1 }}</span>
                           <div v-if="user.remarks" class="small text-muted mt-1">{{ user.remarks }}</div>
-                        </td>
-                        <td class="text-end">
-                          <button 
-                            v-if="user.id !== currentUser?.id"
-                            class="btn btn-sm btn-outline-primary"
-                            @click="toggleFriend(user.id)"
-                          >
-                            <i class="bi bi-person-plus"></i>
-                          </button>
-                          <router-link 
-                            v-else
-                            to="/profile" 
-                            class="btn btn-sm btn-outline-primary"
-                          >
-                            <i class="bi bi-person-lines-fill"></i>
-                          </router-link>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              
-              <!-- Friends Leaderboard -->
-              <div class="tab-pane fade" id="friends" role="tabpanel" aria-labelledby="friends-tab">
-                <div v-if="friends.length > 0">
-                  <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                      <thead class="table-light">
-                        <tr>
-                          <th style="width: 50px;">#</th>
-                          <th>User</th>
-                          <th class="text-end">Points</th>
-                          <th class="text-center">Level</th>
-                          <th class="text-end">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr 
-                          v-for="user in friends" 
-                          :key="user.id || user.rank"
-                          :class="{ 'table-primary': user.id === currentUser?.id }"
-                        >
-                          <td>
-                            <span 
-                              class="d-flex align-items-center justify-content-center rounded-circle"
-                              :class="{
-                                'bg-warning text-dark': user.rank === 1,
-                                'bg-secondary bg-opacity-25': user.rank === 2,
-                                'bg-danger bg-opacity-25': user.rank === 3,
-                                'bg-light': user.rank > 3
-                              }"
-                              style="width: 32px; height: 32px;"
-                            >
-                              {{ user.rank }}
-                            </span>
-                          </td>
-                          <td>
-                            <div class="d-flex align-items-center">
-                              <img 
-                                :src="user.avatar || 'https://ui-avatars.com/api/?name=' + (user.name || 'User') + '&background=4e73df&color=fff&size=64'" 
-                                class="rounded-circle me-2" 
-                                width="32" 
-                                height="32"
-                                alt="User Avatar"
-                              >
-                              <div>
-                                <div class="fw-medium">{{ user.name || 'Unknown' }}</div>
-                                <small class="text-muted">@{{ user.username || 'user' }}</small>
-                              </div>
-                            </div>
-                          </td>
-                          <td class="text-end">
-                            <span class="fw-medium">{{ (user.points || 0).toLocaleString() }}</span>
-                            <div class="progress mt-1" style="height: 4px;">
-                              <div 
-                                class="progress-bar" 
-                                role="progressbar" 
-                                :style="{ width: (user.activity || 0) + '%' }"
-                                :aria-valuenow="user.activity || 0" 
-                                aria-valuemin="0" 
-                                aria-valuemax="100"
-                              ></div>
-                            </div>
-                          </td>
-                          <td class="text-center">
-                            <span class="badge bg-primary">Level {{ user.level || 1 }}</span>
-                            <div v-if="user.remarks" class="small text-muted mt-1">{{ user.remarks }}</div>
-                          </td>
-                          <td class="text-end">
-                            <button 
-                              v-if="user.id !== currentUser?.id"
-                              class="btn btn-sm btn-outline-primary"
-                              @click="toggleFriend(user.id)"
-                            >
-                              <i class="bi bi-person-plus"></i>
-                            </button>
-                            <router-link 
-                              v-else
-                              to="/profile" 
-                              class="btn btn-sm btn-outline-primary"
-                            >
-                              <i class="bi bi-person-lines-fill"></i>
-                            </router-link>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <div v-else class="text-center py-5">
-                  <div class="mb-3">
-                    <i class="bi bi-people" style="font-size: 3rem; color: #6c757d;"></i>
-                  </div>
-                  <h5>No Friends Yet</h5>
-                  <p class="text-muted">Connect with friends to see how you compare!</p>
-                  <button class="btn btn-primary" @click="showFindFriends = true">
-                    <i class="bi bi-person-plus me-1"></i> Find Friends
-                  </button>
-                </div>
-              </div>
-              
-              <!-- Local Leaderboard -->
-              <div class="tab-pane fade" id="local" role="tabpanel" aria-labelledby="local-tab">
-                <div class="table-responsive">
-                  <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                      <tr>
-                        <th style="width: 50px;">#</th>
-                        <th>User</th>
-                        <th class="text-end">Points</th>
-                        <th class="text-center">Level</th>
-                        <th class="text-end">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-if="loading">
-                        <td colspan="5" class="text-center py-4">
-                          <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr v-else-if="!localUsers || localUsers.length === 0">
-                        <td colspan="5" class="text-center py-4">
-                          <p class="text-muted mb-0">No users found</p>
-                        </td>
-                      </tr>
-                      <tr 
-                        v-else
-                        v-for="user in localUsers" 
-                        :key="user.id || user.rank"
-                        :class="{ 'table-primary': user.id === currentUser?.id }"
-                      >
-                        <td>
-                          <span 
-                            class="d-flex align-items-center justify-content-center rounded-circle"
-                            :class="{
-                              'bg-warning text-dark': user.rank === 1,
-                              'bg-secondary bg-opacity-25': user.rank === 2,
-                              'bg-danger bg-opacity-25': user.rank === 3,
-                              'bg-light': user.rank > 3
-                            }"
-                            style="width: 32px; height: 32px;"
-                          >
-                            {{ user.rank }}
-                          </span>
-                        </td>
-                        <td>
-                          <div class="d-flex align-items-center">
-                            <img 
-                              :src="user.avatar || 'https://ui-avatars.com/api/?name=' + (user.name || 'User') + '&background=4e73df&color=fff&size=64'" 
-                              class="rounded-circle me-2" 
-                              width="32" 
-                              height="32"
-                              alt="User Avatar"
-                            >
-                            <div>
-                              <div class="fw-medium">{{ user.name || 'Unknown' }}</div>
-                              <small class="text-muted">@{{ user.username || 'user' }}</small>
-                            </div>
-                          </div>
-                        </td>
-                        <td class="text-end">
-                          <span class="fw-medium">{{ (user.points || 0).toLocaleString() }}</span>
-                          <div class="progress mt-1" style="height: 4px;">
-                            <div 
-                              class="progress-bar" 
-                              role="progressbar" 
-                              :style="{ width: (user.activity || 0) + '%' }"
-                              :aria-valuenow="user.activity || 0" 
-                              aria-valuemin="0" 
-                              aria-valuemax="100"
-                            ></div>
-                          </div>
-                        </td>
-                        <td class="text-center">
-                          <span class="badge bg-primary">Level {{ user.level || 1 }}</span>
-                          <div v-if="user.remarks" class="small text-muted mt-1">{{ user.remarks }}</div>
-                        </td>
-                        <td class="text-end">
-                          <button 
-                            v-if="user.id !== currentUser?.id"
-                            class="btn btn-sm btn-outline-primary"
-                            @click="toggleFriend(user.id)"
-                          >
-                            <i class="bi bi-person-plus"></i>
-                          </button>
-                          <router-link 
-                            v-else
-                            to="/profile" 
-                            class="btn btn-sm btn-outline-primary"
-                          >
-                            <i class="bi bi-person-lines-fill"></i>
-                          </router-link>
                         </td>
                       </tr>
                     </tbody>
@@ -422,10 +193,6 @@
               <div>
                 <div class="h4 mb-0">{{ currentUser?.quizzes || 0 }}</div>
                 <small class="text-muted">Quizzes</small>
-              </div>
-              <div>
-                <div class="h4 mb-0">{{ currentUser?.friends || 0 }}</div>
-                <small class="text-muted">Friends</small>
               </div>
             </div>
             
@@ -558,7 +325,6 @@ const currentUser = ref({
   rank: 0,
   points: 0,
   quizzes: 0,
-  friends: 0,
   progress: 0,
   pointsToNextLevel: 0,
   level: 1,
@@ -608,6 +374,14 @@ const fetchLeaderboard = async () => {
     
     leaderboardData.value = data;
     
+    // Check if there's a message (e.g., no ward assigned)
+    if (data.message) {
+      console.log('Leaderboard message:', data.message);
+      users.value = [];
+      loading.value = false;
+      return;
+    }
+    
     // Check if leaderboard data exists
     if (!data.leaderboard || !Array.isArray(data.leaderboard)) {
       console.error('Invalid leaderboard data structure:', data);
@@ -654,8 +428,7 @@ const fetchLeaderboard = async () => {
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(authStore.user.name || authStore.user.username || 'User')}&background=4e73df&color=fff&size=128`,
         rank: data.user_rank || 0,
         points: data.user_score || 0,
-        quizzes: 0, // Could fetch from dashboard
-        friends: 0, // Friends feature not implemented
+        quizzes: data.user_quiz_count || 0,
         progress: userProgress.progress,
         pointsToNextLevel: userProgress.pointsToNext,
         level: calculateLevel(data.user_score || 0),
@@ -697,14 +470,7 @@ const filteredUsers = computed(() => {
   return filtered.sort((a, b) => (b.points || 0) - (a.points || 0));
 });
 
-const friends = computed(() => {
-  if (!users.value || users.value.length === 0) {
-    return [];
-  }
-  return users.value
-    .filter(user => user.isFriend && user.id !== currentUser.value?.id)
-    .sort((a, b) => (b.points || 0) - (a.points || 0));
-});
+// Friends feature removed - computed properties no longer needed
 
 const localUsers = computed(() => {
   // In a real app, this would filter users by location
@@ -716,31 +482,6 @@ const localUsers = computed(() => {
     .slice(0, 10)
     .sort((a, b) => (b.points || 0) - (a.points || 0));
 });
-
-const friendSearchResults = computed(() => {
-  if (!friendSearch.value) return [];
-  
-  return users.value
-    .filter(user => 
-      (user.name.toLowerCase().includes(friendSearch.value.toLowerCase()) ||
-       user.username.toLowerCase().includes(friendSearch.value.toLowerCase())) &&
-      user.id !== currentUser.value.id
-    )
-    .slice(0, 5);
-});
-
-// Methods
-const toggleFriend = (userId) => {
-  const user = users.value.find(u => u.id === userId);
-  if (user) {
-    user.isFriend = !user.isFriend;
-    
-    // Update friends count for current user
-    if (user.id !== currentUser.value.id) {
-      currentUser.value.friends += user.isFriend ? 1 : -1;
-    }
-  }
-};
 
 // Lifecycle hooks
 onMounted(() => {

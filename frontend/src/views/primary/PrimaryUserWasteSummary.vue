@@ -190,7 +190,10 @@
             <h5 class="mb-0">Waste Trends Over Time</h5>
           </div>
           <div class="card-body">
-            <div class="chart-container" style="position: relative; height: 300px;">
+            <div v-if="Object.keys(dailyTrends).length === 0" class="text-center py-5">
+              <p class="text-muted mb-0">No waste data available for the selected time range</p>
+            </div>
+            <div v-else class="chart-container" style="position: relative; height: 300px;">
               <canvas ref="trendsChartRef"></canvas>
             </div>
           </div>
@@ -204,7 +207,10 @@
             <h5 class="mb-0">Waste Disposal Methods</h5>
           </div>
           <div class="card-body">
-            <div class="chart-container" style="position: relative; height: 300px;">
+            <div v-if="allLogs.length === 0" class="text-center py-5">
+              <p class="text-muted mb-0">No disposal data available</p>
+            </div>
+            <div v-else class="chart-container" style="position: relative; height: 300px;">
               <canvas ref="disposalChartRef"></canvas>
             </div>
           </div>
@@ -218,9 +224,13 @@
         <div class="card border-0 shadow-sm">
           <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Recent Waste Logs</h5>
-            <router-link to="/primary-dashboard/waste-log" class="btn btn-sm btn-outline-primary">
-              View All Logs
-            </router-link>
+            <button 
+              v-if="allLogs.length > 10"
+              @click="toggleShowAllLogs" 
+              class="btn btn-sm btn-outline-primary"
+            >
+              {{ showAllLogs ? 'Show Less' : `View All Logs (${allLogs.length})` }}
+            </button>
           </div>
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -234,7 +244,15 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(log, index) in recentLogs" :key="index">
+                <tr v-if="displayedLogs.length === 0">
+                  <td colspan="5" class="text-center py-4">
+                    <p class="text-muted mb-0">No waste logs found</p>
+                    <router-link to="/primary-dashboard/waste-log" class="btn btn-sm btn-primary mt-2">
+                      <i class="bi bi-plus-lg me-1"></i> Add Waste Log
+                    </router-link>
+                  </td>
+                </tr>
+                <tr v-for="(log, index) in displayedLogs" :key="log.id || index">
                   <td>
                     <div class="text-nowrap">{{ formatDate(log.date) }}</div>
                     <small class="text-muted">{{ formatTime(log.date) }}</small>
@@ -259,14 +277,6 @@
                   </td>
                   <td class="text-end">
                     <span class="fw-medium">{{ log.carbonImpact }} kg CO₂</span>
-                  </td>
-                </tr>
-                <tr v-if="recentLogs.length === 0">
-                  <td colspan="5" class="text-center py-4">
-                    <p class="text-muted mb-0">No waste logs found</p>
-                    <router-link to="/primary-dashboard/waste-log" class="btn btn-sm btn-primary mt-2">
-                      <i class="bi bi-plus-lg me-1"></i> Add Waste Log
-                    </router-link>
                   </td>
                 </tr>
               </tbody>
@@ -388,9 +398,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
 import { Chart, registerables } from 'chart.js';
 import api from '../../services/api';
+import 'chartjs-adapter-date-fns';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -427,89 +438,82 @@ const chartTabs = [
 ];
 
 const wasteCategories = ref([]);
-const recentLogs = ref([]);
+const allLogs = ref([]); // Store all logs from backend
+const showAllLogs = ref(false); // Toggle to show all or just first 10 logs
 const monthlyTrends = ref({});
+const dailyTrends = ref({});
 
 // Fetch waste summary data from backend
 const fetchWasteSummary = async () => {
   try {
     isLoading.value = true;
     
-    // Determine months based on time range
-    let months = 1; // default to monthly
-    if (timeRange.value === 'weekly') months = 0.25;
-    else if (timeRange.value === 'yearly') months = 12;
-    else if (timeRange.value === 'all') months = 120; // 10 years
+    // Map time range to backend parameter
+    let monthsParam = 'monthly'; // default
+    if (timeRange.value === 'weekly') monthsParam = 'weekly';
+    else if (timeRange.value === 'yearly') monthsParam = 'yearly';
+    else if (timeRange.value === 'all') monthsParam = 'all';
     
-    const response = await api.get(`/primary/waste-summary?months=${months}`);
+    const response = await api.get(`/primary/waste-summary?months=${monthsParam}`);
     const data = response.data;
     
-    // Update category breakdown
+    console.log('Waste summary data:', data);
+    
+    // Update summary from backend
+    if (data.summary) {
+      summary.value = {
+        totalWaste: data.summary.total_waste || 0,
+        wasteChange: data.summary.waste_change || 0,
+        recyclingRate: data.summary.recycling_rate || 0,
+        carbonFootprint: data.summary.carbon_footprint || 0,
+        carbonChange: data.summary.carbon_change || 0,
+        wasteReduction: data.summary.waste_reduction || 0,
+        lastUpdated: new Date()
+      };
+    }
+    
+    // Update category breakdown from backend
     const categoryBreakdown = data.category_breakdown || {};
-    const categoryTotals = {};
-    let totalWaste = 0;
-    
-    // Calculate totals from percentages (we need to get actual amounts)
-    // Since backend only returns percentages, we'll estimate from waste logs
-    const logsResponse = await api.get('/primary/waste-logs?limit=100');
-    const allLogs = logsResponse.data.waste_logs || [];
-    
-    // Calculate actual totals by category
-    allLogs.forEach(log => {
-      const category = log.category.toLowerCase();
-      if (!categoryTotals[category]) {
-        categoryTotals[category] = 0;
-      }
-      categoryTotals[category] += log.quantity_kg;
-      totalWaste += log.quantity_kg;
-    });
-    
-    // Update waste categories
-    wasteCategories.value = Object.entries(categoryTotals).map(([category, amount]) => {
-      const percentage = totalWaste > 0 ? Math.round((amount / totalWaste) * 100) : 0;
+    wasteCategories.value = Object.entries(categoryBreakdown).map(([category, info]) => {
       return {
         id: category,
         name: category.charAt(0).toUpperCase() + category.slice(1),
-        amount: Math.round(amount * 10) / 10,
-        percentage: percentage,
+        amount: info.amount || 0,
+        percentage: info.percentage || 0,
         icon: getCategoryIcon(category),
         variant: getCategoryVariant(category)
       };
     });
     
-    // Update monthly trends
+    // Update daily trends (for chart with dates)
+    if (data.daily_trends && Array.isArray(data.daily_trends)) {
+      dailyTrends.value = {};
+      data.daily_trends.forEach(trend => {
+        dailyTrends.value[trend.date] = trend;
+      });
+    } else {
+      dailyTrends.value = {};
+    }
+    
+    // Update monthly trends (for backward compatibility)
     monthlyTrends.value = data.monthly_trends || {};
     
-    // Calculate summary statistics
-    const recycledLogs = allLogs.filter(log => log.recycled);
-    const recycledAmount = recycledLogs.reduce((sum, log) => sum + log.quantity_kg, 0);
-    const recyclingRate = totalWaste > 0 ? Math.round((recycledAmount / totalWaste) * 100) : 0;
-    
-    // Estimate carbon footprint (rough calculation: ~2.2 kg CO2 per kg of waste)
-    const carbonFootprint = Math.round(totalWaste * 2.2 * 10) / 10;
-    
-    // Calculate waste reduction (compare with previous period - simplified)
-    const wasteReduction = recyclingRate > 0 ? Math.min(recyclingRate, 50) : 0;
-    
-    summary.value = {
-      totalWaste: Math.round(totalWaste * 10) / 10,
-      wasteChange: 0, // Could calculate from previous period
-      recyclingRate: recyclingRate,
-      carbonFootprint: carbonFootprint,
-      carbonChange: 0, // Could calculate from previous period
-      wasteReduction: wasteReduction,
-      lastUpdated: new Date()
-    };
-    
-    // Update recent logs
-    recentLogs.value = allLogs.slice(0, 10).map(log => ({
-      id: log.id,
-      date: new Date(log.log_date),
-      type: log.category.charAt(0).toUpperCase() + log.category.slice(1),
-      amount: log.quantity_kg,
-      method: log.recycled ? 'Recycling' : (log.separated ? 'Separated' : 'Landfill'),
-      carbonImpact: Math.round(log.quantity_kg * 2.2 * 10) / 10
-    }));
+    // Update recent logs from backend
+    if (data.recent_logs && Array.isArray(data.recent_logs)) {
+      allLogs.value = data.recent_logs.map(log => ({
+        id: log.id,
+        date: new Date(log.date),
+        type: log.category.charAt(0).toUpperCase() + log.category.slice(1),
+        amount: log.quantity_kg,
+        method: log.disposal_method || 'Landfill',
+        carbonImpact: log.carbon_impact || 0
+      }));
+      // Reset show all logs when data is refreshed
+      showAllLogs.value = false;
+    } else {
+      allLogs.value = [];
+      showAllLogs.value = false;
+    }
     
     // Initialize charts after data is loaded
     await nextTick();
@@ -518,9 +522,24 @@ const fetchWasteSummary = async () => {
     }, 100);
   } catch (error) {
     console.error('Error fetching waste summary:', error);
+    console.error('Error details:', error.response?.data || error.message);
   } finally {
     isLoading.value = false;
   }
+};
+
+// Computed property for displayed logs
+const displayedLogs = computed(() => {
+  if (showAllLogs.value) {
+    return allLogs.value;
+  }
+  // Show only first 10 logs by default
+  return allLogs.value.slice(0, 10);
+});
+
+// Toggle showing all logs
+const toggleShowAllLogs = () => {
+  showAllLogs.value = !showAllLogs.value;
 };
 
 // Helper functions for category display
@@ -721,47 +740,78 @@ const initCharts = () => {
     }
   }
   
-  // Waste Trends Over Time Chart
-  if (trendsChartRef.value && Object.keys(monthlyTrends.value).length > 0) {
+  // Waste Trends Over Time Chart - using daily trends with actual dates
+  if (trendsChartRef.value && Object.keys(dailyTrends.value).length > 0) {
     const ctx2 = trendsChartRef.value.getContext('2d');
     if (ctx2) {
-      // Use monthly trends data from backend
-      const sortedMonths = Object.keys(monthlyTrends.value).sort();
-      const labels = sortedMonths.map(month => {
-        const [year, monthNum] = month.split('-');
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return `${monthNames[parseInt(monthNum) - 1]} ${year.slice(2)}`;
-      });
+      // Use daily trends data from backend with actual dates
+      const trendsList = Object.keys(dailyTrends.value)
+        .sort()
+        .map(dateStr => ({
+          date: new Date(dateStr),
+          ...dailyTrends.value[dateStr]
+        }));
       
-      const disposedData = sortedMonths.map(month => monthlyTrends.value[month].disposed || 0);
-      const undisposedData = sortedMonths.map(month => monthlyTrends.value[month].undisposed || 0);
+      if (trendsList.length > 0) {
+        // Create data points with dates
+        const recycledData = trendsList.map(trend => ({
+          x: trend.date,
+          y: trend.recycled || 0
+        }));
+        
+        const landfillData = trendsList.map(trend => ({
+          x: trend.date,
+          y: trend.landfill || 0
+        }));
+        
+        const separatedData = trendsList.map(trend => ({
+          x: trend.date,
+          y: trend.separated || 0
+        }));
   
   trendsChartInstance = new Chart(ctx2, {
     type: 'line',
     data: {
-          labels: labels,
       datasets: [
         {
-              label: 'Properly Disposed (kg)',
-              data: disposedData,
-              borderColor: 'rgba(40, 167, 69, 1)',
-              backgroundColor: 'rgba(40, 167, 69, 0.1)',
+          label: 'Recycled (kg)',
+                data: recycledData,
+          borderColor: 'rgba(40, 167, 69, 1)',
+          backgroundColor: 'rgba(40, 167, 69, 0.1)',
           tension: 0.3,
-          fill: true
-        },
-        {
-              label: 'Not Separated (kg)',
-              data: undisposedData,
-              borderColor: 'rgba(220, 53, 69, 1)',
-              backgroundColor: 'rgba(220, 53, 69, 0.1)',
-          tension: 0.3,
-          fill: true
+                fill: true,
+                pointRadius: 2,
+                pointHoverRadius: 4
+              },
+              {
+                label: 'Separated (kg)',
+                data: separatedData,
+                borderColor: 'rgba(13, 110, 253, 1)',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 2,
+                pointHoverRadius: 4
+              },
+              {
+                label: 'Landfill (kg)',
+                data: landfillData,
+                borderColor: 'rgba(220, 53, 69, 1)',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 2,
+                pointHoverRadius: 4
         }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false,
+            },
       plugins: {
         legend: {
           position: 'top',
@@ -769,26 +819,82 @@ const initCharts = () => {
         tooltip: {
           mode: 'index',
           intersect: false,
+                callbacks: {
+                  title: function(context) {
+                    if (context && context.length > 0 && context[0].parsed && context[0].parsed.x) {
+                      const date = new Date(context[0].parsed.x);
+                      return date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric'
+                      });
+                    }
+                    return '';
+                  },
+                  label: function(context) {
+                    if (context.parsed && context.parsed.y !== null && context.parsed.y !== undefined) {
+                      return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} kg`;
+                    }
+                    return '';
+                  }
+                }
         }
       },
       scales: {
+              x: {
+                type: 'time',
+                time: {
+                  unit: timeRange.value === 'weekly' ? 'day' : 
+                        timeRange.value === 'yearly' ? 'month' : 'day',
+                  displayFormats: {
+                    day: 'MMM dd',
+                    week: 'MMM dd',
+                    month: 'MMM yyyy'
+                  },
+                  tooltipFormat: 'MMM dd, yyyy'
+                },
+                title: {
+                  display: true,
+                  text: 'Date'
+                },
+                grid: {
+                  display: true,
+                  color: 'rgba(0, 0, 0, 0.05)'
+                },
+                ticks: {
+                  autoSkip: true,
+                  maxTicksLimit: timeRange.value === 'weekly' ? 7 : 
+                                 timeRange.value === 'yearly' ? 12 : 15,
+                  maxRotation: 45,
+                  minRotation: 0
+                }
+              },
         y: {
           beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Waste (kg)'
+                },
           ticks: {
-            precision: 0
+                  precision: 1
+                },
+                grid: {
+                  display: true,
+                  color: 'rgba(0, 0, 0, 0.05)'
           }
         }
       }
     }
   });
+      }
     }
   }
   
   // Waste Disposal Methods Chart
-  if (disposalChartRef.value && recentLogs.value.length > 0) {
+  if (disposalChartRef.value && allLogs.value.length > 0) {
     const ctx3 = disposalChartRef.value.getContext('2d');
     if (ctx3) {
-      // Calculate disposal method breakdown from recent logs
+      // Calculate disposal method breakdown from all logs
       const disposalMethods = {
         'Recycling': 0,
         'Separated': 0,
@@ -796,7 +902,7 @@ const initCharts = () => {
         'Hazardous': 0
       };
       
-      recentLogs.value.forEach(log => {
+      allLogs.value.forEach(log => {
         if (log.method in disposalMethods) {
           disposalMethods[log.method] += log.amount;
         }

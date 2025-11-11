@@ -44,5 +44,12 @@ def create_app(config_class=Config):
         # Initialize sample data if database is empty
         from app.db.init_data import init_sample_data
         init_sample_data()
+    
+    # Register CLI command for updating recyclers
+    @app.cli.command("update-recyclers")
+    def update_recyclers_command():
+        """Update recyclers with coordinates."""
+        from app.db.init_data import update_recyclers_data
+        update_recyclers_data()
 
     return app

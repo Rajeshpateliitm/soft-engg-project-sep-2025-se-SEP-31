@@ -7,9 +7,6 @@
         <router-link to="/register" class="btn btn-primary btn-lg">
           Get Started
         </router-link>
-        <router-link to="/primary-dashboard" class="btn btn-outline-primary btn-lg">
-          Dashboard
-        </router-link>
       </div>
     </div>
 

@@ -9,7 +9,9 @@ const PrimaryUserNavbar = () => import('@/components/layout/PrimaryUserNavbar.vu
 const PrimaryUserDashboard = () => import('@/views/primary/PrimaryUserDashboard.vue');
 const PrimaryUserQuiz = () => import('@/views/primary/PrimaryUserQuiz.vue');
 const PrimaryUserWastelog = () => import('@/views/primary/PrimaryUserWastelog.vue');
+const PrimaryUserRecycler = () => import('@/views/primary/PrimaryUserRecycler.vue');
 const PrimaryUserCampaigns = () => import('@/views/primary/PrimaryUserCampaigns.vue');
+const PrimaryUserCampaignDetails = () => import('@/views/primary/PrimaryUserCampaignDetails.vue');
 const PrimaryUserQuizPerformance = () => import('@/views/primary/PrimaryUserQuizPerformance.vue');
 const PrimaryUserCommunityLeaderboard = () => import('@/views/primary/PrimaryUserCommunityLeaderboard.vue');
 const PrimaryUserMonthlyEngagement = () => import('@/views/primary/PrimaryUserMonthlyEngagement.vue');
@@ -69,9 +71,19 @@ const routes = [
         component: PrimaryUserWastelog 
       },
       { 
+        path: 'local-recyclers', 
+        name: 'PrimaryUserRecycler',
+        component: PrimaryUserRecycler 
+      },
+      { 
         path: 'campaigns', 
         name: 'PrimaryUserCampaigns',
         component: PrimaryUserCampaigns 
+      },
+      { 
+        path: 'campaigns/:id', 
+        name: 'PrimaryUserCampaignDetails',
+        component: PrimaryUserCampaignDetails 
       },
       { 
         path: 'quiz-performance', 
@@ -149,16 +161,6 @@ const routes = [
         path: '', 
         name: 'CollectorDashboard',
         component: CollectorDashboard 
-      },
-      { 
-        path: 'daily-pickup-details', 
-        name: 'CollectorDailyPickupDetails',
-        component: SecondaryUserDailyPickupDetails 
-      },
-      { 
-        path: 'pickup-summary', 
-        name: 'CollectorPickupSummary',
-        component: SecondaryUserPickupSummary 
       }
     ]
   },
