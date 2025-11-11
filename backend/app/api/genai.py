@@ -55,10 +55,11 @@ def chat(user):
         
         # Get API configuration
         api_config = get_api_config()
-        gemini_key = api_config["key"]
+        gemini_key ="AIzaSyCS5CLCUgoFBCHmflNRZJFwbABkt_BXXP4"
         gemini_model = api_config["model"]
         gemini_base_url = api_config["base_url"]
-        
+        print(gemini_key)
+        print("checking gemini key")
         # Check if API key is configured
         if not gemini_key or gemini_key == "your-gemini-api-key-here" or gemini_key.strip() == "":
             # Return a fallback response if API key is not configured
