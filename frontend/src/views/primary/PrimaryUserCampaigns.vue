@@ -290,11 +290,10 @@ const registerCampaign = async (campaignId) => {
 
 // View campaign details
 const viewCampaign = (id) => {
-  // For now, just show an alert with campaign details
-  const campaign = campaigns.value.find(c => c.id === id);
-  if (campaign) {
-    alert(`${campaign.title}\n\n${campaign.description}\n\nLocation: ${campaign.location || 'TBD'}\nDate: ${formatDate(campaign.startDate)}`);
-  }
+  router.push({
+    name: 'PrimaryUserCampaignDetails',
+    params: { id: id }
+  });
 };
 
 // Reset all filters

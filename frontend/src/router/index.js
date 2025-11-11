@@ -11,6 +11,7 @@ const PrimaryUserQuiz = () => import('@/views/primary/PrimaryUserQuiz.vue');
 const PrimaryUserWastelog = () => import('@/views/primary/PrimaryUserWastelog.vue');
 const PrimaryUserRecycler = () => import('@/views/primary/PrimaryUserRecycler.vue');
 const PrimaryUserCampaigns = () => import('@/views/primary/PrimaryUserCampaigns.vue');
+const PrimaryUserCampaignDetails = () => import('@/views/primary/PrimaryUserCampaignDetails.vue');
 const PrimaryUserQuizPerformance = () => import('@/views/primary/PrimaryUserQuizPerformance.vue');
 const PrimaryUserCommunityLeaderboard = () => import('@/views/primary/PrimaryUserCommunityLeaderboard.vue');
 const PrimaryUserMonthlyEngagement = () => import('@/views/primary/PrimaryUserMonthlyEngagement.vue');
@@ -78,6 +79,11 @@ const routes = [
         path: 'campaigns', 
         name: 'PrimaryUserCampaigns',
         component: PrimaryUserCampaigns 
+      },
+      { 
+        path: 'campaigns/:id', 
+        name: 'PrimaryUserCampaignDetails',
+        component: PrimaryUserCampaignDetails 
       },
       { 
         path: 'quiz-performance', 
