@@ -118,7 +118,7 @@
       </div>
       
       <!-- Container 5: Waste Log -->
-      <div class="col-md-6 col-lg-4 mb-4">
+      <!-- <div class="col-md-6 col-lg-4 mb-4">
         <div class="card shadow-lg h-100">
           <div class="card-header bg-secondary text-white">
             <h5 class="card-title mb-0">WASTE LOG</h5>
@@ -133,10 +133,10 @@
             </div>
           </div>
         </div>
-      </div>
+      </div> -->
       
       <!-- Container 6: WasteWise Chatbot -->
-      <div class="col-md-6 col-lg-8 mb-4">
+      <!-- <div class="col-md-6 col-lg-8 mb-4">
         <div class="card shadow-lg h-100">
           <div class="card-header bg-dark text-white">
             <h5 class="card-title mb-0">WASTEWISE CHATBOT</h5>
@@ -163,9 +163,10 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </div> -->
+    </div> 
   </div>
+
 </template>
 
 <script setup>
