@@ -3,24 +3,20 @@ import requests
 from urllib.parse import quote_plus
 from flask import Blueprint, request, jsonify, current_app
 from app.core.security import token_required
+from collections import deque
 
 bp = Blueprint("genai", __name__)
 
-# Get API configuration from environment or config (will be set per request via current_app)
-def get_api_config():
-    """Get API configuration from Flask app config."""
-    return {
-        "key": current_app.config.get("GEMINI_API_KEY", ""),
-        "model": current_app.config.get("GEMINI_API_MODEL", "gemini-1.5-flash"),
-        "base_url": current_app.config.get("GEMINI_API_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/models")
-    }
+# In-memory conversation history storage
+# Format: {user_id: deque([{"role": "user", "text": "..."}, {"role": "model", "text": "..."}], maxlen=10)}
+# Stores last 5 conversation pairs (10 messages total: 5 user + 5 assistant)
+conversation_history = {}
+# print(conversation_history)
+
+# Maximum conversation history to keep (5 pairs = 10 messages)
+MAX_HISTORY_PAIRS = 5
 
 # System prompt for waste management chatbot
-# SYSTEM_PROMPT = """You are WasteWise, a helpful waste management assistant.
-# Provide concise, practical answers about waste segregation, recycling, composting, and environmental sustainability.
-# Keep responses brief (2-3 sentences maximum) and actionable.
-# Focus on waste management best practices, recycling tips, and environmental conservation.there are only three types of recyle bin wet,dry,and hazardous so only refer to these types."""
-
 SYSTEM_PROMPT = """You are the *Wastewise GenAI Chatbot, a specialized, expert assistant for **Indian households* focused on proper domestic waste management. Your primary goal is to promote adherence to the latest Indian waste management policies, specifically the *Waste Management Rules, 2016* and subsequent amendments.
 
 ### 1. Persona and Goal:
@@ -32,7 +28,7 @@ SYSTEM_PROMPT = """You are the *Wastewise GenAI Chatbot, a specialized, expert a
 * *Segregation Standard:* All advice must align with the *three-bin segregation system* mandated in India:
     1.  *Wet Waste / Biodegradable (Green Bin):* For kitchen waste, garden waste, etc.
     2.  *Dry Waste / Non-Biodegradable (Blue Bin):* For paper, plastic, metal, glass, etc.
-    3.  *Domestic Hazardous Waste (Red/Black/Separate Designated Bin):* For expired medicines, sanitary waste, batteries, broken glass, chemical cleaners, and e-waste.
+    3.  *Domestic Hazardous Waste (Red Bin):* For expired medicines, sanitary waste, batteries, broken glass, chemical cleaners, and e-waste.
 * *Policy Focus:* Prioritize information based on the *Swachh Bharat Mission* guidelines and the *Solid Waste Management Rules, 2016*.
 * *Local Context:* Acknowledge and address common Indian household waste items (e.g., milk pouches, oil packets, Pooja flowers/materials, agarbatti ash, expired pickles, coconut shells, sanitary pads, CFL bulbs, etc.).
 
@@ -50,11 +46,114 @@ SYSTEM_PROMPT = """You are the *Wastewise GenAI Chatbot, a specialized, expert a
 * Use bullet points or numbered lists for step-by-step guides.
 * Be encouraging and acknowledge the user's effort towards sustainability."""
 
+
+def get_user_context(user):
+    """
+    Build user context string from database user information.
+    
+    Args:
+        user: User model instance from database
+        
+    Returns:
+        str: Formatted user context string
+    """
+    context_parts = []
+    
+    # Add user identification
+    if user.username:
+        context_parts.append(f"User Name: {user.username}")
+    elif user.email:
+        context_parts.append(f"User Email: {user.email}")
+    
+    # Add location information
+    location_info = []
+    if user.house_number:
+        location_info.append(f"House: {user.house_number}")
+    if user.ward_number:
+        location_info.append(f"Ward: {user.ward_number}")
+    if user.pincode:
+        location_info.append(f"Pincode: {user.pincode}")
+    
+    if location_info:
+        context_parts.append(f"Location: {', '.join(location_info)}")
+    
+    # Add household size
+    if user.family_members_count:
+        context_parts.append(f"Household Size: {user.family_members_count} members")
+    
+    # Add user category
+    if user.user_category:
+        context_parts.append(f"User Type: {user.user_category.label}")
+    
+    # Add points/engagement
+    if user.points:
+        context_parts.append(f"Eco Points: {user.points}")
+    
+    if context_parts:
+        return "\n".join(context_parts)
+    return ""
+
+
+def get_conversation_history(user_id):
+    """
+    Get conversation history for a user.
+    
+    Args:
+        user_id: User ID
+        
+    Returns:
+        list: List of conversation messages in Gemini format
+    """
+    if user_id not in conversation_history:
+        return []
+    
+    # Convert deque to list and format for Gemini API
+    history = list(conversation_history[user_id])
+    return history
+
+
+def add_to_history(user_id, user_message, assistant_message):
+    """
+    Add a conversation pair to history.
+    
+    Args:
+        user_id: User ID
+        user_message: User's message text
+        assistant_message: Assistant's response text
+    """
+    if user_id not in conversation_history:
+        # Create a deque with maxlen to automatically limit history
+        conversation_history[user_id] = deque(maxlen=MAX_HISTORY_PAIRS * 2)
+    
+    # Add user message
+    conversation_history[user_id].append({
+        "role": "user",
+        "parts": [{"text": user_message}]
+    })
+    
+    # Add assistant response
+    conversation_history[user_id].append({
+        "role": "model",
+        "parts": [{"text": assistant_message}]
+    })
+
+
+# Get API configuration from environment or config (will be set per request via current_app)
+def get_api_config():
+    """Get API configuration from Flask app config."""
+    return {
+        "key": current_app.config.get("GEMINI_API_KEY", ""),
+        "model": current_app.config.get("GEMINI_API_MODEL", "gemini-1.5-flash"),
+        "base_url": current_app.config.get("GEMINI_API_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/models")
+    }
+
+
 @bp.route("/chat", methods=["POST"])
 @token_required
 def chat(user):
     """
     Chat endpoint that processes user messages and returns AI-generated responses using Google Gemini API.
+    Maintains conversation history (last 5 messages) and includes user context from database.
     
     Expected request body:
     {
@@ -100,55 +199,58 @@ def chat(user):
         if not gemini_key.startswith("AIza"):
             current_app.logger.warning(f"API key format may be incorrect. Gemini keys usually start with 'AIza'. Key starts with: {gemini_key[:5] if len(gemini_key) > 5 else '***'}...")
         
-        # Log API key status (masked for security)
-        masked_key = gemini_key[:8] + "..." + gemini_key[-4:] if len(gemini_key) > 12 else "***"
-        current_app.logger.info(f"Using Gemini API key: {masked_key}")
+        # Get user context from database
+        user_context = get_user_context(user)
+        
+        # Build enhanced system prompt with user context
+        enhanced_system_prompt = SYSTEM_PROMPT
+        if user_context:
+            enhanced_system_prompt += f"\n\n### User Information:\n{user_context}\n\nUse this information to provide personalized, location-relevant advice when appropriate."
+        
+        # Get conversation history for this user
+        history = get_conversation_history(user.id)
         
         # Build the Gemini API URL with model and API key (URL encode the key)
-        # Properly encode the API key to handle special characters
         encoded_key = quote_plus(gemini_key)
         api_url = f"{gemini_base_url}/{gemini_model}:generateContent?key={encoded_key}"
         
         # Prepare the API request payload for Gemini API
-        # Combine system prompt with user message for compatibility
-        # Some Gemini API versions may not support systemInstruction in all models
-        full_prompt = f"{SYSTEM_PROMPT}\n\nUser: {user_message}\nAssistant:"
+        # Build contents array with history + current message
+        contents = []
+        
+        # Add conversation history
+        contents.extend(history)
+        
+        # Add current user message
+        contents.append({
+            "role": "user",
+            "parts": [{"text": user_message}]
+        })
         
         payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": full_prompt
-                        }
-                    ]
-                }
-            ],
+            "contents": contents,
             "generationConfig": {
                 "temperature": 0.7,  # Balance between creativity and consistency
-                "maxOutputTokens": 150,  # Limit response length for concise answers (increased slightly)
+                "maxOutputTokens": 200,  # Limit response length for concise answers
                 "topP": 0.8,
                 "topK": 40
             }
         }
         
-        # Try to use systemInstruction if supported (for newer models)
-        # If the model doesn't support it, the prompt above will work
-        try:
-            # Only add systemInstruction for models that support it
-            if "1.5" in gemini_model or "2.0" in gemini_model:
-                payload["systemInstruction"] = {
-                    "parts": [
-                        {
-                            "text": SYSTEM_PROMPT
-                        }
-                    ]
-                }
-                # If using systemInstruction, use only user message in contents
-                payload["contents"][0]["parts"][0]["text"] = user_message
-        except:
-            # Fallback to prompt-based approach if there's an issue
-            pass
+        # Add systemInstruction for models that support it
+        if "1.5" in gemini_model or "2.0" in gemini_model:
+            payload["systemInstruction"] = {
+                "parts": [
+                    {
+                        "text": enhanced_system_prompt
+                    }
+                ]
+            }
+        else:
+            # For older models, prepend system prompt to first message
+            if contents:
+                first_message = enhanced_system_prompt + "\n\n" + contents[0]["parts"][0]["text"]
+                contents[0]["parts"][0]["text"] = first_message
         
         # Set request headers
         headers = {
@@ -159,6 +261,7 @@ def chat(user):
         try:
             # Log the API URL (without key for security) and payload structure for debugging
             current_app.logger.info(f"Calling Gemini API: {gemini_base_url}/{gemini_model}:generateContent")
+            current_app.logger.debug(f"Conversation history length: {len(history)} messages")
             current_app.logger.debug(f"Payload keys: {list(payload.keys())}")
             
             response = requests.post(
@@ -216,6 +319,9 @@ def chat(user):
                         current_app.logger.warning(f"Response blocked with finish reason: {finish_reason}")
                         raise ValueError(f"Response blocked by API. Reason: {finish_reason}")
                 raise ValueError(f"Empty response from API. Response keys: {list(response_data.keys())}")
+            
+            # Store conversation in history
+            add_to_history(user.id, user_message, ai_response)
             
             # Return successful response
             return jsonify({
@@ -287,3 +393,23 @@ def chat(user):
             "error": f"Unexpected error: {str(e)}",
             "response": None
         }), 500
+
+
+@bp.route("/chat/clear", methods=["POST"])
+@token_required
+def clear_chat_history(user):
+    """
+    Clear conversation history for the current user.
+    
+    Returns:
+    {
+        "message": "Chat history cleared successfully"
+    }
+    """
+    if user.id in conversation_history:
+        del conversation_history[user.id]
+        current_app.logger.info(f"Cleared chat history for user {user.id}")
+    
+    return jsonify({
+        "message": "Chat history cleared successfully"
+    }), 200

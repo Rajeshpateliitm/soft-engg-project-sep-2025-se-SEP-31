@@ -2,10 +2,11 @@
   <div class="primary-user-dashboard">
     <!-- Floating Chat Button -->
     <button 
-      @click="toggleChat" 
+      @click.stop="toggleChat" 
       class="chat-button"
       :class="{ 'chat-button-active': isChatOpen }"
       :aria-label="isChatOpen ? 'Close chat' : 'Chat with WasteWise'"
+      type="button"
     >
       <div class="chat-button-content">
         <i class="bi" :class="isChatOpen ? 'bi-x-lg' : 'bi-chat-dots-fill'"></i>
@@ -17,11 +18,41 @@
     </button>
 
     <!-- Chat Window -->
-    <div class="chat-window" :class="{ 'chat-window-open': isChatOpen }">
-      <div class="chat-header">
+    <div 
+      class="chat-window" 
+      :class="{ 
+        'chat-window-open': isChatOpen,
+        'dragging': isDragging,
+        'resizing': isResizing
+      }"
+      :style="chatWindowStyle"
+      @click.stop
+      ref="chatWindow"
+    >
+      <div 
+        class="chat-header"
+        @mousedown="startDrag"
+        @touchstart="startDrag"
+      >
         <h6 class="mb-0">WasteWise Assistant</h6>
-        <button @click="toggleChat" class="btn-close" aria-label="Close chat"></button>
+        <div class="chat-header-actions">
+          <button 
+            @click.stop="toggleChat" 
+            class="btn-close" 
+            aria-label="Close chat"
+            type="button"
+            title="Close"
+          >
+            <i class="bi bi-x-lg" style="display: inline-block; color: white !important; font-size: 1.1rem; line-height: 1;"></i>
+          </button>
+        </div>
       </div>
+      <!-- Resize handle -->
+      <div 
+        class="chat-resize-handle"
+        @mousedown="startResize"
+        @touchstart="startResize"
+      ></div>
       <div class="chat-messages" ref="chatContainer">
         <div 
           v-for="(message, index) in chatMessages" 
@@ -35,11 +66,17 @@
         <input 
           type="text" 
           v-model="userMessage" 
-          @keyup.enter="sendMessage"
+          @keydown.enter="handleEnterKey"
           placeholder="Type your message..."
           class="form-control"
+          ref="chatInput"
         >
-        <button @click="sendMessage" class="btn btn-primary">
+        <button 
+          @click.stop="sendMessage" 
+          class="btn btn-primary"
+          :disabled="!userMessage.trim()"
+          type="button"
+        >
           <i class="bi bi-send-fill"></i>
         </button>
       </div>
@@ -180,9 +217,31 @@ const userMessage = ref('');
 const isChatOpen = ref(false);
 const chatContainer = ref(null);
 const dashboardChatContainer = ref(null);
+const chatInput = ref(null);
+const chatWindow = ref(null);
 const chatMessages = ref([
   { text: 'Hello! I\'m your WasteWise assistant. How can I help you with waste management today?', sender: 'bot' }
 ]);
+
+// Chat window position and size state
+const chatWindowStyle = ref({
+  width: '350px',
+  height: '500px',
+  bottom: '5.5rem',
+  right: '2rem',
+  top: 'auto',
+  left: 'auto'
+});
+
+// Drag state
+const isDragging = ref(false);
+const dragStart = ref({ x: 0, y: 0 });
+const windowStart = ref({ left: 0, top: 0 });
+
+// Resize state
+const isResizing = ref(false);
+const resizeStart = ref({ x: 0, y: 0 });
+const sizeStart = ref({ width: 0, height: 0 });
 
 // Dashboard data
 const quizPerformance = ref({
@@ -242,21 +301,7 @@ const fetchDashboardData = async () => {
 
 let focusHandler = null;
 
-onMounted(() => {
-  fetchDashboardData();
-  
-  // Refresh data when window regains focus (e.g., after completing quiz)
-  focusHandler = () => {
-    fetchDashboardData();
-  };
-  window.addEventListener('focus', focusHandler);
-});
-
-onUnmounted(() => {
-  if (focusHandler) {
-    window.removeEventListener('focus', focusHandler);
-  }
-});
+// Event handlers setup
 
 const sendMessage = async () => {
   // Validate input
@@ -343,14 +388,193 @@ const sendMessage = async () => {
   // Scroll to bottom after response
   await nextTick();
   scrollToBottom();
+  
+  // Refocus input after sending message
+  if (chatInput.value) {
+    chatInput.value.focus();
+  }
 };
 
-const toggleChat = () => {
+const toggleChat = (event) => {
+  // Prevent event bubbling
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  
   isChatOpen.value = !isChatOpen.value;
+  
   if (isChatOpen.value) {
+    // Reset position when opening
+    resetChatPosition();
+    // Focus input when chat opens
     nextTick(() => {
       scrollToBottom();
+      if (chatInput.value) {
+        chatInput.value.focus();
+      }
     });
+  }
+};
+
+// Reset chat window to default position
+const resetChatPosition = () => {
+  chatWindowStyle.value = {
+    width: '350px',
+    height: '500px',
+    bottom: '5.5rem',
+    right: '2rem',
+    top: 'auto',
+    left: 'auto'
+  };
+};
+
+// Start dragging the chat window
+const startDrag = (e) => {
+  if (!isChatOpen.value) return;
+  
+  e.preventDefault();
+  e.stopPropagation();
+  
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  
+  isDragging.value = true;
+  dragStart.value = { x: clientX, y: clientY };
+  
+  // Get current position
+  const rect = chatWindow.value.getBoundingClientRect();
+  windowStart.value = {
+    left: rect.left,
+    top: rect.top
+  };
+  
+  // Change to absolute positioning for dragging
+  chatWindowStyle.value.bottom = 'auto';
+  chatWindowStyle.value.right = 'auto';
+  chatWindowStyle.value.left = `${rect.left}px`;
+  chatWindowStyle.value.top = `${rect.top}px`;
+  
+  document.addEventListener('mousemove', handleDrag);
+  document.addEventListener('mouseup', stopDrag);
+  document.addEventListener('touchmove', handleDrag);
+  document.addEventListener('touchend', stopDrag);
+};
+
+// Handle dragging
+const handleDrag = (e) => {
+  if (!isDragging.value) return;
+  
+  e.preventDefault();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  
+  const deltaX = clientX - dragStart.value.x;
+  const deltaY = clientY - dragStart.value.y;
+  
+  // Calculate new position
+  let newLeft = windowStart.value.left + deltaX;
+  let newTop = windowStart.value.top + deltaY;
+  
+  // Get viewport dimensions
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const navbarHeight = 80; // Approximate navbar height
+  
+  // Get window dimensions
+  const windowWidth = parseInt(chatWindowStyle.value.width) || 350;
+  const windowHeight = parseInt(chatWindowStyle.value.height) || 500;
+  
+  // Constrain to viewport (account for navbar)
+  newLeft = Math.max(0, Math.min(newLeft, viewportWidth - windowWidth));
+  newTop = Math.max(navbarHeight, Math.min(newTop, viewportHeight - windowHeight));
+  
+  chatWindowStyle.value.left = `${newLeft}px`;
+  chatWindowStyle.value.top = `${newTop}px`;
+};
+
+// Stop dragging
+const stopDrag = () => {
+  isDragging.value = false;
+  document.removeEventListener('mousemove', handleDrag);
+  document.removeEventListener('mouseup', stopDrag);
+  document.removeEventListener('touchmove', handleDrag);
+  document.removeEventListener('touchend', stopDrag);
+};
+
+// Start resizing the chat window
+const startResize = (e) => {
+  if (!isChatOpen.value) return;
+  
+  e.preventDefault();
+  e.stopPropagation();
+  
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  
+  isResizing.value = true;
+  resizeStart.value = { x: clientX, y: clientY };
+  
+  // Get current size
+  const currentWidth = parseInt(chatWindowStyle.value.width) || 350;
+  const currentHeight = parseInt(chatWindowStyle.value.height) || 500;
+  sizeStart.value = { width: currentWidth, height: currentHeight };
+  
+  document.addEventListener('mousemove', handleResize);
+  document.addEventListener('mouseup', stopResize);
+  document.addEventListener('touchmove', handleResize);
+  document.addEventListener('touchend', stopResize);
+};
+
+// Handle resizing
+const handleResize = (e) => {
+  if (!isResizing.value) return;
+  
+  e.preventDefault();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  
+  const deltaX = resizeStart.value.x - clientX; // Negative because we're resizing from bottom-right
+  const deltaY = resizeStart.value.y - clientY;
+  
+  // Calculate new size
+  let newWidth = sizeStart.value.width - deltaX;
+  let newHeight = sizeStart.value.height - deltaY;
+  
+  // Minimum and maximum constraints
+  const minWidth = 300;
+  const minHeight = 300;
+  const maxWidth = window.innerWidth - 40;
+  const maxHeight = window.innerHeight - 120; // Account for navbar
+  
+  newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+  newHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
+  
+  chatWindowStyle.value.width = `${newWidth}px`;
+  chatWindowStyle.value.height = `${newHeight}px`;
+  
+  // Scroll to bottom after resize
+  nextTick(() => {
+    scrollToBottom();
+  });
+};
+
+// Stop resizing
+const stopResize = () => {
+  isResizing.value = false;
+  document.removeEventListener('mousemove', handleResize);
+  document.removeEventListener('mouseup', stopResize);
+  document.removeEventListener('touchmove', handleResize);
+  document.removeEventListener('touchend', stopResize);
+};
+
+const handleEnterKey = (event) => {
+  // Allow Shift+Enter for new line, Enter alone sends message
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    if (userMessage.value.trim()) {
+      sendMessage();
+    }
   }
 };
 
@@ -367,18 +591,49 @@ const scrollToBottom = () => {
 
 // Close chat when clicking outside
 const handleClickOutside = (event) => {
-  const chatWindow = document.querySelector('.chat-window');
+  const chatWindowEl = document.querySelector('.chat-window');
   const chatButton = document.querySelector('.chat-button');
   
+  // Don't close if clicking on chat elements or if dragging/resizing
   if (isChatOpen.value && 
-      !chatWindow.contains(event.target) && 
+      !isDragging.value &&
+      !isResizing.value &&
+      chatWindowEl && 
+      chatButton &&
+      !chatWindowEl.contains(event.target) && 
       !chatButton.contains(event.target)) {
     isChatOpen.value = false;
   }
 };
 
 onMounted(() => {
+  // Fetch dashboard data
+  fetchDashboardData();
+  
+  // Refresh data when window regains focus (e.g., after completing quiz)
+  focusHandler = () => {
+    fetchDashboardData();
+  };
+  window.addEventListener('focus', focusHandler);
+  
+  // Setup click outside handler for chat
   document.addEventListener('click', handleClickOutside);
+  
+  // Focus input when chat opens
+  if (isChatOpen.value && chatInput.value) {
+    chatInput.value.focus();
+  }
+});
+
+onUnmounted(() => {
+  // Remove event listeners
+  document.removeEventListener('click', handleClickOutside);
+  if (focusHandler) {
+    window.removeEventListener('focus', focusHandler);
+  }
+  // Clean up drag/resize listeners
+  stopDrag();
+  stopResize();
 });
 </script>
 
@@ -533,10 +788,6 @@ onMounted(() => {
 /* Chat Window */
 .chat-window {
   position: fixed;
-  bottom: 5.5rem;
-  right: 2rem;
-  width: 350px;
-  height: 500px;
   background: white;
   border-radius: 1rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
@@ -546,8 +797,15 @@ onMounted(() => {
   transform: translateY(20px);
   opacity: 0;
   visibility: hidden;
-  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-  z-index: 999;
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+  z-index: 1050; /* Above navbar (1030) */
+  min-width: 300px;
+  min-height: 300px;
+}
+
+.chat-window.dragging,
+.chat-window.resizing {
+  transition: none !important;
 }
 
 .chat-window-open {
@@ -563,11 +821,55 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  cursor: move;
+  user-select: none;
+  position: relative;
+  z-index: 1;
 }
 
 .chat-header h6 {
   margin: 0;
   font-weight: 600;
+  flex: 1;
+}
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-close {
+  background: rgba(255, 255, 255, 0.25);
+  border: none;
+  color: white;
+  opacity: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.btn-close i {
+  display: inline-block;
+  color: white !important;
+  font-size: 1rem;
+  line-height: 1;
+  width: auto;
+  height: auto;
+}
+
+.btn-close:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(1.1);
+  opacity: 1;
 }
 
 .chat-messages {
@@ -645,15 +947,70 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 0;
+  transition: all 0.2s ease;
+}
+
+.chat-input button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-input button:not(:disabled):hover {
+  transform: scale(1.1);
+}
+
+/* Resize handle */
+.chat-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  z-index: 10;
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(102, 126, 234, 0.3) 40%,
+    rgba(102, 126, 234, 0.3) 60%,
+    transparent 60%
+  );
+}
+
+.chat-resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 12px 12px;
+  border-color: transparent transparent rgba(102, 126, 234, 0.5) transparent;
+}
+
+.chat-resize-handle:hover {
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(102, 126, 234, 0.5) 40%,
+    rgba(102, 126, 234, 0.5) 60%,
+    transparent 60%
+  );
+}
+
+.chat-resize-handle:hover::after {
+  border-color: transparent transparent rgba(102, 126, 234, 0.8) transparent;
 }
 
 /* Responsive adjustments */
 @media (max-width: 576px) {
   .chat-window {
-    width: 90%;
-    right: 5%;
-    bottom: 5.5rem;
-    height: 70vh;
+    min-width: calc(100vw - 2rem) !important;
+    min-height: 50vh !important;
+    max-width: calc(100vw - 2rem) !important;
   }
   
   .chat-button {
@@ -662,6 +1019,11 @@ onMounted(() => {
     width: 50px;
     height: 50px;
     font-size: 1.25rem;
+  }
+  
+  .chat-resize-handle {
+    width: 24px;
+    height: 24px;
   }
 }
 </style>
