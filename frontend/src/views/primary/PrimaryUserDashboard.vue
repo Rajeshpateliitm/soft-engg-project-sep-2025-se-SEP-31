@@ -134,6 +134,36 @@
           </div>
         </div>
       </div>
+      
+      <!-- Container 6: WasteWise Chatbot -->
+      <div class="col-md-6 col-lg-8 mb-4">
+        <div class="card shadow-lg h-100">
+          <div class="card-header bg-dark text-white">
+            <h5 class="card-title mb-0">WASTEWISE CHATBOT</h5>
+          </div>
+          <div class="card-body p-0 d-flex flex-column">
+            <div class="chat-messages p-3 flex-grow-1 overflow-auto" style="max-height: 300px;" ref="dashboardChatContainer">
+              <div v-for="(message, index) in chatMessages" :key="index" class="mb-2">
+                <div :class="['p-2 rounded', message.sender === 'user' ? 'bg-light text-end ms-5' : 'bg-primary text-white me-5']">
+                  {{ message.text }}
+                </div>
+              </div>
+            </div>
+            <div class="input-group p-3 border-top">
+              <input 
+                v-model="userMessage" 
+                type="text" 
+                class="form-control" 
+                placeholder="Ask me about waste management..."
+                @keyup.enter="sendMessage"
+              >
+              <button class="btn btn-primary" @click="sendMessage">
+                <i class="bi bi-send"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -148,6 +178,7 @@ const router = useRouter();
 const userMessage = ref('');
 const isChatOpen = ref(false);
 const chatContainer = ref(null);
+const dashboardChatContainer = ref(null);
 const chatMessages = ref([
   { text: 'Hello! I\'m your WasteWise assistant. How can I help you with waste management today?', sender: 'bot' }
 ]);
@@ -227,27 +258,90 @@ onUnmounted(() => {
 });
 
 const sendMessage = async () => {
+  // Validate input
   if (!userMessage.value.trim()) return;
   
-  // Add user message to chat
-  chatMessages.value.push({ text: userMessage.value, sender: 'user' });
+  // Store user message
+  const message = userMessage.value.trim();
   
-  // Clear input
-  const message = userMessage.value;
+  // Add user message to chat
+  chatMessages.value.push({ text: message, sender: 'user' });
+  
+  // Clear input immediately
   userMessage.value = '';
   
   // Scroll to bottom after message is added
   await nextTick();
   scrollToBottom();
   
-  // Simulate bot response
-  setTimeout(() => {
+  // Show loading indicator
+  const loadingMessageIndex = chatMessages.value.length;
+  chatMessages.value.push({ 
+    text: 'Thinking...', 
+    sender: 'bot',
+    isLoading: true 
+  });
+  await nextTick();
+  scrollToBottom();
+  
+  try {
+    // Call the genai API endpoint
+    const response = await api.post('/genai/chat', {
+      message: message
+    });
+    
+    // Remove loading message
+    chatMessages.value.pop();
+    
+    // Add bot response
+    if (response.data && response.data.response) {
+      chatMessages.value.push({ 
+        text: response.data.response, 
+        sender: 'bot' 
+      });
+    } else if (response.data && response.data.error) {
+      // Handle API errors gracefully
+      chatMessages.value.push({ 
+        text: 'Sorry, I encountered an error. Please try again later.', 
+        sender: 'bot' 
+      });
+    } else {
+      // Fallback response
+      chatMessages.value.push({ 
+        text: 'I\'m here to help with waste management questions. How can I assist you?', 
+        sender: 'bot' 
+      });
+    }
+  } catch (error) {
+    // Remove loading message
+    chatMessages.value.pop();
+    
+    // Handle errors
+    console.error('Chat error:', error);
+    let errorMessage = 'Sorry, I\'m having trouble connecting. Please try again.';
+    
+    if (error.response) {
+      // Server responded with error status
+      const errorData = error.response.data;
+      if (errorData && errorData.error) {
+        errorMessage = `Error: ${errorData.error}`;
+      } else {
+        errorMessage = 'Sorry, the service is temporarily unavailable. Please try again later.';
+      }
+    } else if (error.request) {
+      // Request was made but no response received
+      errorMessage = 'Unable to connect to the server. Please check your connection.';
+    }
+    
     chatMessages.value.push({ 
-      text: `You said: "${message}"\nI'm here to help with any waste management questions you have.`,
+      text: errorMessage, 
       sender: 'bot' 
     });
-    scrollToBottom();
-  }, 500);
+  }
+  
+  // Scroll to bottom after response
+  await nextTick();
+  scrollToBottom();
 };
 
 const toggleChat = () => {
@@ -260,8 +354,13 @@ const toggleChat = () => {
 };
 
 const scrollToBottom = () => {
+  // Scroll floating chat window
   if (chatContainer.value) {
     chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  }
+  // Scroll dashboard chat card
+  if (dashboardChatContainer.value) {
+    dashboardChatContainer.value.scrollTop = dashboardChatContainer.value.scrollHeight;
   }
 };
 
