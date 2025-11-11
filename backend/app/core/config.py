@@ -14,3 +14,8 @@ class Config:
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or "jwt-secret-key-change-in-production"
     JWT_ALGORITHM = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+    
+    # Google Gemini LLM API configuration
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or ""
+    GEMINI_API_MODEL = os.environ.get("GEMINI_API_MODEL") or "gemini-1.5-flash"
+    GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
