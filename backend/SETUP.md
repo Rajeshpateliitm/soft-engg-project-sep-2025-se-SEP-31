@@ -145,7 +145,7 @@ python main.py
 
 **Solution:** 
 - Close any other connections to the database
-- Delete `wastewise.db` and run `python init_db.py` again
+- Delete `wastewise.db` and restart the Flask app (database will be recreated automatically)
 
 ### Issue 4: Import Errors
 

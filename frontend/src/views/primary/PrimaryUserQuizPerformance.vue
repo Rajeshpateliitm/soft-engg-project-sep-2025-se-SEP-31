@@ -177,8 +177,8 @@
                   </span>
                 </td>
                 <td>
-                  <button class="btn btn-sm btn-outline-primary" @click="viewDetails(attempt.id)">
-                    <i class="bi bi-eye"></i> View
+                  <button class="btn btn-sm btn-outline-info" @click="askChatbot(attempt.id)">
+                    <i class="bi bi-chat-dots"></i> Ask Chatbot
                   </button>
                 </td>
               </tr>
@@ -206,6 +206,7 @@ import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js';
 import { useRouter } from 'vue-router';
 import api from '../../services/api';
+import 'chartjs-adapter-date-fns';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -232,6 +233,7 @@ const stats = ref({
 });
 
 const recentAttempts = ref([]);
+const allAttempts = ref([]); // Store all attempts for chart
 const isLoading = ref(true);
 
 // Fetch quiz performance data
@@ -263,8 +265,8 @@ const fetchQuizPerformance = async () => {
       worstCategoryScore: categoryValues.length > 0 ? Math.min(...categoryValues) : 0
     };
     
-    // Update recent attempts
-    recentAttempts.value = (data.past_quizzes || []).slice(0, 10).map(attempt => ({
+    // Store all attempts for chart (sorted by date - oldest first)
+    const allPastQuizzes = (data.past_quizzes || []).map(attempt => ({
       id: attempt.id,
       date: attempt.date,
       quizName: 'Waste Management Quiz',
@@ -274,6 +276,16 @@ const fetchQuizPerformance = async () => {
       total: attempt.total_questions,
       status: 'Completed'
     }));
+    
+    // Sort by date (oldest first) for chronological chart display
+    allAttempts.value = allPastQuizzes.sort((a, b) => {
+      return new Date(a.date) - new Date(b.date);
+    });
+    
+    // Update recent attempts (for table - show latest 10, newest first)
+    recentAttempts.value = allPastQuizzes
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 10);
     
     // Initialize charts after data is loaded and DOM is ready
     await nextTick();
@@ -288,34 +300,51 @@ const fetchQuizPerformance = async () => {
   }
 };
 
-// Chart data
+// Chart data with dates
 const scoreTrendData = computed(() => {
-  const attempts = recentAttempts.value.slice(0, 10).reverse();
+  // Use all attempts, already sorted chronologically (oldest first)
+  const attempts = allAttempts.value;
+  
   if (attempts.length === 0) {
     return {
-      labels: ['No Data'],
       datasets: [
         {
-          label: 'Your Score',
-          data: [0],
+          label: 'Your Score (%)',
+          data: [],
           borderColor: '#4e73df',
           backgroundColor: 'rgba(78, 115, 223, 0.1)',
           tension: 0.3,
-          fill: true
+          fill: true,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#4e73df',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
         }
       ]
     };
   }
+  
+  // Create data points with dates
+  const chartData = attempts.map(attempt => ({
+    x: new Date(attempt.date),
+    y: attempt.score
+  }));
+  
   return {
-    labels: attempts.map((_, index) => `Quiz ${index + 1}`),
     datasets: [
       {
-        label: 'Your Score',
-        data: attempts.map(a => a.score),
+        label: 'Your Score (%)',
+        data: chartData,
         borderColor: '#4e73df',
         backgroundColor: 'rgba(78, 115, 223, 0.1)',
         tension: 0.3,
-        fill: true
+        fill: true,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#4e73df',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
       }
     ]
   };
@@ -393,9 +422,12 @@ const getStatusClass = (status) => {
   return classes[status] || 'bg-secondary';
 };
 
-// View quiz details
-const viewDetails = (id) => {
-  router.push(`/quiz/attempt/${id}`);
+// Ask chatbot - redirect to dashboard with auto-open chat
+const askChatbot = (id) => {
+  router.push({
+    path: '/primary-dashboard',
+    query: { openChat: 'true', quizId: id }
+  });
 };
 
 // View all attempts
@@ -426,38 +458,109 @@ const initCharts = () => {
     categoryChart = null;
   }
 
-  // Score Trend Chart (Line)
+  // Score Trend Chart (Line) with dates
   if (scoreTrendChartRef.value) {
     const scoreCtx = scoreTrendChartRef.value.getContext('2d');
-    if (scoreCtx && scoreTrendData.value && scoreTrendData.value.datasets && scoreTrendData.value.datasets[0] && scoreTrendData.value.datasets[0].data.length > 0) {
-      scoreTrendChart = new Chart(scoreCtx, {
-        type: 'line',
-        data: scoreTrendData.value,
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'top',
-            },
-            tooltip: {
+    if (scoreCtx && scoreTrendData.value && scoreTrendData.value.datasets && scoreTrendData.value.datasets[0]) {
+      const dataPoints = scoreTrendData.value.datasets[0].data;
+      
+      // Only create chart if we have data points
+      if (dataPoints && dataPoints.length > 0) {
+        scoreTrendChart = new Chart(scoreCtx, {
+          type: 'line',
+          data: scoreTrendData.value,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
               mode: 'index',
               intersect: false,
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              max: 100,
-              ticks: {
-                callback: function(value) {
-                  return value + '%';
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+              },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+                callbacks: {
+                  title: function(context) {
+                    // Format date in tooltip
+                    if (context && context.length > 0 && context[0].parsed && context[0].parsed.x) {
+                      const date = new Date(context[0].parsed.x);
+                      return date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                    }
+                    return '';
+                  },
+                  label: function(context) {
+                    if (context.parsed && context.parsed.y !== null && context.parsed.y !== undefined) {
+                      return `Score: ${context.parsed.y.toFixed(1)}%`;
+                    }
+                    return '';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                type: 'time',
+                time: {
+                  unit: 'day',
+                  displayFormats: {
+                    day: 'MMM dd',
+                    week: 'MMM dd',
+                    month: 'MMM yyyy',
+                    year: 'yyyy'
+                  },
+                  tooltipFormat: 'MMM dd, yyyy HH:mm'
+                },
+                title: {
+                  display: true,
+                  text: 'Date',
+                  font: {
+                    size: 12,
+                    weight: 'bold'
+                  }
+                },
+                grid: {
+                  display: true,
+                  color: 'rgba(0, 0, 0, 0.05)'
+                },
+                ticks: {
+                  autoSkip: true,
+                  maxTicksLimit: 12,
+                  maxRotation: 45,
+                  minRotation: 0
+                }
+              },
+              y: {
+                beginAtZero: true,
+                max: 100,
+                title: {
+                  display: true,
+                  text: 'Score (%)'
+                },
+                ticks: {
+                  callback: function(value) {
+                    return value + '%';
+                  }
+                },
+                grid: {
+                  display: true,
+                  color: 'rgba(0, 0, 0, 0.05)'
                 }
               }
             }
           }
-        }
-      });
+        });
+      }
     }
   }
 
@@ -644,5 +747,24 @@ select.form-select {
 select.form-select:focus {
   border-color: #bac8f3;
   box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.25);
+}
+
+/* Ask Chatbot button styling */
+.btn-outline-info {
+  border-color: #0dcaf0;
+  color: #0dcaf0;
+  transition: all 0.3s ease;
+}
+
+.btn-outline-info:hover {
+  background-color: #0dcaf0;
+  border-color: #0dcaf0;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(13, 202, 240, 0.3);
+}
+
+.btn-outline-info i {
+  margin-right: 0.25rem;
 }
 </style>

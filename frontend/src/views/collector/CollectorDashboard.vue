@@ -1,116 +1,187 @@
 <template>
-  <div class="collector-dashboard">
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
+  <div class="daily-pickup-container">
+    <div class="container-fluid">
+      <!-- Header -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <h2 class="text-white fw-bold mb-0">PICKUP DETAILS OF {{ selectedDateFormatted }}</h2>
+          <p class="text-white-50">View and manage pickup requests for the selected date</p>
+        </div>
       </div>
-    </div>
-    
-    <div v-else-if="errorMessage" class="alert alert-danger" role="alert">
-      {{ errorMessage }}
-    </div>
-    
-    <div v-else class="row">
-      <!-- Pickup Summary Card -->
-      <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card shadow-lg h-100">
-          <div class="card-header bg-primary text-white">
-            <h5 class="card-title mb-0">
-              <i class="bi bi-calendar-check me-2"></i>PICKUP SUMMARY
-            </h5>
-          </div>
-          <div class="card-body d-flex flex-column">
-            <p class="card-text fs-5" v-if="dashboardData.pickup_summary">
-              Today: {{ dashboardData.pickup_summary.total_pickups }} Pickups
-            </p>
-            <p class="card-text text-muted" v-if="dashboardData.pickup_summary">
-              Completed: {{ dashboardData.pickup_summary.completed }} | 
-              Pending: {{ dashboardData.pickup_summary.pending }}
-            </p>
-            <p class="card-text text-muted" v-else>
-              View today's pickup schedule
-            </p>
-            <div class="mt-auto">
-              <router-link to="/collector-dashboard/daily-pickup-details" class="btn btn-primary w-100">
-                VIEW DETAILS
-              </router-link>
+
+      <!-- Date Selector -->
+      <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+          <div class="card shadow-lg">
+            <div class="card-body">
+              <label class="form-label fw-semibold">Select Date</label>
+              <input 
+                type="date" 
+                v-model="selectedDate"
+                class="form-control form-control-lg"
+                :max="new Date().toISOString().split('T')[0]"
+                @change="updatePickupDetails"
+              >
             </div>
           </div>
         </div>
-      </div>
-      
-      <!-- Pickup Requests Card -->
-      <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card shadow-lg h-100">
-          <div class="card-header bg-warning text-dark">
-            <h5 class="card-title mb-0">
-              <i class="bi bi-inbox me-2"></i>PICKUP REQUESTS
-            </h5>
-          </div>
-          <div class="card-body d-flex flex-column">
-            <p class="card-text fs-5" v-if="dashboardData.pickup_summary">
-              Pending: {{ dashboardData.pickup_summary.pending }} Requests
-            </p>
-            <p class="card-text text-muted" v-if="dashboardData.pickup_summary">
-              Accept or reject pickup requests
-            </p>
-            <p class="card-text text-muted" v-else>
-              Manage daily pickup requests
-            </p>
-            <div class="mt-auto">
-              <router-link to="/collector-dashboard/daily-pickup-details" class="btn btn-warning w-100">
-                MANAGE REQUESTS
-              </router-link>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Pickup Summary (Monthly) Card -->
-      <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card shadow-lg h-100">
-          <div class="card-header bg-info text-white">
-            <h5 class="card-title mb-0">
-              <i class="bi bi-bar-chart me-2"></i>PICKUP SUMMARY
-            </h5>
-          </div>
-          <div class="card-body d-flex flex-column">
-            <p class="card-text fs-5">MONTHLY OVERVIEW</p>
-            <p class="card-text text-muted">View detailed pickup statistics and trends</p>
-            <div class="mt-auto">
-              <router-link to="/collector-dashboard/pickup-summary" class="btn btn-info w-100 text-white">
-                VIEW SUMMARY
-              </router-link>
+        <div class="col-md-6 mb-3">
+          <div class="card shadow-lg">
+            <div class="card-body">
+              <label class="form-label fw-semibold">Filter by Status</label>
+              <select v-model="statusFilter" class="form-select form-select-lg" @change="updatePickupDetails">
+                <option value="">All Status</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+              </select>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Ward Information Card -->
-      <div class="col-md-12 mb-4" v-if="dashboardData.ward">
-        <div class="card shadow-lg">
-          <div class="card-header bg-success text-white">
-            <h5 class="card-title mb-0">
-              <i class="bi bi-geo-alt me-2"></i>WARD INFORMATION
-            </h5>
+      <!-- Summary Cards -->
+      <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+          <div class="summary-card accepted">
+            <div class="summary-icon">
+              <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">Accepted</div>
+              <div class="summary-value">{{ acceptedCount }}</div>
+            </div>
           </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-3">
-                <p class="mb-1 text-muted">Ward Name</p>
-                <h6 class="fw-bold">{{ dashboardData.ward.name || `Ward ${dashboardData.ward.ward_number}` }}</h6>
-              </div>
-              <div class="col-md-3">
-                <p class="mb-1 text-muted">Ward Number</p>
-                <h6 class="fw-bold">{{ dashboardData.ward.ward_number }}</h6>
-              </div>
-              <div class="col-md-3">
-                <p class="mb-1 text-muted">Pincode</p>
-                <h6 class="fw-bold">{{ dashboardData.ward.pincode }}</h6>
-              </div>
-              <div class="col-md-3">
-                <p class="mb-1 text-muted">Households</p>
-                <h6 class="fw-bold">{{ dashboardData.household_count || 0 }}</h6>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="summary-card rejected">
+            <div class="summary-icon">
+              <i class="bi bi-x-circle"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">Rejected</div>
+              <div class="summary-value">{{ rejectedCount }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="summary-card pending">
+            <div class="summary-icon">
+              <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">Pending</div>
+              <div class="summary-value">{{ pendingCount }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="summary-card total">
+            <div class="summary-icon">
+              <i class="bi bi-list-check"></i>
+            </div>
+            <div class="summary-content">
+              <div class="summary-label">Total</div>
+              <div class="summary-value">{{ filteredPickups.length }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pickup Details Table -->
+      <div class="row">
+        <div class="col-12">
+          <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white">
+              <h5 class="card-title mb-0">Pickup Requests for {{ selectedDateFormatted }}</h5>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Request No.</th>
+                      <th>Household Name</th>
+                      <th>House Number</th>
+                      <th>Pick Up Location</th>
+                      <th>Date of Pickup</th>
+                      <th>Time of Pickup</th>
+                      <th>Disposal Quantity (KG)</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="loading">
+                      <td colspan="9" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="errorMessage">
+                      <td colspan="9" class="text-center py-4">
+                        <div class="alert alert-danger mb-0">{{ errorMessage }}</div>
+                      </td>
+                    </tr>
+                    <tr v-else-if="!loading && filteredPickups.length === 0 && pickupRequests.length === 0">
+                      <td colspan="9" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox" style="font-size: 2rem; color: #6c757d;"></i>
+                        <p class="mt-3 mb-0">No pickup requests found for the selected date.</p>
+                        <p class="text-muted small">Pickup requests are created when primary users log waste.</p>
+                      </td>
+                    </tr>
+                    <tr v-else-if="!loading && filteredPickups.length === 0 && pickupRequests.length > 0">
+                      <td colspan="9" class="text-center py-4 text-muted">
+                        <i class="bi bi-funnel" style="font-size: 2rem; color: #6c757d;"></i>
+                        <p class="mt-3 mb-0">No pickup requests match the selected status filter.</p>
+                        <p class="text-muted small">Try changing the status filter or select a different date.</p>
+                      </td>
+                    </tr>
+                    <tr v-else v-for="pickup in filteredPickups" :key="pickup.id">
+                      <td><strong>{{ pickup.requestNo }}</strong></td>
+                      <td>{{ pickup.userName || 'Unknown' }}</td>
+                      <td>{{ pickup.houseNumber || 'N/A' }}</td>
+                      <td>{{ pickup.location }}</td>
+                      <td>{{ pickup.date }}</td>
+                      <td>{{ pickup.time }}</td>
+                      <td><strong>{{ pickup.quantity }}</strong></td>
+                      <td>
+                        <span :class="getStatusBadgeClass(pickup.status)">
+                          {{ getStatusDisplay(pickup.status) }}
+                        </span>
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                          <button 
+                            v-if="pickup.status === 'pending'"
+                            class="btn btn-success" 
+                            @click="acceptPickup(pickup.requestNo)"
+                            title="Accept pickup"
+                          >
+                            <i class="bi bi-check-lg"></i> Accept
+                          </button>
+                          <button 
+                            v-if="pickup.status === 'pending'"
+                            class="btn btn-danger" 
+                            @click="rejectPickup(pickup.requestNo)"
+                            title="Reject pickup"
+                          >
+                            <i class="bi bi-x-lg"></i> Reject
+                          </button>
+                          <button 
+                            class="btn btn-info" 
+                            @click="viewDetails(pickup.requestNo)"
+                            title="View details"
+                          >
+                            <i class="bi bi-eye"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -121,73 +192,334 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import api from '../../services/api';
 
-const loading = ref(true);
+const selectedDate = ref(new Date().toISOString().split('T')[0]);
+const statusFilter = ref('');
+const loading = ref(false);
 const errorMessage = ref('');
-const dashboardData = ref({
-  user_role: null,
-  ward: null,
-  pickup_summary: null,
-  household_count: 0
+const pickupRequests = ref([]);
+
+const selectedDateFormatted = computed(() => {
+  if (!selectedDate.value) return '';
+  const date = new Date(selectedDate.value);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
 });
 
-const fetchDashboardData = async () => {
-  loading.value = true;
-  errorMessage.value = '';
-  
+const filteredPickups = computed(() => {
+  return pickupRequests.value.filter(pickup => {
+    const matchesStatus = !statusFilter.value || pickup.status === statusFilter.value;
+    return matchesStatus;
+  });
+});
+
+const acceptedCount = computed(() => {
+  return pickupRequests.value.filter(p => p.status === 'accepted').length;
+});
+
+const rejectedCount = computed(() => {
+  return pickupRequests.value.filter(p => p.status === 'rejected').length;
+});
+
+const pendingCount = computed(() => {
+  return pickupRequests.value.filter(p => p.status === 'pending').length;
+});
+
+const getStatusBadgeClass = (status) => {
+  const classes = {
+    'accepted': 'badge bg-success',
+    'rejected': 'badge bg-danger',
+    'pending': 'badge bg-warning text-dark',
+    'completed': 'badge bg-info'
+  };
+  return classes[status] || 'badge bg-secondary';
+};
+
+const getStatusDisplay = (status) => {
+  const display = {
+    'accepted': 'Accepted',
+    'rejected': 'Rejected',
+    'pending': 'Pending',
+    'completed': 'Completed'
+  };
+  return display[status] || status;
+};
+
+const fetchPickupDetails = async () => {
   try {
-    const response = await api.get('/secondary/collector/dashboard');
-    dashboardData.value = response.data;
+    loading.value = true;
+    errorMessage.value = '';
+    
+    const response = await api.get('/secondary/pickup-details', {
+      params: { date: selectedDate.value }
+    });
+    
+    // Transform backend data to frontend format
+    if (response.data && response.data.pickups) {
+      pickupRequests.value = response.data.pickups.map(pickup => ({
+        pickupId: pickup.pickup_id,
+        id: pickup.request_no,
+        requestNo: pickup.request_no,
+        userId: pickup.user_id,
+        userName: pickup.user_name || 'Unknown',
+        userEmail: pickup.user_email || 'N/A',
+        houseNumber: pickup.house_number || 'N/A',
+        location: pickup.pickup_location || 'N/A',
+        date: pickup.date_of_pickup ? new Date(pickup.date_of_pickup).toLocaleDateString('en-GB') : 'N/A',
+        time: pickup.time_of_pickup || 'N/A',
+        quantity: pickup.disposal_quantity ? `${parseFloat(pickup.disposal_quantity).toFixed(2)}` : '0.00',
+        status: pickup.status || 'pending'
+      }));
+    } else {
+      pickupRequests.value = [];
+    }
   } catch (error) {
-    console.error('Error fetching collector dashboard data:', error);
-    errorMessage.value = error.response?.data?.error || 'Failed to load dashboard data. Please try again.';
+    console.error('Error fetching pickup details:', error);
+    errorMessage.value = error.response?.data?.error || 'Failed to load pickup details. Please try again.';
+    pickupRequests.value = [];
   } finally {
     loading.value = false;
   }
 };
 
+const updatePickupDetails = () => {
+  fetchPickupDetails();
+};
+
+const acceptPickup = async (requestNo) => {
+  try {
+    // Find the pickup by request_no
+    const pickup = pickupRequests.value.find(p => p.requestNo === requestNo);
+    if (!pickup) {
+      alert('Pickup request not found');
+      return;
+    }
+    
+    // Use the pickup ID from the backend response
+    const pickupId = pickup.pickupId;
+    
+    if (!pickupId) {
+      alert('Unable to identify pickup request');
+      return;
+    }
+    
+    await api.post(`/secondary/pickup/${pickupId}/accept`);
+    
+    // Refresh the list
+    await fetchPickupDetails();
+    
+    alert(`Pickup ${requestNo} accepted successfully!`);
+  } catch (error) {
+    console.error('Error accepting pickup:', error);
+    alert(error.response?.data?.error || 'Failed to accept pickup. Please try again.');
+  }
+};
+
+const rejectPickup = async (requestNo) => {
+  try {
+    // Find the pickup by request_no
+    const pickup = pickupRequests.value.find(p => p.requestNo === requestNo);
+    if (!pickup) {
+      alert('Pickup request not found');
+      return;
+    }
+    
+    // Use the pickup ID from the backend response
+    const pickupId = pickup.pickupId;
+    
+    if (!pickupId) {
+      alert('Unable to identify pickup request');
+      return;
+    }
+    
+    await api.post(`/secondary/pickup/${pickupId}/reject`);
+    
+    // Refresh the list
+    await fetchPickupDetails();
+    
+    alert(`Pickup ${requestNo} rejected successfully!`);
+  } catch (error) {
+    console.error('Error rejecting pickup:', error);
+    alert(error.response?.data?.error || 'Failed to reject pickup. Please try again.');
+  }
+};
+
+const viewDetails = (requestNo) => {
+  const pickup = pickupRequests.value.find(p => p.requestNo === requestNo);
+  if (pickup) {
+    let details = `Pickup Request Details:\n\n`;
+    details += `Request No: ${pickup.requestNo}\n`;
+    details += `Household: ${pickup.userName}\n`;
+    details += `House Number: ${pickup.houseNumber || 'N/A'}\n`;
+    details += `Email: ${pickup.userEmail || 'N/A'}\n`;
+    details += `Location: ${pickup.location}\n`;
+    details += `Date: ${pickup.date}\n`;
+    details += `Time: ${pickup.time}\n`;
+    details += `Quantity: ${pickup.quantity}\n`;
+    details += `Status: ${getStatusDisplay(pickup.status)}\n`;
+    alert(details);
+  }
+};
+
+// Watch for date changes
+watch(selectedDate, (newDate) => {
+  if (newDate) {
+    fetchPickupDetails();
+  }
+});
+
 onMounted(() => {
-  fetchDashboardData();
+  // Set default date to today if not set
+  if (!selectedDate.value) {
+    selectedDate.value = new Date().toISOString().split('T')[0];
+  }
+  fetchPickupDetails();
 });
 </script>
 
 <style scoped>
-.collector-dashboard {
-  padding: 2rem;
+.daily-pickup-container {
+  padding: 1.5rem;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.summary-card {
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s;
+}
+
+.summary-card:hover {
+  transform: translateY(-5px);
+}
+
+.summary-card.accepted {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.summary-card.rejected {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.summary-card.pending {
+  background: linear-gradient(135deg, #ffa751 0%, #ffe259 100%);
+}
+
+.summary-card.total {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.summary-icon {
+  font-size: 2.5rem;
+  opacity: 0.8;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-value {
+  font-size: 2rem;
+  font-weight: 700;
 }
 
 .card {
   border: none;
-  border-radius: 1rem;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 0.75rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
-  border-radius: 1rem 1rem 0 0 !important;
-  border: none;
+  border-bottom: 1px solid #dee2e6;
+  border-radius: 0.75rem 0.75rem 0 0 !important;
 }
 
-.card-body {
-  padding: 1.5rem;
+.table {
+  margin-bottom: 0;
 }
 
-.btn {
-  border-radius: 0.5rem;
+.table-hover tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.table thead th {
   font-weight: 600;
-  transition: all 0.3s;
+  color: #2c3e50;
+  border-bottom: 2px solid #dee2e6;
 }
 
-.btn:hover {
-  transform: scale(1.05);
+.badge {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.btn-group-sm .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.btn-group-sm .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-control,
+.form-select {
+  border-radius: 0.5rem;
+  border: 1px solid #dee2e6;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .daily-pickup-container {
+    padding: 1rem;
+  }
+
+  .summary-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .summary-icon {
+    font-size: 2rem;
+  }
+
+  .summary-value {
+    font-size: 1.5rem;
+  }
+
+  .table {
+    font-size: 0.9rem;
+  }
+
+  .btn-group-sm .btn {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+  }
 }
 </style>
 
