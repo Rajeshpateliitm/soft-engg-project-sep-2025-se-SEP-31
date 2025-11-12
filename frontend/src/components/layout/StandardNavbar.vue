@@ -24,6 +24,10 @@
       
       <!-- Navbar Items -->
       <div class="collapse navbar-collapse" id="standardNavbarNav">
+        <!-- Theme Toggle (Center) -->
+        <div class="navbar-nav mx-auto">
+          <ThemeToggle />
+        </div>
         <ul class="navbar-nav ms-auto">
           <li class="nav-item">
             <router-link 
@@ -50,6 +54,7 @@
 </template>
 
 <script setup>
+import ThemeToggle from '../ThemeToggle.vue';
 // Standard navbar for non-authenticated pages (Home, Login, Register)
 </script>
 

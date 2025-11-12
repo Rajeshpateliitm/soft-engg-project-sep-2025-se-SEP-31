@@ -4,6 +4,7 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 import App from './App.vue';
 import router from './router';
 import { useAuthStore } from './stores/auth';
+import { useThemeStore } from './stores/theme';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -19,5 +20,9 @@ app.use(router);
 // Initialize auth store on app startup
 const authStore = useAuthStore();
 authStore.initAuth();
+
+// Initialize theme store on app startup
+const themeStore = useThemeStore();
+themeStore.initTheme();
 
 app.mount('#app');
