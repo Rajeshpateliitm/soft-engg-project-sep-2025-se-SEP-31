@@ -33,25 +33,7 @@
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
-                DASHBOARD
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link 
-                to="/collector-dashboard/daily-pickup-details" 
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
-              >
-                PICKUP REQUESTS
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link 
-                to="/collector-dashboard/pickup-summary" 
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
-              >
-                PICKUP SUMMARY
+                COLLECTOR PICKUP DASHBOARD
               </router-link>
             </li>
           </ul>

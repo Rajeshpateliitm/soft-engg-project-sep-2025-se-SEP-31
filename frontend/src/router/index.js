@@ -161,16 +161,6 @@ const routes = [
         path: '', 
         name: 'CollectorDashboard',
         component: CollectorDashboard 
-      },
-      { 
-        path: 'daily-pickup-details', 
-        name: 'CollectorDailyPickupDetails',
-        component: SecondaryUserDailyPickupDetails 
-      },
-      { 
-        path: 'pickup-summary', 
-        name: 'CollectorPickupSummary',
-        component: SecondaryUserPickupSummary 
       }
     ]
   },

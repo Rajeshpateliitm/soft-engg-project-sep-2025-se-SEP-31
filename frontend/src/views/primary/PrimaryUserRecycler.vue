@@ -17,15 +17,17 @@
                 v-model="searchPincode"
                 placeholder="Enter PINCODE...."
                 @keyup.enter="searchRecyclers"
+                :disabled="isLoading"
               >
             </div>
             <div class="col-md-4">
               <button 
                 class="btn btn-danger btn-lg w-100 fw-semibold" 
                 @click="searchRecyclers"
-                :disabled="!searchPincode.trim()"
+                :disabled="!searchPincode.trim() || isLoading"
               >
-                SEARCH
+                <span v-if="isLoading" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                {{ isLoading ? 'SEARCHING...' : 'SEARCH' }}
               </button>
             </div>
           </div>
@@ -35,7 +37,9 @@
 
     <!-- Results Section -->
     <div v-if="searchPerformed" class="results-section">
-      <h4 class="mb-4 fw-bold">Recyclers Near to Your Location</h4>
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0 fw-bold">RECYCLERS NEAR TO YOUR LOCATION</h4>
+      </div>
       
       <div class="row">
         <!-- Recycler Cards Column -->
@@ -52,15 +56,15 @@
               class="card recycler-card mb-3 shadow-sm"
             >
               <div class="card-body">
-                <h5 class="card-title text-primary fw-bold">{{ recycler.name }}</h5>
-                <p class="card-text text-muted mb-2">
+                <h5 class="card-title text-danger fw-bold mb-2">{{ recycler.name }}</h5>
+                <p class="card-text text-danger mb-2">
                   <i class="bi bi-geo-alt me-2"></i>{{ recycler.address }}
                 </p>
-                <p class="card-text text-muted mb-2">
-                  <i class="bi bi-pin-map me-2"></i>{{ recycler.city }}, {{ recycler.state }} - {{ recycler.pincode }}
+                <p class="card-text text-danger mb-2">
+                  <i class="bi bi-telephone me-2"></i>Phone No: {{ recycler.phone || 'N/A' }}
                 </p>
-                <p class="card-text mb-3">
-                  <small class="text-secondary">{{ recycler.description }}</small>
+                <p class="card-text text-danger mb-3">
+                  <strong>We Recycle:</strong> {{ recycler.materials && recycler.materials.length > 0 ? recycler.materials.join(', ') : 'General Waste' }}
                 </p>
                 
                 <div class="button-group d-flex gap-2 flex-wrap">
@@ -71,6 +75,7 @@
                     <i class="bi bi-telephone me-1"></i>CONTACTS
                   </button>
                   <button 
+                    v-if="recycler.website"
                     class="btn btn-sm btn-outline-success fw-semibold"
                     @click="showWebsite(recycler)"
                   >
@@ -80,7 +85,7 @@
                     class="btn btn-sm btn-outline-info fw-semibold"
                     @click="showMapDirection(recycler)"
                   >
-                    <i class="bi bi-map me-1"></i>MAP DIRECTION
+                    <i class="bi bi-map me-1"></i>DIRECTION (MAP)
                   </button>
                 </div>
               </div>
@@ -94,29 +99,24 @@
             <div class="map-header mb-3">
               <h5 class="fw-bold">Recycler Locations near {{ searchPincode }}</h5>
             </div>
-            <div class="map-image-wrapper">
-              <img 
-                src="@/assets/map-placeholder.svg" 
-                alt="Map showing recycler locations" 
-                class="map-image"
-                @error="handleMapImageError"
-              >
-              <!-- Fallback map display -->
-              <div v-if="mapImageError" class="map-fallback">
-                <div class="map-placeholder">
-                  <i class="bi bi-map"></i>
-                  <p>Map showing recycler locations near {{ searchPincode }}</p>
-                  <div class="recycler-markers">
-                    <div 
-                      v-for="(recycler, index) in filteredRecyclers" 
-                      :key="recycler.id"
-                      class="marker"
-                    >
-                      <span class="marker-number">{{ index + 1 }}</span>
-                      <span class="marker-name">{{ recycler.name }}</span>
-                    </div>
-                  </div>
+            <div v-if="isLoading" class="map-loading">
+              <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading map...</span>
                 </div>
+                <p class="mt-3 text-muted">Loading recycler locations...</p>
+              </div>
+            </div>
+            <div 
+              v-else-if="searchPerformed"
+              ref="mapContainer" 
+              class="map-wrapper"
+              style="height: 500px; width: 100%; border-radius: 8px; overflow: hidden;"
+            ></div>
+            <div v-else class="map-placeholder-empty">
+              <div class="text-center py-5">
+                <i class="bi bi-map" style="font-size: 3rem; color: #ccc; margin-bottom: 10px;"></i>
+                <p class="text-muted">Enter a pincode and click SEARCH to view recycler locations on the map</p>
               </div>
             </div>
           </div>
@@ -141,21 +141,24 @@
         </div>
         <div class="modal-body">
           <div v-if="selectedRecycler">
-            <h6 class="fw-bold mb-3">{{ selectedRecycler.name }}</h6>
+            <h6 class="fw-bold mb-3 text-danger">{{ selectedRecycler.name }}</h6>
             <p class="mb-2">
               <strong>Phone:</strong> 
-              <a :href="`tel:${selectedRecycler.phone}`" class="text-decoration-none">
-                {{ selectedRecycler.phone }}
+              <a :href="`tel:${selectedRecycler.phone}`" class="text-decoration-none text-danger">
+                {{ selectedRecycler.phone || 'N/A' }}
+              </a>
+            </p>
+            <p class="mb-2" v-if="selectedRecycler.website">
+              <strong>Website:</strong> 
+              <a :href="selectedRecycler.website" target="_blank" class="text-decoration-none text-danger">
+                {{ selectedRecycler.website }}
               </a>
             </p>
             <p class="mb-2">
-              <strong>Email:</strong> 
-              <a :href="`mailto:${selectedRecycler.email}`" class="text-decoration-none">
-                {{ selectedRecycler.email }}
-              </a>
+              <strong>Address:</strong> {{ selectedRecycler.address }} - {{ selectedRecycler.pincode }}
             </p>
-            <p class="mb-0">
-              <strong>Address:</strong> {{ selectedRecycler.address }}, {{ selectedRecycler.city }}, {{ selectedRecycler.state }} - {{ selectedRecycler.pincode }}
+            <p class="mb-0" v-if="selectedRecycler.materials && selectedRecycler.materials.length > 0">
+              <strong>We Recycle:</strong> {{ selectedRecycler.materials.join(', ') }}
             </p>
           </div>
         </div>
@@ -179,20 +182,26 @@
         </div>
         <div class="modal-body">
           <div v-if="selectedRecycler">
-            <h6 class="fw-bold mb-3">{{ selectedRecycler.name }}</h6>
-            <p class="mb-2">
+            <h6 class="fw-bold mb-3 text-danger">{{ selectedRecycler.name }}</h6>
+            <p class="mb-2" v-if="selectedRecycler.website">
               <strong>Website:</strong> 
               <a 
                 :href="selectedRecycler.website" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                class="text-decoration-none"
+                class="text-decoration-none text-danger"
               >
                 {{ selectedRecycler.website }}
               </a>
             </p>
-            <p class="mb-0">
-              <strong>Description:</strong> {{ selectedRecycler.description }}
+            <p class="mb-2" v-else>
+              <strong>Website:</strong> <span class="text-muted">Not available</span>
+            </p>
+            <p class="mb-2">
+              <strong>Address:</strong> {{ selectedRecycler.address }} - {{ selectedRecycler.pincode }}
+            </p>
+            <p class="mb-0" v-if="selectedRecycler.materials && selectedRecycler.materials.length > 0">
+              <strong>We Recycle:</strong> {{ selectedRecycler.materials.join(', ') }}
             </p>
           </div>
         </div>
@@ -216,28 +225,26 @@
         </div>
         <div class="modal-body">
           <div v-if="selectedRecycler">
-            <h6 class="fw-bold mb-3">{{ selectedRecycler.name }}</h6>
-            <div class="map-modal-content">
-              <img 
-                src="@/assets/map-placeholder.svg" 
-                alt="Direction map" 
-                class="map-modal-image"
-                @error="handleMapImageError"
-              >
-              <div v-if="mapImageError" class="map-fallback-modal">
-                <div class="map-placeholder-modal">
-                  <i class="bi bi-map"></i>
-                  <p>Map showing directions to {{ selectedRecycler.name }}</p>
-                  <p class="text-muted">{{ selectedRecycler.address }}, {{ selectedRecycler.city }}, {{ selectedRecycler.state }} - {{ selectedRecycler.pincode }}</p>
-                </div>
-              </div>
-            </div>
+            <h6 class="fw-bold mb-3 text-danger">{{ selectedRecycler.name }}</h6>
             <div class="mt-3">
               <p class="mb-2">
-                <strong>Address:</strong> {{ selectedRecycler.address }}, {{ selectedRecycler.city }}, {{ selectedRecycler.state }} - {{ selectedRecycler.pincode }}
+                <strong>Address:</strong> {{ selectedRecycler.address }} - {{ selectedRecycler.pincode }}
+              </p>
+              <p class="mb-2" v-if="selectedRecycler.materials && selectedRecycler.materials.length > 0">
+                <strong>We Recycle:</strong> {{ selectedRecycler.materials.join(', ') }}
               </p>
               <a 
-                :href="`https://www.google.com/maps/search/${selectedRecycler.address}+${selectedRecycler.city}+${selectedRecycler.pincode}`"
+                v-if="selectedRecycler.latitude && selectedRecycler.longitude"
+                :href="`https://www.google.com/maps/dir/?api=1&destination=${selectedRecycler.latitude},${selectedRecycler.longitude}`"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-sm btn-primary"
+              >
+                <i class="bi bi-arrow-up-right me-1"></i>Open in Google Maps
+              </a>
+              <a 
+                v-else
+                :href="`https://www.google.com/maps/search/${encodeURIComponent(selectedRecycler.address || '')}`"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="btn btn-sm btn-primary"
@@ -253,7 +260,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import api from '../../services/api';
 
 const searchPincode = ref('');
 const searchPerformed = ref(false);
@@ -262,126 +272,200 @@ const showWebsiteModal = ref(false);
 const showMapModal = ref(false);
 const selectedRecycler = ref(null);
 const mapImageError = ref(false);
+const isLoading = ref(false);
+const mapContainer = ref(null);
+let map = null;
+let markers = [];
 
-// Static recycler data for different pincodes
-const recyclerDatabase = {
-  '700001': [
-    {
-      id: 1,
-      name: 'EcoRecycle Solutions',
-      address: '45 Park Street',
-      city: 'Kolkata',
-      state: 'West Bengal',
-      pincode: '700001',
-      phone: '+91-9876543210',
-      email: 'info@ecorecycle.com',
-      website: 'https://www.ecorecycle.com',
-      description: 'Leading recycling facility specializing in plastic, paper, and metal waste. We provide pickup services and ensure proper waste segregation.'
-    },
-    {
-      id: 2,
-      name: 'Green Earth Recyclers',
-      address: '123 AJC Bose Road',
-      city: 'Kolkata',
-      state: 'West Bengal',
-      pincode: '700001',
-      phone: '+91-9876543211',
-      email: 'contact@greenearthrecyclers.com',
-      website: 'https://www.greenearthrecyclers.com',
-      description: 'Comprehensive waste management and recycling services. We handle organic, inorganic, and hazardous waste with certified processes.'
-    },
-    {
-      id: 3,
-      name: 'Waste Warriors',
-      address: '78 Chowringhee Lane',
-      city: 'Kolkata',
-      state: 'West Bengal',
-      pincode: '700001',
-      phone: '+91-9876543212',
-      email: 'support@wastewarriors.com',
-      website: 'https://www.wastewarriors.com',
-      description: 'Community-focused recycling initiative promoting sustainable waste management practices in urban areas.'
-    }
-  ],
-  '700020': [
-    {
-      id: 4,
-      name: 'Urban Waste Solutions',
-      address: '56 Ballygunge Circular Road',
-      city: 'Kolkata',
-      state: 'West Bengal',
-      pincode: '700020',
-      phone: '+91-9876543213',
-      email: 'info@urbanwaste.com',
-      website: 'https://www.urbanwaste.com',
-      description: 'Professional waste segregation and recycling center with modern equipment and trained staff.'
-    },
-    {
-      id: 5,
-      name: 'Eco Friendly Disposal',
-      address: '89 Rash Behari Avenue',
-      city: 'Kolkata',
-      state: 'West Bengal',
-      pincode: '700020',
-      phone: '+91-9876543214',
-      email: 'contact@ecofriendly.com',
-      website: 'https://www.ecofriendly.com',
-      description: 'Dedicated to reducing landfill waste through innovative recycling and composting methods.'
-    }
-  ],
-  '700040': [
-    {
-      id: 6,
-      name: 'Sustainable Recycling Hub',
-      address: '34 Gariahat Road',
-      city: 'Kolkata',
-      state: 'West Bengal',
-      pincode: '700040',
-      phone: '+91-9876543215',
-      email: 'info@sustainablerecycling.com',
-      website: 'https://www.sustainablerecycling.com',
-      description: 'State-of-the-art recycling facility with focus on environmental sustainability and community engagement.'
-    }
-  ],
-  '110001': [
-    {
-      id: 7,
-      name: 'Delhi Waste Management',
-      address: '12 Chandni Chowk',
-      city: 'Delhi',
-      state: 'Delhi',
-      pincode: '110001',
-      phone: '+91-9876543216',
-      email: 'info@delhiwaste.com',
-      website: 'https://www.delhiwaste.com',
-      description: 'Comprehensive waste management services for residential and commercial areas in Delhi.'
-    }
-  ],
-  '560001': [
-    {
-      id: 8,
-      name: 'Bangalore Recyclers',
-      address: '78 MG Road',
-      city: 'Bangalore',
-      state: 'Karnataka',
-      pincode: '560001',
-      phone: '+91-9876543217',
-      email: 'info@bangalorerecyclers.com',
-      website: 'https://www.bangalorerecyclers.com',
-      description: 'Leading recycling center in Bangalore with expertise in e-waste and plastic recycling.'
-    }
-  ]
-};
-
-const filteredRecyclers = computed(() => {
-  return recyclerDatabase[searchPincode.value] || [];
+// Fix for default marker icons in Leaflet with Vite
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const searchRecyclers = () => {
-  if (searchPincode.value.trim()) {
-    searchPerformed.value = true;
-    mapImageError.value = false;
+// Recyclers data from backend
+const recyclers = ref([]);
+
+const filteredRecyclers = computed(() => {
+  return recyclers.value;
+});
+
+// Fetch recyclers from backend API
+const searchRecyclers = async () => {
+  if (!searchPincode.value.trim()) {
+    return;
   }
+  
+  try {
+    isLoading.value = true;
+    searchPerformed.value = false;
+    
+    const response = await api.get(`/common/recyclers?pincode=${searchPincode.value.trim()}`);
+    const data = response.data;
+    
+    recyclers.value = data.recyclers || [];
+    searchPerformed.value = true;
+    
+    // Initialize map after data is loaded
+    await nextTick();
+    setTimeout(() => {
+      initMap();
+    }, 100);
+  } catch (error) {
+    console.error('Error fetching recyclers:', error);
+    recyclers.value = [];
+    searchPerformed.value = true;
+    // Still initialize map even if no recyclers found
+    await nextTick();
+    setTimeout(() => {
+      initMap();
+    }, 100);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Initialize Leaflet map
+const initMap = () => {
+  // Clear existing map and markers
+  if (map) {
+    map.remove();
+    map = null;
+  }
+  markers = [];
+  
+  // Wait for next tick to ensure DOM is ready
+  nextTick(() => {
+    if (!mapContainer.value) {
+      console.warn('Map container not found');
+      return;
+    }
+    
+    // Get center coordinates - use recycler locations or default to Kolkata area based on pincode
+    // For pincode 700001, use Kolkata coordinates
+    let centerLat = 22.5726; // Kolkata default
+    let centerLng = 88.3639;
+    let zoom = 13;
+    
+    // Try to determine center based on pincode if no recyclers
+    if (searchPincode.value === '700001' || searchPincode.value.startsWith('700')) {
+      centerLat = 22.5726;
+      centerLng = 88.3639;
+      zoom = 13;
+    }
+    
+    if (recyclers.value.length > 0) {
+      const validCoords = recyclers.value.filter(r => r.latitude && r.longitude);
+      if (validCoords.length > 0) {
+        if (validCoords.length === 1) {
+          // Single recycler - center on it
+          centerLat = validCoords[0].latitude;
+          centerLng = validCoords[0].longitude;
+          zoom = 15;
+        } else {
+          // Multiple recyclers - calculate center
+          const avgLat = validCoords.reduce((sum, r) => sum + r.latitude, 0) / validCoords.length;
+          const avgLng = validCoords.reduce((sum, r) => sum + r.longitude, 0) / validCoords.length;
+          centerLat = avgLat;
+          centerLng = avgLng;
+          zoom = 13;
+        }
+      }
+    }
+    
+    try {
+      // Initialize map
+      map = L.map(mapContainer.value, {
+        center: [centerLat, centerLng],
+        zoom: zoom,
+        zoomControl: true
+      });
+      
+      // Add OpenStreetMap tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+      
+      // Add markers for each recycler
+      recyclers.value.forEach((recycler, index) => {
+        if (recycler.latitude && recycler.longitude) {
+          // Create custom icon with number (red circle with white number)
+          const iconHtml = `
+            <div style="background-color: #dc3545; color: white; width: 32px; height: 32px; border-radius: 50%; 
+                        display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+                        border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); cursor: pointer;">
+              ${index + 1}
+            </div>
+          `;
+          
+          const customIcon = L.divIcon({
+            html: iconHtml,
+            className: 'custom-marker',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+          });
+          
+          const marker = L.marker([recycler.latitude, recycler.longitude], {
+            icon: customIcon
+          }).addTo(map);
+          
+          // Create popup content with recycler details
+          const materialsText = recycler.materials && recycler.materials.length > 0 
+            ? recycler.materials.join(', ') 
+            : 'General Waste';
+          
+          const popupContent = `
+            <div style="min-width: 240px; max-width: 320px;">
+              <h6 style="margin: 0 0 12px 0; font-weight: bold; color: #dc3545; font-size: 1.15em; border-bottom: 2px solid #eee; padding-bottom: 8px;">${recycler.name}</h6>
+              <p style="margin: 8px 0; font-size: 0.9em; color: #333; line-height: 1.6;">
+                <strong style="color: #666; display: block; margin-bottom: 4px;">Address:</strong>
+                <span style="color: #555;">${recycler.address || 'N/A'}</span>
+              </p>
+              <p style="margin: 8px 0; font-size: 0.9em; color: #333;">
+                <strong style="color: #666; display: block; margin-bottom: 4px;">Phone:</strong> 
+                <a href="tel:${recycler.phone || ''}" style="color: #007bff; text-decoration: none; font-weight: 500;">${recycler.phone || 'N/A'}</a>
+              </p>
+              <p style="margin: 8px 0; font-size: 0.9em; color: #333;">
+                <strong style="color: #666; display: block; margin-bottom: 4px;">We Recycle:</strong> 
+                <span style="color: #28a745; font-weight: 500;">${materialsText}</span>
+              </p>
+              ${recycler.website ? `
+                <a href="${recycler.website}" target="_blank" 
+                   style="display: inline-block; margin-top: 10px; padding: 6px 12px; background-color: #007bff; 
+                          color: white; text-decoration: none; border-radius: 4px; font-size: 0.85em; font-weight: 500;">
+                  <i class="bi bi-globe" style="margin-right: 4px;"></i>Visit Website
+                </a>
+              ` : ''}
+            </div>
+          `;
+          
+          marker.bindPopup(popupContent);
+          markers.push(marker);
+        }
+      });
+      
+      // Fit map to show all markers if we have any
+      if (markers.length > 0) {
+        setTimeout(() => {
+          try {
+            const group = new L.featureGroup(markers);
+            map.fitBounds(group.getBounds().pad(0.15));
+          } catch (e) {
+            console.error('Error fitting bounds:', e);
+          }
+        }, 200);
+      } else {
+        // No recyclers with coordinates - show area around pincode
+        map.setView([centerLat, centerLng], zoom);
+      }
+    } catch (error) {
+      console.error('Error initializing map:', error);
+    }
+  });
 };
 
 const showContactInfo = (recycler) => {
@@ -391,17 +475,48 @@ const showContactInfo = (recycler) => {
 
 const showWebsite = (recycler) => {
   selectedRecycler.value = recycler;
-  showWebsiteModal.value = true;
+  if (recycler.website) {
+    window.open(recycler.website, '_blank');
+  } else {
+    showWebsiteModal.value = true;
+  }
 };
 
 const showMapDirection = (recycler) => {
   selectedRecycler.value = recycler;
-  showMapModal.value = true;
+  if (recycler.latitude && recycler.longitude) {
+    // Open Google Maps with directions
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${recycler.latitude},${recycler.longitude}`;
+    window.open(url, '_blank');
+  } else {
+    // Fallback to address search
+    const address = encodeURIComponent(recycler.address || '');
+    const url = `https://www.google.com/maps/search/?api=1&query=${address}`;
+    window.open(url, '_blank');
+  }
 };
 
 const handleMapImageError = () => {
   mapImageError.value = true;
 };
+
+// Watch for recyclers changes to update map
+watch(() => recyclers.value, () => {
+  if (searchPerformed.value) {
+    nextTick(() => {
+      initMap();
+    });
+  }
+}, { deep: true });
+
+// Cleanup on unmount
+onBeforeUnmount(() => {
+  if (map) {
+    map.remove();
+    map = null;
+  }
+  markers = [];
+});
 </script>
 
 <style scoped>
@@ -426,14 +541,17 @@ const handleMapImageError = () => {
 }
 
 .recycler-card {
-  border: 1px solid #e0e0e0;
+  border: 1px solid #d1d1d1;
   border-radius: 8px;
   transition: all 0.3s ease;
+  background: linear-gradient(135deg, #f0f8f0 0%, #e8f5e9 100%);
 }
 
 .recycler-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
   transform: translateY(-2px);
+  border-color: #28a745;
+  background: linear-gradient(135deg, #e8f5e9 0%, #d4edda 100%);
 }
 
 .recycler-card .card-title {
@@ -474,19 +592,34 @@ const handleMapImageError = () => {
   padding-bottom: 15px;
 }
 
-.map-image-wrapper {
+.map-wrapper {
   position: relative;
   width: 100%;
-  height: 400px;
+  height: 500px;
   background: #f5f5f5;
   border-radius: 8px;
   overflow: hidden;
+  border: 2px solid #e0e0e0;
 }
 
-.map-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.map-loading {
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+}
+
+.map-placeholder-empty {
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
 }
 
 .map-fallback {
@@ -690,6 +823,27 @@ const handleMapImageError = () => {
   font-size: 0.9rem;
 }
 
+/* Custom marker styles */
+:deep(.custom-marker) {
+  background: transparent;
+  border: none;
+}
+
+/* Leaflet map container styles */
+:deep(.leaflet-container) {
+  font-family: inherit;
+  z-index: 1;
+}
+
+:deep(.leaflet-popup-content-wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+:deep(.leaflet-popup-tip) {
+  background: white;
+}
+
 /* Responsive Design */
 @media (max-width: 991.98px) {
   .recycler-container {
@@ -712,6 +866,15 @@ const handleMapImageError = () => {
 
   .modal-content {
     max-width: 90%;
+  }
+
+  .map-wrapper {
+    height: 400px !important;
+  }
+
+  .map-loading,
+  .map-placeholder-empty {
+    height: 400px !important;
   }
 }
 

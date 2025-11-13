@@ -10,7 +10,7 @@
             </button>
             <h2 class="text-white fw-bold mb-0">MONTHLY WASTE PICKUP SUMMARY</h2>
           </div>
-          <p class="text-white-50">Comprehensive statistics about waste pickups for the current month</p>
+          <p class="text-white-50">Comprehensive statistics about waste pickups for the last 30 days (includes historical data)</p>
         </div>
       </div>
 
@@ -61,9 +61,9 @@
             <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border: none;">
               <div>
                 <h5 class="card-title mb-1 fw-bold">
-                  <i class="bi bi-bar-chart-line me-2"></i>Daily Pick-ups Status
+                  <i class="bi bi-bar-chart-line me-2"></i>Daily Pick-ups by Status (Last 30 Days)
                 </h5>
-                <small class="text-white-50 opacity-75">Interactive chart showing pickup trends over time</small>
+                <small class="text-white-50 opacity-75">Interactive chart showing pickup trends over time (includes historical data)</small>
               </div>
               <button class="btn btn-sm btn-light shadow-sm" @click="exportData" style="border-radius: 20px; transition: all 0.3s;">
                 <i class="bi bi-download me-1"></i>Export Data
@@ -191,7 +191,7 @@
         <div class="col-12">
           <div class="card shadow-lg">
             <div class="card-header bg-primary text-white">
-              <h5 class="card-title mb-0">Detailed Pickup Breakdown</h5>
+              <h5 class="card-title mb-0">Detailed Pickup Breakdown (Last 30 Days)</h5>
             </div>
             <div class="card-body">
               <div class="table-responsive">
@@ -293,22 +293,19 @@ const dailyBreakdown = computed(() => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  // Filter dates: only today and future dates (no past dates)
-  const allDates = Object.keys(dailyData).filter(dateStr => {
+  // Include ALL dates from backend (past, today, and future)
+  const allDates = Object.keys(dailyData);
+  
+  // Sort dates in descending order (most recent first) for better UX
+  const sortedDates = allDates.sort((a, b) => new Date(b) - new Date(a));
+  
+  sortedDates.forEach((dateStr) => {
+    const day = dailyData[dateStr];
+    if (!day) return;
+    
     const date = new Date(dateStr);
     date.setHours(0, 0, 0, 0);
-    return date >= today; // Include today and future dates only
-  });
-  
-  // Sort dates in ascending order (oldest first, newest last) so today is at bottom, future dates above
-  const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b));
-  
-  // Limit to last 7 days from today (including today and up to 6 future days)
-  const limitedDates = sortedDates.slice(0, 7);
-  
-  limitedDates.forEach((dateStr) => {
-    const day = dailyData[dateStr];
-    const date = new Date(dateStr);
+    
     const scheduled = day.scheduled || ((day.completed || 0) + (day.pending || 0) + (day.rejected || 0) + (day.accepted || 0));
     const completed = day.completed || 0;
     const pending = day.pending || 0;
@@ -338,7 +335,7 @@ const dailyBreakdown = computed(() => {
     });
   });
   
-  // Return in ascending order (today at bottom, future dates above)
+  // Return in descending order (most recent first)
   return breakdown;
 });
 
@@ -416,15 +413,11 @@ const initChart = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  // Filter dates: only today and future dates (no past dates)
-  const allDates = Object.keys(dailyData).filter(dateStr => {
-    const date = new Date(dateStr);
-    date.setHours(0, 0, 0, 0);
-    return date >= today; // Include today and future dates only
-  });
+  // Include ALL dates from backend (past, today, and future)
+  const allDates = Object.keys(dailyData);
   
-  // Sort dates in ascending order (oldest to newest) so today is at right, future dates to the left
-  const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b)).slice(0, 30);
+  // Sort dates in ascending order (oldest to newest) for chronological chart display
+  const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b));
   
   if (sortedDates.length === 0) {
     // Show empty state message

@@ -194,15 +194,50 @@
     </div>
     
     <div class="row">
-      <!-- Quiz Performance by Category -->
+      <!-- Monthly Summary -->
       <div class="col-lg-6 mb-4">
         <div class="card border-0 shadow-sm h-100">
           <div class="card-header bg-white border-0">
-            <h5 class="mb-0">Quiz Performance by Category</h5>
+            <h5 class="mb-0">Monthly Summary</h5>
           </div>
           <div class="card-body">
-            <div class="chart-container" style="position: relative; height: 300px;">
-              <canvas ref="categoryChartRef"></canvas>
+            <div class="d-flex flex-column gap-3">
+              <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                <div>
+                  <h6 class="text-muted mb-1">Total Points Earned</h6>
+                  <h3 class="mb-0">{{ activityBreakdown.find(a => a.name === 'Points Earned')?.count || 0 }}</h3>
+            </div>
+                <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
+                  <i class="bi bi-star-fill text-warning" style="font-size: 1.5rem;"></i>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                <div>
+                  <h6 class="text-muted mb-1">Quizzes Completed</h6>
+                  <h3 class="mb-0">{{ engagementStats.quizzesCompleted }}</h3>
+                </div>
+                <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                  <i class="bi bi-check-circle text-primary" style="font-size: 1.5rem;"></i>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                <div>
+                  <h6 class="text-muted mb-1">Average Score</h6>
+                  <h3 class="mb-0">{{ engagementStats.averageScore }}%</h3>
+                </div>
+                <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                  <i class="bi bi-graph-up text-success" style="font-size: 1.5rem;"></i>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                <div>
+                  <h6 class="text-muted mb-1">Current Streak</h6>
+                  <h3 class="mb-0">{{ engagementStats.currentStreak }} days</h3>
+                </div>
+                <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
+                  <i class="bi bi-fire text-danger" style="font-size: 1.5rem;"></i>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -229,9 +264,6 @@
         <div class="card border-0 shadow-sm">
           <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Recent Activity</h5>
-            <router-link to="/activity-log" class="btn btn-sm btn-outline-primary">
-              View All Activity
-            </router-link>
           </div>
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -244,6 +276,11 @@
                 </tr>
               </thead>
               <tbody>
+                <tr v-if="recentActivities.length === 0">
+                  <td colspan="4" class="text-center py-4">
+                    <p class="text-muted mb-0">No recent activity found</p>
+                  </td>
+                </tr>
                 <tr v-for="(activity, index) in recentActivities" :key="index">
                   <td>
                     <div class="d-flex align-items-center">
@@ -269,10 +306,28 @@
                   </td>
                   <td class="text-end">
                     <span 
-                      class="badge" 
-                      :class="activity.points > 0 ? 'bg-success' : 'bg-secondary'"
+                      v-if="activity.points > 0"
+                      class="badge bg-success"
                     >
-                      {{ activity.points > 0 ? '+' + activity.points : activity.points }}
+                      +{{ activity.points }}
+                    </span>
+                    <span 
+                      v-else-if="activity.points < 0"
+                      class="badge bg-danger"
+                    >
+                      {{ activity.points }}
+                    </span>
+                    <span 
+                      v-else-if="activity.pickup_status === 'pending'"
+                      class="badge bg-warning"
+                    >
+                      Pending
+                    </span>
+                    <span 
+                      v-else
+                      class="badge bg-secondary"
+                    >
+                      {{ activity.points }}
                     </span>
                   </td>
                 </tr>
@@ -291,6 +346,7 @@
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
 import { Chart, registerables } from 'chart.js';
 import api from '../../services/api';
+import 'chartjs-adapter-date-fns';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -334,6 +390,7 @@ const monthlyEngagement = ref({
   waste_logs: 0,
   campaigns: 0
 });
+const timeOfDayData = ref({});
 
 const chartTabs = [
   { id: 'quizzes', label: 'Quizzes' },
@@ -427,6 +484,8 @@ const fetchMonthlyEngagement = async () => {
     const response = await api.get('/primary/monthly-engagement');
     const data = response.data;
     
+    console.log('Monthly engagement data:', data);
+    
     // Update monthly engagement stats
     monthlyEngagement.value = {
       quizzes: data.monthly_engagement?.quizzes || 0,
@@ -434,31 +493,56 @@ const fetchMonthlyEngagement = async () => {
       campaigns: data.monthly_engagement?.campaigns || 0
     };
     
-    // Update daily trends
-    dailyTrends.value = data.daily_trends || {};
+    // Update daily trends (now with actual dates)
+    dailyTrends.value = {};
+    if (data.daily_trends && Array.isArray(data.daily_trends)) {
+      data.daily_trends.forEach(trend => {
+        dailyTrends.value[trend.date] = trend;
+      });
+    }
     
-    // Update activity breakdown
+    // Update engagement stats from backend
+    if (data.stats) {
+      engagementStats.value = {
+        quizzesCompleted: data.stats.quizzes_completed || 0,
+        quizzesChange: data.stats.quizzes_change || 0,
+        averageScore: data.stats.average_score || 0,
+        scoreChange: data.stats.score_change || 0,
+        currentStreak: data.stats.current_streak || 0,
+        streakActive: data.stats.streak_active || false,
+        ranking: data.stats.ranking || 0,
+        rankingChange: data.stats.ranking_change || 0
+      };
+    }
+    
+    // Update activity breakdown with real data
     activityBreakdown.value = [
       { name: 'Quizzes Taken', count: monthlyEngagement.value.quizzes, icon: 'bi-check-circle', variant: 'primary', description: 'Total quizzes completed' },
       { name: 'Waste Logs', count: monthlyEngagement.value.waste_logs, icon: 'bi-trash', variant: 'success', description: 'Total waste entries' },
       { name: 'Campaigns', count: monthlyEngagement.value.campaigns, icon: 'bi-calendar-event', variant: 'info', description: 'Campaigns participated' },
-      { name: 'Points Earned', count: 0, icon: 'bi-star', variant: 'warning', description: 'Total points this month' }
+      { name: 'Points Earned', count: data.monthly_engagement?.points || 0, icon: 'bi-star', variant: 'warning', description: 'Total points this month' }
     ];
     
-    // Update engagement stats (calculate from data)
-    engagementStats.value = {
-      quizzesCompleted: monthlyEngagement.value.quizzes,
-      quizzesChange: 0, // Could calculate from previous month
-      averageScore: 0, // Get from quiz performance
-      scoreChange: 0,
-      currentStreak: 0, // Calculate from daily trends
-      streakActive: false,
-      ranking: 0, // Get from leaderboard
-      rankingChange: 0
-    };
+    // Update recent activities from backend
+    if (data.recent_activities && Array.isArray(data.recent_activities)) {
+      recentActivities.value = data.recent_activities.map(activity => ({
+        title: activity.title,
+        subtitle: activity.subtitle,
+        details: activity.details,
+        points: activity.points || 0,
+        timestamp: new Date(activity.timestamp),
+        icon: activity.icon,
+        variant: activity.variant,
+        pickup_status: activity.pickup_status || null
+      }));
+    } else {
+      recentActivities.value = [];
+    }
     
-    // Generate recent activities from daily trends
-    generateRecentActivities();
+    // Store time of day data
+    if (data.time_of_day) {
+      timeOfDayData.value = data.time_of_day;
+    }
     
     // Initialize charts after data is loaded
     await nextTick();
@@ -467,66 +551,13 @@ const fetchMonthlyEngagement = async () => {
     }, 100);
   } catch (error) {
     console.error('Error fetching monthly engagement:', error);
+    console.error('Error details:', error.response?.data || error.message);
   } finally {
     isLoading.value = false;
   }
 };
 
-// Generate recent activities from trends
-const generateRecentActivities = () => {
-  const activities = [];
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  
-  // Get quiz attempts and waste logs from trends
-  Object.entries(dailyTrends.value).forEach(([day, data]) => {
-    if (data.quizzes > 0) {
-      activities.push({
-        title: 'Quiz Completed',
-        subtitle: 'Waste Management Quiz',
-        details: `Completed ${data.quizzes} quiz${data.quizzes > 1 ? 'zes' : ''}`,
-        points: data.quizzes * 10,
-        timestamp: getDateForDay(day),
-        icon: 'bi-check-circle',
-        variant: 'primary'
-      });
-    }
-    if (data.waste_logs > 0) {
-      activities.push({
-        title: 'Waste Logged',
-        subtitle: 'Daily Waste Entry',
-        details: `Logged ${data.waste_logs} entry${data.waste_logs > 1 ? 'ies' : ''}`,
-        points: data.waste_logs * 5,
-        timestamp: getDateForDay(day),
-        icon: 'bi-trash',
-        variant: 'success'
-      });
-    }
-  });
-  
-  // Sort by timestamp (most recent first) and limit to 10
-  recentActivities.value = activities
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 10);
-};
-
-// Helper to get date for day name (returns date within last 7 days)
-const getDateForDay = (dayName) => {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const today = new Date();
-  const todayDay = today.getDay();
-  const targetDay = days.indexOf(dayName);
-  
-  // Find the most recent occurrence of this day within the last 7 days
-  let diff = targetDay - todayDay;
-  if (diff > 0) {
-    diff -= 7; // Go back to previous week
-  }
-  
-  const date = new Date(today);
-  date.setDate(today.getDate() + diff);
-  date.setHours(12, 0, 0, 0); // Set to noon for consistent time
-  return date;
-};
+// Recent activities are now fetched from backend - no need to generate them
 
 // Computed properties
 const filteredActivities = computed(() => {
@@ -551,160 +582,263 @@ const initCharts = () => {
     timeOfDayChartInstance = null;
   }
   
-  // Engagement Chart (Line/Bar)
+  // Engagement Chart (Line/Bar) with dates
   if (engagementChartRef.value) {
     const ctx1 = engagementChartRef.value.getContext('2d');
     if (ctx1) {
-      engagementChartInstance = new Chart(ctx1, {
-        type: activeChartTab.value === 'quizzes' ? 'bar' : 'line',
-        data: getEngagementChartData(),
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'top',
-            },
-            tooltip: {
+      const chartData = getEngagementChartData();
+      const dataPoints = chartData.datasets[0].data;
+      
+      // Only create chart if we have data points
+      if (dataPoints && dataPoints.length > 0) {
+  engagementChartInstance = new Chart(ctx1, {
+    type: activeChartTab.value === 'quizzes' ? 'bar' : 'line',
+          data: chartData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+            interaction: {
               mode: 'index',
               intersect: false,
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                precision: 0
-              }
-            }
+            },
+      plugins: {
+        legend: {
+                display: true,
+          position: 'top',
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+                callbacks: {
+                  title: function(context) {
+                    // Format date in tooltip
+                    if (context && context.length > 0 && context[0].parsed && context[0].parsed.x) {
+                      const date = new Date(context[0].parsed.x);
+                      return date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric'
+                      });
+                    }
+                    return '';
+                  },
+                  label: function(context) {
+                    if (context.parsed && context.parsed.y !== null && context.parsed.y !== undefined) {
+                      const label = context.dataset.label || '';
+                      const value = context.parsed.y;
+                      if (activeChartTab.value === 'time') {
+                        return `${label}: ${value} minutes`;
+                      }
+                      return `${label}: ${value}`;
+                    }
+                    return '';
+                  }
+                }
+        }
+      },
+      scales: {
+              x: {
+                type: 'time',
+                time: {
+                  unit: 'day',
+                  displayFormats: {
+                    day: 'MMM dd',
+                    week: 'MMM dd',
+                    month: 'MMM yyyy'
+                  },
+                  tooltipFormat: 'MMM dd, yyyy'
+                },
+                title: {
+                  display: true,
+                  text: 'Date'
+                },
+                grid: {
+                  display: true,
+                  color: 'rgba(0, 0, 0, 0.05)'
+                },
+                ticks: {
+                  autoSkip: true,
+                  maxTicksLimit: 15,
+                  maxRotation: 45,
+                  minRotation: 0
+                }
+              },
+        y: {
+          beginAtZero: true,
+                title: {
+                  display: true,
+                  text: activeChartTab.value === 'quizzes' ? 'Quizzes' : 
+                        activeChartTab.value === 'points' ? 'Points' : 'Minutes'
+                },
+          ticks: {
+            precision: 0
+                },
+                grid: {
+                  display: true,
+                  color: 'rgba(0, 0, 0, 0.05)'
           }
         }
-      });
+      }
+    }
+  });
+      }
     }
   }
   
-  // Category Performance Chart (Doughnut)
+  // Category Performance Chart (Doughnut) - Not using real data, keeping simple placeholder
+  // Note: Category breakdown data is not available from backend currently
   if (categoryChartRef.value) {
     const ctx2 = categoryChartRef.value.getContext('2d');
     if (ctx2) {
-      categoryChartInstance = new Chart(ctx2, {
-        type: 'doughnut',
-        data: {
-          labels: ['Recycling', 'Composting', 'Reduction', 'Reuse', 'Hazardous Waste'],
-          datasets: [{
-            data: [85, 78, 65, 72, 90],
-            backgroundColor: [
-              'rgba(54, 162, 235, 0.8)',
-              'rgba(75, 192, 192, 0.8)',
-              'rgba(255, 206, 86, 0.8)',
-              'rgba(153, 102, 255, 0.8)',
-              'rgba(255, 99, 132, 0.8)'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right',
-            }
-          },
-          cutout: '70%'
-        }
-      });
+      // Create a simple empty/minimal chart or skip if no data
+      // For now, we'll just not create it since we replaced it with a summary card
+      // But keep the ref check in case the chart ref still exists
     }
   }
   
-  // Time of Day Activity (Radar)
+  // Time of Day Activity (Bar Chart) - using backend data
   if (timeOfDayChartRef.value) {
     const ctx3 = timeOfDayChartRef.value.getContext('2d');
     if (ctx3) {
-      timeOfDayChartInstance = new Chart(ctx3, {
-        type: 'radar',
-        data: {
-          labels: ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'],
-          datasets: [
-            {
-              label: 'This Week',
-              data: [5, 2, 15, 25, 20, 30, 40, 25],
-              backgroundColor: 'rgba(78, 115, 223, 0.2)',
-              borderColor: 'rgba(78, 115, 223, 1)',
-              pointBackgroundColor: 'rgba(78, 115, 223, 1)',
-              pointBorderColor: '#fff',
-              pointHoverBackgroundColor: '#fff',
-              pointHoverBorderColor: 'rgba(78, 115, 223, 1)'
-            },
-            {
-              label: 'Last Week',
-              data: [3, 1, 10, 20, 25, 35, 30, 20],
-              backgroundColor: 'rgba(110, 118, 135, 0.2)',
-              borderColor: 'rgba(110, 118, 135, 1)',
-              pointBackgroundColor: 'rgba(110, 118, 135, 1)',
-              pointBorderColor: '#fff',
-              pointHoverBackgroundColor: '#fff',
-              pointHoverBorderColor: 'rgba(110, 118, 135, 1)'
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            r: {
-              angleLines: {
-                display: true
-              },
-              suggestedMin: 0,
-              suggestedMax: 50
-            }
-          }
+      // Group hours into time periods for better visualization
+      const timeLabels = ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'];
+      const timeHours = [0, 3, 6, 9, 12, 15, 18, 21];
+      
+      // Get data from backend time_of_day
+      const timeData = timeHours.map(hour => {
+        // Sum activity in the 3-hour window (hour, hour+1, hour+2)
+        let count = 0;
+        for (let h = hour; h < hour + 3 && h < 24; h++) {
+          count += timeOfDayData.value[h] || 0;
         }
+        return count;
       });
+      
+      const maxValue = Math.max(...timeData, 1);
+      
+  timeOfDayChartInstance = new Chart(ctx3, {
+        type: 'bar',
+    data: {
+          labels: timeLabels,
+      datasets: [
+        {
+              label: 'Quiz Attempts',
+              data: timeData,
+              backgroundColor: 'rgba(78, 115, 223, 0.8)',
+          borderColor: 'rgba(78, 115, 223, 1)',
+              borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `Quizzes: ${context.parsed.y}`;
+                }
+              }
+            }
+          },
+      scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Number of Quizzes'
+              },
+              ticks: {
+                precision: 0,
+                stepSize: 1
+              },
+              suggestedMax: Math.max(maxValue + 2, 5)
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Time of Day'
+              }
+        }
+      }
+    }
+  });
     }
   }
 };
 
 const getEngagementChartData = () => {
-  // Use daily trends data from backend
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const labels = [];
-  const data = [];
+  // Use daily trends data from backend with actual dates
+  const trendsList = Object.keys(dailyTrends.value)
+    .sort()
+    .map(dateStr => ({
+      date: new Date(dateStr),
+      ...dailyTrends.value[dateStr]
+    }));
   
-  days.forEach(day => {
-    if (dailyTrends.value[day]) {
-      labels.push(day.substring(0, 3)); // Short day name
-      switch (activeChartTab.value) {
-        case 'quizzes':
-          data.push(dailyTrends.value[day].quizzes || 0);
-          break;
-        case 'points':
-          data.push((dailyTrends.value[day].quizzes || 0) * 10 + (dailyTrends.value[day].waste_logs || 0) * 5);
-          break;
-        case 'time':
-          data.push((dailyTrends.value[day].quizzes || 0) * 5); // Estimate 5 min per quiz
-          break;
-      }
-    } else {
-      labels.push(day.substring(0, 3));
-      data.push(0);
+  if (trendsList.length === 0) {
+    return {
+      datasets: [
+        {
+          label: activeChartTab.value === 'quizzes' ? 'Quizzes' : 
+                 activeChartTab.value === 'points' ? 'Points' : 'Minutes',
+          data: [],
+          backgroundColor: activeChartTab.value === 'quizzes' ? 'rgba(78, 115, 223, 0.8)' : 
+                           activeChartTab.value === 'points' ? 'rgba(40, 167, 69, 0.8)' : 'rgba(255, 193, 7, 0.8)',
+          borderColor: activeChartTab.value === 'quizzes' ? 'rgba(78, 115, 223, 1)' : 
+                       activeChartTab.value === 'points' ? 'rgba(40, 167, 69, 1)' : 'rgba(255, 193, 7, 1)',
+          borderWidth: 1,
+          tension: activeChartTab.value === 'quizzes' ? 0 : 0.3,
+          fill: activeChartTab.value !== 'quizzes'
+        }
+      ]
+    };
+  }
+  
+  // Create data points with dates
+  const chartData = trendsList.map(trend => {
+    let yValue = 0;
+    switch (activeChartTab.value) {
+      case 'quizzes':
+        yValue = trend.quizzes || 0;
+        break;
+      case 'points':
+        yValue = trend.points || 0;
+        break;
+      case 'time':
+        yValue = (trend.quizzes || 0) * 5; // Estimate 5 min per quiz
+        break;
     }
+    return {
+      x: trend.date,
+      y: yValue
+    };
   });
   
   return {
-    labels,
     datasets: [
       {
         label: activeChartTab.value === 'quizzes' ? 'Quizzes' : 
                activeChartTab.value === 'points' ? 'Points' : 'Minutes',
-        data,
+        data: chartData,
         backgroundColor: activeChartTab.value === 'quizzes' ? 'rgba(78, 115, 223, 0.8)' : 
                          activeChartTab.value === 'points' ? 'rgba(40, 167, 69, 0.8)' : 'rgba(255, 193, 7, 0.8)',
         borderColor: activeChartTab.value === 'quizzes' ? 'rgba(78, 115, 223, 1)' : 
                      activeChartTab.value === 'points' ? 'rgba(40, 167, 69, 1)' : 'rgba(255, 193, 7, 1)',
-        borderWidth: 1,
-        tension: activeChartTab.value === 'quizzes' ? 0 : 0.3
+        borderWidth: 2,
+        tension: activeChartTab.value === 'quizzes' ? 0 : 0.3,
+        fill: activeChartTab.value !== 'quizzes',
+        pointRadius: activeChartTab.value === 'quizzes' ? 4 : 3,
+        pointHoverRadius: 6,
+        pointBackgroundColor: activeChartTab.value === 'quizzes' ? 'rgba(78, 115, 223, 1)' : 
+                              activeChartTab.value === 'points' ? 'rgba(40, 167, 69, 1)' : 'rgba(255, 193, 7, 1)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
       }
     ]
   };
@@ -804,41 +938,111 @@ const exportData = (format) => {
 
 // Watchers
 watch(activeChartTab, () => {
+  // Reinitialize engagement chart when tab changes
   if (engagementChartInstance && typeof engagementChartInstance.destroy === 'function') {
     engagementChartInstance.destroy();
     engagementChartInstance = null;
   }
-  nextTick(() => {
+    nextTick(() => {
     if (engagementChartRef.value) {
       const ctx = engagementChartRef.value.getContext('2d');
       if (ctx) {
-        engagementChartInstance = new Chart(ctx, {
-          type: activeChartTab.value === 'quizzes' ? 'bar' : 'line',
-          data: getEngagementChartData(),
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: 'top',
-              },
-              tooltip: {
+        const chartData = getEngagementChartData();
+        const dataPoints = chartData.datasets[0].data;
+        
+        if (dataPoints && dataPoints.length > 0) {
+      engagementChartInstance = new Chart(ctx, {
+        type: activeChartTab.value === 'quizzes' ? 'bar' : 'line',
+            data: chartData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+              interaction: {
                 mode: 'index',
                 intersect: false,
-              }
+              },
+          plugins: {
+            legend: {
+                  display: true,
+              position: 'top',
             },
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  precision: 0
-                }
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+                  callbacks: {
+                    title: function(context) {
+                      if (context && context.length > 0 && context[0].parsed && context[0].parsed.x) {
+                        const date = new Date(context[0].parsed.x);
+                        return date.toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric'
+                        });
+                      }
+                      return '';
+                    },
+                    label: function(context) {
+                      if (context.parsed && context.parsed.y !== null && context.parsed.y !== undefined) {
+                        const label = context.dataset.label || '';
+                        const value = context.parsed.y;
+                        if (activeChartTab.value === 'time') {
+                          return `${label}: ${value} minutes`;
+                        }
+                        return `${label}: ${value}`;
+                      }
+                      return '';
+                    }
+                  }
+            }
+          },
+          scales: {
+                x: {
+                  type: 'time',
+                  time: {
+                    unit: 'day',
+                    displayFormats: {
+                      day: 'MMM dd',
+                      week: 'MMM dd',
+                      month: 'MMM yyyy'
+                    },
+                    tooltipFormat: 'MMM dd, yyyy'
+                  },
+                  title: {
+                    display: true,
+                    text: 'Date'
+                  },
+                  grid: {
+                    display: true,
+                    color: 'rgba(0, 0, 0, 0.05)'
+                  },
+                  ticks: {
+                    autoSkip: true,
+                    maxTicksLimit: 15,
+                    maxRotation: 45,
+                    minRotation: 0
+                  }
+                },
+            y: {
+              beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: activeChartTab.value === 'quizzes' ? 'Quizzes' : 
+                          activeChartTab.value === 'points' ? 'Points' : 'Minutes'
+                  },
+              ticks: {
+                precision: 0
+                  },
+                  grid: {
+                    display: true,
+                    color: 'rgba(0, 0, 0, 0.05)'
               }
             }
           }
-        });
+        }
+    });
+        }
       }
-    }
+  }
   });
 });
 
