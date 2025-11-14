@@ -221,12 +221,12 @@ const handleSubmit = async (event) => {
 
   try {
     const result = await authStore.register(formData.value);
-    
+
+
     if (result.success) {
-      // Redirect based on user category from backend response
-      const dashboardRoute = authStore.getDashboardRoute();
-      router.push(dashboardRoute);
-    } else {
+  // After registration, go to login page
+  router.push("/Signin");
+}  else {
       errorMessage.value = result.error || 'Registration failed. Please try again.';
     }
   } catch (error) {
