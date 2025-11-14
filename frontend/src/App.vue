@@ -18,7 +18,6 @@ import { RouterLink, RouterView } from 'vue-router';
     <main class="container mx-auto px-4 py-8">
       <RouterView />
     </main>
-    <AppFooter />
   </div>
 </template>
 
