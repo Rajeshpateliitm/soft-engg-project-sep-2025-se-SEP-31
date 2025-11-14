@@ -5,7 +5,7 @@
   >
     <div class="container-fluid">
       <!-- App Name / Brand -->
-      <router-link to="/" class="navbar-brand fw-bold text-dark">
+      <router-link to="/" class="navbar-brand fw-bold text-success">
         WASTEWISE
       </router-link>
       
