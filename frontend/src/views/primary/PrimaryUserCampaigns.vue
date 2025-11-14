@@ -202,7 +202,7 @@
                   <i class="bi bi-pin-map me-1"></i>Pincode: {{ selectedCampaign.pincode }}
                 </p>
               </div>
-                </div>
+            </div>
 
             <!-- Campaign Details Grid -->
             <div class="row g-3 mb-4">

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="layout-wrapper">
     <!-- Navbar -->
     <nav 
       class="navbar navbar-expand-lg fixed-top"
@@ -74,6 +74,11 @@
             </li>
           </ul>
           
+          <!-- Theme Toggle (Center) -->
+          <div class="navbar-nav mx-auto">
+            <ThemeToggle />
+          </div>
+          
           <!-- Right side items -->
           <ul class="navbar-nav">
             <li class="nav-item">
@@ -107,6 +112,9 @@
         </router-view>
       </div>
     </div>
+    
+    <!-- Footer -->
+    <AppFooter />
   </div>
 </template>
 
@@ -114,6 +122,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import ThemeToggle from '../ThemeToggle.vue';
+import AppFooter from './AppFooter.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -205,9 +215,15 @@ onUnmounted(() => {
   align-items: center;
 }
 
+.layout-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 .main-content {
   padding-top: 80px;
-  min-height: 100vh;
+  flex: 1;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
