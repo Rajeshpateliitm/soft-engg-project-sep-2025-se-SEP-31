@@ -143,8 +143,7 @@
                 <th>Date</th>
                 <th>Quiz</th>
                 <th>Score</th>
-                <th>Time Spent</th>
-                <th>Correct/Total</th>
+                      <th>Correct/Total</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -169,7 +168,7 @@
                     <span class="fw-medium">{{ attempt.score }}%</span>
                   </div>
                 </td>
-                <td>{{ attempt.timeSpent }}</td>
+                
                 <td>{{ attempt.correct }}/{{ attempt.total }}</td>
                 <td>
                   <span class="badge" :class="getStatusClass(attempt.status)">
