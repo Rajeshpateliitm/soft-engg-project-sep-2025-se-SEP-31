@@ -10,15 +10,25 @@
       <div class="row mb-4">
         <div class="col-12">
           <div class="navbar-section">
-            <div class="nav-left">
-              <span class="nav-item active">DASHBOARD</span>
-            </div>
-            <div class="nav-right">
-              <!-- <span class="nav-item">&lt;&lt;&gt;&gt;</span>
-              <span class="nav-item">&lt;&lt;&gt;&gt;</span> -->
-              <span class="nav-item logout" @click="handleLogout">LOGOUT</span>
-            </div>
-          </div>
+  <div class="nav-left">
+    <router-link 
+      to="/tertiary-dashboard" 
+      class="navbar-brand d-flex align-items-center brand-container"
+    >
+      <img 
+        src="@/assets/waste-wise-seeklogo.png"
+        alt="WasteWise Logo"
+        class="logo-img"
+      />  
+      <span class="brand-text">WASTEWISE</span>
+    </router-link>
+  </div>
+
+  <div class="nav-right">
+    <span class="nav-item logout" @click="handleLogout">LOGOUT</span>
+  </div>
+</div>
+
         </div>
       </div>
 
@@ -321,6 +331,60 @@ onMounted(() => {
 </script>
 
 <style scoped>
+
+
+.navbar-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Brand container */
+.brand-container {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;          /* spacing between logo & text */
+}
+
+/* Logo */
+.logo-img {
+  height: 46px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+/* Brand text */
+.brand-text {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2c3e50;
+  letter-spacing: 1px;
+}
+
+/* Right nav section */
+.nav-right .nav-item.logout {
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: 0.2s ease;
+  background: #f5f5f5;
+}
+
+.nav-right .nav-item.logout:hover {
+  background: #ff4d4d;
+  color: #fff;
+}
+
+/* ---------------- DASHBOARD ---------------- */
+
 .tertiary-dashboard {
   padding: 1.5rem;
   min-height: 100vh;
@@ -343,16 +407,7 @@ onMounted(() => {
   font-size: 1rem;
 }
 
-.navbar-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-}
-
+/* Generic nav items */
 .nav-left,
 .nav-right {
   display: flex;
@@ -399,6 +454,12 @@ onMounted(() => {
   font-weight: 600;
   letter-spacing: 0.5px;
 }
+
+.table-responsive {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
 
 .table-responsive {
   border-radius: 0.5rem;
@@ -648,16 +709,24 @@ onMounted(() => {
     padding: 1rem;
   }
 
-  .navbar-section {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
   .nav-left,
   .nav-right {
     flex-direction: column;
     gap: 0.5rem;
     width: 100%;
+  }
+
+  .logo-img {
+    height: 36px;
+  }
+
+  .brand-text {
+    font-size: 1.6rem;
+    letter-spacing: 0.6px;
+  }
+
+  .navbar-section {
+    padding: 10px 16px;
   }
 
   .performance-table thead th,
@@ -682,10 +751,6 @@ onMounted(() => {
   .action-item {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .action-priority {
-    align-self: flex-start;
   }
 }
 </style>

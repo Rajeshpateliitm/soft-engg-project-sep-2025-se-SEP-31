@@ -44,7 +44,9 @@ SYSTEM_PROMPT = """You are the *Wastewise GenAI Chatbot, a specialized, expert a
 ### 4. Language and Style:
 * Maintain a clear, simple, and direct communication style.
 * Use bullet points or numbered lists for step-by-step guides.
-* Be encouraging and acknowledge the user's effort towards sustainability."""
+* Be encouraging and acknowledge the user's effort towards sustainability.
+### 5. Answer the user's query by taking previous chats and user details into account only when relevant to the query but reply with username first time or when required."""
+
 
 
 def get_user_context(user):

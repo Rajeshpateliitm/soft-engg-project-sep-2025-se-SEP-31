@@ -204,8 +204,15 @@
     </div> 
   </div>
 
+
 </template>
 
+<!-- <script setup>
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
+import api from '../../services/api';
+
+const router = useRouter(); -->
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -213,6 +220,8 @@ import api from '../../services/api';
 
 const router = useRouter();
 const route = useRoute();
+
+// ............................ -->
 
 const userMessage = ref('');
 const isChatOpen = ref(false);
@@ -302,59 +311,119 @@ const fetchDashboardData = async () => {
 
 let focusHandler = null;
 
-// Check if chat should be auto-opened from query parameter
+// Event handlers setup
+
 const checkAutoOpenChat = () => {
   if (route.query.openChat === 'true') {
-    // Small delay to ensure component is fully mounted
     setTimeout(() => {
       isChatOpen.value = true;
+
       nextTick(() => {
         scrollToBottom();
-        // Add a welcome message if coming from quiz performance
         if (route.query.quizId) {
           const quizId = route.query.quizId;
           setTimeout(() => {
             chatMessages.value.push({
-              text: `I see you're asking about quiz attempt #${quizId}. How can I help you understand your quiz performance or answer any questions about waste management?`,
+              text: `I see you're asking about quiz attempt #${quizId}. How can I help you?`,
               sender: 'bot'
             });
             scrollToBottom();
           }, 500);
         }
       });
-      // Remove query parameter from URL without reload
+
       router.replace({ path: route.path, query: {} });
     }, 300);
   }
 };
 
-// Watch for route query changes to auto-open chat
 watch(() => route.query.openChat, (newVal) => {
-  if (newVal === 'true') {
-    checkAutoOpenChat();
+  if (newVal === 'true'){
+  checkAutoOpenChat();
   }
-}, { immediate: false });
+}, { immediate: true }
+);
 
-// Event handlers setup
+// .............
 
 const sendMessage = async () => {
+  // Validate input
   if (!userMessage.value.trim()) return;
   
-  // Add user message to chat
-  chatMessages.value.push({ text: userMessage.value, sender: 'user' });
+  // Store user message
+  const message = userMessage.value.trim();
   
-  // Clear input
-  const message = userMessage.value;
+  // Add user message to chat
+  chatMessages.value.push({ text: message, sender: 'user' });
+  
+  // Clear input immediately
   userMessage.value = '';
   
   // Scroll to bottom after message is added
   await nextTick();
   scrollToBottom();
   
-  // Simulate bot response
-  setTimeout(async () => {
+  // Show loading indicator
+  const loadingMessageIndex = chatMessages.value.length;
+  chatMessages.value.push({ 
+    text: 'Thinking...', 
+    sender: 'bot',
+    isLoading: true 
+  });
+  await nextTick();
+  scrollToBottom();
+  
+  try {
+    // Call the genai API endpoint
+    const response = await api.post('/genai/chat', {
+      message: message
+    });
+    
+    // Remove loading message
+    chatMessages.value.pop();
+    
+    // Add bot response
+    if (response.data && response.data.response) {
+      chatMessages.value.push({ 
+        text: response.data.response, 
+        sender: 'bot' 
+      });
+    } else if (response.data && response.data.error) {
+      // Handle API errors gracefully
+      chatMessages.value.push({ 
+        text: 'Sorry, I encountered an error. Please try again later.', 
+        sender: 'bot' 
+      });
+    } else {
+      // Fallback response
+      chatMessages.value.push({ 
+        text: 'I\'m here to help with waste management questions. How can I assist you?', 
+        sender: 'bot' 
+      });
+    }
+  } catch (error) {
+    // Remove loading message
+    chatMessages.value.pop();
+    
+    // Handle errors
+    console.error('Chat error:', error);
+    let errorMessage = 'Sorry, I\'m having trouble connecting. Please try again.';
+    
+    if (error.response) {
+      // Server responded with error status
+      const errorData = error.response.data;
+      if (errorData && errorData.error) {
+        errorMessage = `Error: ${errorData.error}`;
+      } else {
+        errorMessage = 'Sorry, the service is temporarily unavailable. Please try again later.';
+      }
+    } else if (error.request) {
+      // Request was made but no response received
+      errorMessage = 'Unable to connect to the server. Please check your connection.';
+    }
+    
     chatMessages.value.push({ 
-      text: `You said: "${message}"\nI'm here to help with any waste management questions you have.`,
+      text: errorMessage, 
       sender: 'bot' 
     });
     
@@ -553,8 +622,13 @@ const handleEnterKey = (event) => {
 };
 
 const scrollToBottom = () => {
+  // Scroll floating chat window
   if (chatContainer.value) {
     chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  }
+  // Scroll dashboard chat card
+  if (dashboardChatContainer.value) {
+    dashboardChatContainer.value.scrollTop = dashboardChatContainer.value.scrollHeight;
   }
 };
 
