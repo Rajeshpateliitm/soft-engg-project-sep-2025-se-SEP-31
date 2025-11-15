@@ -7,20 +7,9 @@
     >
       <div class="container-fluid">
         <!-- Navbar Brand -->
-        <router-link 
-  to="/collector-dashboard" 
-  class="navbar-brand d-flex align-items-center gap-2"
-  style="text-decoration: none;"
->
-  <img 
-    src="@/assets/waste-wise-seeklogo.png"
-    alt="WasteWise Logo"
-    class="logo-img"
-  />
-
-  <span class="brand-text">WASTEWISE</span>
-</router-link>
-
+        <router-link to="/" class="navbar-brand fw-bold text-dark">
+          WASTEWISE
+        </router-link>
         
         <!-- Navbar Toggler -->
         <button 
@@ -140,19 +129,6 @@ onUnmounted(() => {
   letter-spacing: 0.5px;
 }
 
-.logo-img {
-  height: 50px;      /* Ideal size for navbar */
-  width: auto;       /* Maintains aspect ratio */
-  object-fit: contain;
-}
-
-.brand-text {
-  font-size: 1.6rem;   /* Good size next to logo */
-  font-weight: 700;
-  color: #2c3e50;
-  letter-spacing: 0.5px;
-}
-
 .nav-link {
   font-size: 1rem;
   padding: 0.75rem 1.25rem;
@@ -243,14 +219,6 @@ onUnmounted(() => {
   .main-content {
     padding-top: 60px;
   }
-
-  .logo-img {
-    height: 32px;      /* Smaller for mobile */
-  }
-  .brand-text {
-    font-size: 1.3rem;
-  
-}
 }
 </style>
 
