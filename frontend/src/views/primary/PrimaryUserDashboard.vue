@@ -170,49 +170,15 @@
             </div>
           </div>
         </div>
-      </div> -->
+      </div>
       
-      <!-- Container 6: WasteWise Chatbot -->
-      <!-- <div class="col-md-6 col-lg-8 mb-4">
-        <div class="card shadow-lg h-100">
-          <div class="card-header bg-dark text-white">
-            <h5 class="card-title mb-0">WASTEWISE CHATBOT</h5>
-          </div>
-          <div class="card-body p-0 d-flex flex-column">
-            <div class="chat-messages p-3 flex-grow-1 overflow-auto" style="max-height: 300px;" ref="dashboardChatContainer">
-              <div v-for="(message, index) in chatMessages" :key="index" class="mb-2">
-                <div :class="['p-2 rounded', message.sender === 'user' ? 'bg-light text-end ms-5' : 'bg-primary text-white me-5']">
-                  {{ message.text }}
-                </div>
-              </div>
-            </div>
-            <div class="input-group p-3 border-top">
-              <input 
-                v-model="userMessage" 
-                type="text" 
-                class="form-control" 
-                placeholder="Ask me about waste management..."
-                @keyup.enter="sendMessage"
-              >
-              <button class="btn btn-primary" @click="sendMessage">
-                <i class="bi bi-send"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div> -->
+      <!-- Container 6: WasteWise Chatbot (Moved to floating chat) -->
     </div> 
   </div>
 
 
 </template>
 
-<!-- <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
-import api from '../../services/api';
-
-const router = useRouter(); -->
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -221,10 +187,11 @@ import api from '../../services/api';
 const router = useRouter();
 const route = useRoute();
 
-// ............................ -->
-
+// Refs
 const userMessage = ref('');
 const isChatOpen = ref(false);
+const isDragging = ref(false);
+const isResizing = ref(false);
 const chatContainer = ref(null);
 const dashboardChatContainer = ref(null);
 const chatInput = ref(null);
@@ -243,14 +210,10 @@ const chatWindowStyle = ref({
   left: 'auto'
 });
 
-// Drag state
-const isDragging = ref(false);
+// Drag and resize state
 const dragStart = ref({ x: 0, y: 0 });
 const windowStart = ref({ left: 0, top: 0 });
-
-// Resize state
-const isResizing = ref(false);
-const resizeStart = ref({ x: 0, y: 0 });
+const resizeStart = ref({ x: 0, y: 0, width: 0, height: 0 });
 const sizeStart = ref({ width: 0, height: 0 });
 
 // Dashboard data
@@ -309,9 +272,10 @@ const fetchDashboardData = async () => {
   }
 };
 
-let focusHandler = null;
-
 // Event handlers setup
+const focusHandler = () => {
+  fetchDashboardData();
+};
 
 const checkAutoOpenChat = () => {
   if (route.query.openChat === 'true') {
@@ -402,41 +366,45 @@ const sendMessage = async () => {
       });
     }
   } catch (error) {
-    // Remove loading message
-    chatMessages.value.pop();
-    
-    // Handle errors
-    console.error('Chat error:', error);
-    let errorMessage = 'Sorry, I\'m having trouble connecting. Please try again.';
-    
-    if (error.response) {
-      // Server responded with error status
-      const errorData = error.response.data;
-      if (errorData && errorData.error) {
-        errorMessage = `Error: ${errorData.error}`;
-      } else {
-        errorMessage = 'Sorry, the service is temporarily unavailable. Please try again later.';
+    try {
+      // Remove loading message
+      chatMessages.value.pop();
+      
+      // Handle errors
+      console.error('Chat error:', error);
+      let errorMessage = 'Sorry, I\'m having trouble connecting. Please try again.';
+      
+      if (error.response) {
+        // Server responded with error status
+        const errorData = error.response.data;
+        if (errorData && errorData.error) {
+          errorMessage = `Error: ${errorData.error}`;
+        } else {
+          errorMessage = 'Sorry, the service is temporarily unavailable. Please try again later.';
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = 'Unable to connect to the server. Please check your connection.';
       }
-    } else if (error.request) {
-      // Request was made but no response received
-      errorMessage = 'Unable to connect to the server. Please check your connection.';
+      
+      chatMessages.value.push({ 
+        text: errorMessage, 
+        sender: 'bot' 
+      });
+      
+      // Scroll to bottom after response
+      await nextTick();
+      scrollToBottom();
+    } catch (error) {
+      console.error('Error in error handling:', error);
     }
-    
-    chatMessages.value.push({ 
-      text: errorMessage, 
-      sender: 'bot' 
-    });
-    
-    // Scroll to bottom after response
-    await nextTick();
-    scrollToBottom();
-  }, 1000);
   
   // Refocus input after sending message
   if (chatInput.value) {
     chatInput.value.focus();
   }
 };
+}
 
 const toggleChat = (event) => {
   // Prevent event bubbling
@@ -653,10 +621,7 @@ onMounted(() => {
   // Fetch dashboard data
   fetchDashboardData();
   
-  // Refresh data when window regains focus (e.g., after completing quiz)
-  focusHandler = () => {
-    fetchDashboardData();
-  };
+  // Add focus event listener
   window.addEventListener('focus', focusHandler);
   
   // Setup click outside handler for chat
