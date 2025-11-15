@@ -3,6 +3,10 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from app.models import db
 from app.core.config import Config
+from app.core.email_service import init_mail
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import atexit
 
 
 def create_app(config_class=Config):
@@ -13,6 +17,9 @@ def create_app(config_class=Config):
     # Initialize extensions
     db.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+    
+    # Initialize email service
+    init_mail(app)
 
     # Register blueprints
     from app.api.auth import bp as auth_bp
@@ -54,5 +61,34 @@ def create_app(config_class=Config):
         """Update recyclers with coordinates."""
         from app.db.init_data import update_recyclers_data
         update_recyclers_data()
+    
+    # Initialize and start scheduler for cron jobs
+    if app.config.get('SCHEDULER_API_ENABLED', True):
+        scheduler = BackgroundScheduler()
+        scheduler.start()
+        
+        # Schedule daily waste log reminders at 9:00 AM
+        from app.core.cron_jobs import send_daily_waste_log_reminders, send_daily_quiz_reminders
+        scheduler.add_job(
+            func=send_daily_waste_log_reminders,
+            trigger=CronTrigger(hour=9, minute=0),  # 9:00 AM daily
+            id='daily_waste_log_reminders',
+            name='Send daily waste log reminders',
+            replace_existing=True
+        )
+        
+        # Schedule daily quiz reminders at 10:00 AM
+        scheduler.add_job(
+            func=send_daily_quiz_reminders,
+            trigger=CronTrigger(hour=10, minute=0),  # 10:00 AM daily
+            id='daily_quiz_reminders',
+            name='Send daily quiz reminders',
+            replace_existing=True
+        )
+        
+        # Shut down scheduler when app exits
+        atexit.register(lambda: scheduler.shutdown())
+        
+        app.logger.info("Scheduler initialized with daily email reminders")
 
     return app
