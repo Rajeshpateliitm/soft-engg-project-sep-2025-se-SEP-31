@@ -192,7 +192,7 @@
       </div>
 
       <!-- Container 5: Waste Log -->
-      <!-- <div class="col-md-6 col-lg-4 mb-4">
+      <div class="col-md-6 col-lg-4 mb-4">
         <div class="card shadow-lg h-100">
           <div class="card-header bg-secondary text-white">
             <h5 class="card-title mb-0">WASTE LOG</h5>
@@ -242,12 +242,6 @@
   </div>
 </template>
 
-<!-- <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
-import api from '../../services/api';
-
-const router = useRouter(); -->
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
@@ -260,6 +254,8 @@ const route = useRoute();
 
 const userMessage = ref("");
 const isChatOpen = ref(false);
+const isDragging = ref(false);
+const isResizing = ref(false);
 const chatContainer = ref(null);
 const dashboardChatContainer = ref(null);
 const chatInput = ref(null);
@@ -281,14 +277,10 @@ const chatWindowStyle = ref({
   left: "auto",
 });
 
-// Drag state
-const isDragging = ref(false);
+// Drag and resize state
 const dragStart = ref({ x: 0, y: 0 });
 const windowStart = ref({ left: 0, top: 0 });
-
-// Resize state
-const isResizing = ref(false);
-const resizeStart = ref({ x: 0, y: 0 });
+const resizeStart = ref({ x: 0, y: 0, width: 0, height: 0 });
 const sizeStart = ref({ width: 0, height: 0 });
 
 // Dashboard data
@@ -347,9 +339,10 @@ const fetchDashboardData = async () => {
   }
 };
 
-let focusHandler = null;
-
 // Event handlers setup
+let focusHandler = () => {
+  fetchDashboardData();
+};
 
 const checkAutoOpenChat = () => {
   if (route.query.openChat === "true") {
@@ -481,6 +474,7 @@ const sendMessage = async () => {
     chatInput.value.focus();
   }
 };
+
 
 const toggleChat = (event) => {
   // Prevent event bubbling
