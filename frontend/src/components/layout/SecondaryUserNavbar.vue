@@ -1,31 +1,27 @@
 <template>
   <div class="layout-wrapper">
     <!-- Navbar -->
-    <nav 
+    <nav
       class="navbar navbar-expand-lg fixed-top"
-      style="background-color: #f8f9fa; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+      style="
+        background-color: #f8f9fa;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      "
     >
       <div class="container-fluid">
         <!-- Navbar Brand -->
-          <router-link 
-  to="/secondary-dashboard" 
-  class="navbar-brand d-flex align-items-center gap-2"
-  style="text-decoration: none;"
->
-  <img 
-    src="@/assets/waste-wise-seeklogo.png"
-    alt="WasteWise Logo"
-    class="logo-img"
-  />
+        <router-link
+          to="/secondary-dashboard"
+          class="navbar-brand fw-bold text-success"
+        >
+          WASTEWISE
+        </router-link>
 
-  <span class="brand-text">WASTEWISE</span>
-</router-link>
-        
         <!-- Navbar Toggler -->
-        <button 
-          class="navbar-toggler" 
-          type="button" 
-          data-bs-toggle="collapse" 
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
           data-bs-target="#navbarNav"
           aria-controls="navbarNav"
           aria-expanded="false"
@@ -33,13 +29,13 @@
         >
           <span class="navbar-toggler-icon"></span>
         </button>
-        
+
         <!-- Navbar Items -->
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav me-auto">
             <li class="nav-item">
-              <router-link 
-                to="/secondary-dashboard" 
+              <router-link
+                to="/secondary-dashboard"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -47,12 +43,12 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link 
-                to="/secondary-dashboard/waste-summary" 
+              <router-link
+                to="/secondary-dashboard/waste-summary"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
-                WASTE SUMMARY
+                <!-- WASTE SUMMARY
               </router-link>
             </li>
             <li class="nav-item">
@@ -60,13 +56,13 @@
                 to="/secondary-dashboard/campaigns" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
-              >
+              > -->
                 CAMPAIGNS
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link 
-                to="/secondary-dashboard/daily-pickup-details" 
+              <router-link
+                to="/secondary-dashboard/daily-pickup-details"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -74,8 +70,8 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link 
-                to="/secondary-dashboard/pickup-summary" 
+              <router-link
+                to="/secondary-dashboard/pickup-summary"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -83,24 +79,22 @@
               </router-link>
             </li>
           </ul>
-          
+
           <!-- Theme Toggle (Center) -->
           <div class="navbar-nav mx-auto">
             <ThemeToggle />
           </div>
-          
+
           <!-- Right side items -->
           <ul class="navbar-nav">
             <li class="nav-item">
-              <span 
-                class="nav-link fw-semibold text-dark"
-              >
+              <span class="nav-link fw-semibold text-dark">
                 <i class="bi bi-clock me-1"></i> {{ currentDateTime }}
               </span>
             </li>
             <li class="nav-item">
-              <router-link 
-                to="/" 
+              <router-link
+                to="/"
                 class="btn btn-outline-danger btn-sm ms-2 fw-semibold"
                 @click="handleLogout"
               >
@@ -111,7 +105,7 @@
         </div>
       </div>
     </nav>
-    
+
     <!-- Main Content Area -->
     <div class="main-content">
       <div class="container py-4">
@@ -122,32 +116,35 @@
         </router-view>
       </div>
     </div>
-    
+
     <!-- Footer -->
     <AppFooter />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../stores/auth';
-import ThemeToggle from '../ThemeToggle.vue';
-import AppFooter from './AppFooter.vue';
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "../../stores/auth";
+import ThemeToggle from "../ThemeToggle.vue";
+import AppFooter from "./AppFooter.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();
-const currentDateTime = ref('');
+const currentDateTime = ref("");
 
 const updateDateTime = () => {
   const now = new Date();
   // Format as ISO 8601 format
-  currentDateTime.value = now.toISOString().split('T')[0] + ' ' + now.toISOString().split('T')[1].substring(0, 8);
+  currentDateTime.value =
+    now.toISOString().split("T")[0] +
+    " " +
+    now.toISOString().split("T")[1].substring(0, 8);
 };
 
 const handleLogout = () => {
   authStore.logout();
-  router.push('/signin');
+  router.push("/signin");
 };
 
 let datetimeInterval;
@@ -176,18 +173,6 @@ onUnmounted(() => {
   letter-spacing: 0.5px;
 }
 
-.logo-img {
-  height: 50px;      /* Ideal size for navbar */
-  width: auto;       /* Maintains aspect ratio */
-  object-fit: contain;
-}
-
-.brand-text {
-  font-size: 1.6rem;   /* Good size next to logo */
-  font-weight: 700;
-  color: #2c3e50;
-  letter-spacing: 0.5px;
-}
 .nav-link {
   font-size: 1rem;
   padding: 0.75rem 1.25rem;
@@ -206,7 +191,7 @@ onUnmounted(() => {
 }
 
 .nav-link.active::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   left: 1.25rem;
@@ -269,22 +254,14 @@ onUnmounted(() => {
     margin-top: 0.5rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
-  
+
   .nav-link {
     color: #333 !important;
     padding: 0.5rem 0;
   }
-  
+
   .main-content {
     padding-top: 60px;
   }
-
-  .logo-img {
-    height: 32px;      /* Smaller for mobile */
-  }
-  .brand-text {
-    font-size: 1.3rem;
-  
-}
 }
 </style>

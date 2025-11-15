@@ -1,8 +1,8 @@
 <template>
   <div class="home">
     <div class="hero-section text-center py-5">
-      <h1 class="display-4 fw-bold mb-4">Welcome to WasteWise</h1>
-      <p class="lead mb-4">Your smart waste management solution</p>
+      <h3 class="display-4 fw-bold mb-4">Welcome to WasteWise</h3>
+      <p class="lead fw-bold mb-4">Your smart waste management solution</p>
       <div class="d-flex justify-content-center gap-3">
         <router-link to="/register" class="btn btn-primary btn-lg">
           Get Started

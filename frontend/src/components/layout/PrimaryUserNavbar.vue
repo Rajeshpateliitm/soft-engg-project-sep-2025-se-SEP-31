@@ -1,38 +1,27 @@
 <template>
   <div class="layout-wrapper">
     <!-- Navbar -->
-    <nav 
+    <nav
       class="navbar navbar-expand-lg fixed-top"
-      style="background-color: #f8f9fa; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+      style="
+        background-color: #f8f9fa;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      "
     >
       <div class="container-fluid">
         <!-- Navbar Brand -->
-        <!-- <router-link to="/" class="navbar-brand fw-bold text-dark">
+        <router-link
+          to="/primary-dashboard"
+          class="navbar-brand fw-bold text-success"
+        >
           WASTEWISE
-        </router-link> -->
-
-        <!-- <router-link to="/primary-dashboard" class="navbar-brand d-flex lign-items-center"><img  src="@/assets/waste-wise-seeklogo.png" alt="WasteWise Logo" style="height: 45px; width: auto ;"/><span class="fw-bold text-dark">WASTEWISE</span>
-        </router-link> -->
-
-        <router-link 
-  to="/primary-dashboard" 
-  class="navbar-brand d-flex align-items-center gap-2"
-  style="text-decoration: none;"
->
-  <img 
-    src="@/assets/waste-wise-seeklogo.png"
-    alt="WasteWise Logo"
-    class="logo-img"
-  />
-
-  <span class="brand-text">WASTEWISE</span>
-</router-link>
+        </router-link>
 
         <!-- Navbar Toggler -->
-        <button 
-          class="navbar-toggler" 
-          type="button" 
-          data-bs-toggle="collapse" 
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
           data-bs-target="#navbarNav"
           aria-controls="navbarNav"
           aria-expanded="false"
@@ -40,13 +29,13 @@
         >
           <span class="navbar-toggler-icon"></span>
         </button>
-        
+
         <!-- Navbar Items -->
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav me-auto">
             <li class="nav-item">
-              <router-link 
-                to="/primary-dashboard" 
+              <router-link
+                to="/primary-dashboard"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -54,8 +43,8 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link 
-                to="/primary-dashboard/quiz" 
+              <router-link
+                to="/primary-dashboard/quiz"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -63,8 +52,8 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link 
-                to="/primary-dashboard/wastelog" 
+              <router-link
+                to="/primary-dashboard/wastelog"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -72,8 +61,8 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link 
-                to="/primary-dashboard/campaigns" 
+              <router-link
+                to="/primary-dashboard/campaigns"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
@@ -81,31 +70,27 @@
               </router-link>
             </li>
           </ul>
-          
+
           <!-- Theme Toggle (Center) -->
           <div class="navbar-nav mx-auto">
             <ThemeToggle />
           </div>
-          
+
           <!-- Right side items -->
           <ul class="navbar-nav">
             <li class="nav-item">
-              <span 
-                class="nav-link fw-semibold text-dark"
-              >
+              <span class="nav-link fw-semibold text-dark">
                 <i class="bi bi-clock me-1"></i> {{ currentDateTime }}
               </span>
             </li>
             <li class="nav-item">
-              <span 
-                class="nav-link fw-semibold text-dark"
-              >
+              <span class="nav-link fw-semibold text-dark">
                 <i class="bi bi-person me-1"></i> {{ authStore.userName }}
               </span>
             </li>
             <li class="nav-item">
-              <router-link 
-                to="/" 
+              <router-link
+                to="/"
                 class="btn btn-outline-danger btn-sm ms-2 fw-semibold"
                 @click="handleLogout"
               >
@@ -116,7 +101,7 @@
         </div>
       </div>
     </nav>
-    
+
     <!-- Main Content Area -->
     <div class="main-content">
       <div class="container py-4">
@@ -127,39 +112,39 @@
         </router-view>
       </div>
     </div>
-    
+
     <!-- Footer -->
     <AppFooter />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../stores/auth';
-import ThemeToggle from '../ThemeToggle.vue';
-import AppFooter from './AppFooter.vue';
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "../../stores/auth";
+import ThemeToggle from "../ThemeToggle.vue";
+import AppFooter from "./AppFooter.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();
-const currentDateTime = ref('');
+const currentDateTime = ref("");
 
 const updateDateTime = () => {
   const now = new Date();
-  currentDateTime.value = now.toLocaleString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
+  currentDateTime.value = now.toLocaleString("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
   });
 };
 
 const handleLogout = () => {
   authStore.logout();
-  router.push('/signin');
+  router.push("/signin");
 };
 
 let datetimeInterval;
@@ -188,21 +173,6 @@ onUnmounted(() => {
   letter-spacing: 0.5px;
 }
 
-.logo-img {
-  height: 50px;      /* Ideal size for navbar */
-  width: auto;       /* Maintains aspect ratio */
-  object-fit: contain;
-}
-
-.brand-text {
-  font-size: 1.6rem;   /* Good size next to logo */
-  font-weight: 700;
-  color: #2c3e50;
-  letter-spacing: 0.5px;
-}
-
-
-
 .nav-link {
   font-size: 1rem;
   padding: 0.75rem 1.25rem;
@@ -221,7 +191,7 @@ onUnmounted(() => {
 }
 
 .nav-link.active::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   left: 1.25rem;
@@ -283,23 +253,14 @@ onUnmounted(() => {
     margin-top: 0.5rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
-  
+
   .nav-link {
     color: #333 !important;
     padding: 0.5rem 0;
   }
-  
+
   .main-content {
     padding-top: 60px;
   }
-
-
-  .logo-img {
-    height: 32px;      /* Smaller for mobile */
-  }
-  .brand-text {
-    font-size: 1.3rem;
-  
-}
 }
 </style>
