@@ -28,6 +28,7 @@ const SecondaryUserCreateCampaign = () => import('@/views/secondary/SecondaryUse
 const CollectorNavbar = () => import('@/components/layout/CollectorNavbar.vue');
 const CollectorDashboard = () => import('@/views/collector/CollectorDashboard.vue');
 const TertiaryUserDashboard = () => import('@/views/TertiaryUserDashboard.vue');
+const RandomQuiz = () => import('@/views/primary/RandomQuiz.vue');
 
 const routes = [
   { 
@@ -90,6 +91,13 @@ const routes = [
         name: 'PrimaryUserQuizPerformance',
         component: PrimaryUserQuizPerformance 
       },
+
+      {
+        path: "random-quiz",
+        name: "RandomQuiz",
+        component: RandomQuiz
+      }
+,
       { 
         path: 'community-leaderboard', 
         name: 'PrimaryUserCommunityLeaderboard',
@@ -151,6 +159,8 @@ const routes = [
         name: 'SecondaryUserDailyPickupDetails',
         component: SecondaryUserDailyPickupDetails 
       }
+
+      
     ]
   },
   { 

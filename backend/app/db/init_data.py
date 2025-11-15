@@ -136,6 +136,8 @@ def init_sample_data():
                 db.session.commit()
                 print("✅ Predefined tertiary user created")
         
+
+        
         # Create sample quiz questions
         questions_data = [
             {
