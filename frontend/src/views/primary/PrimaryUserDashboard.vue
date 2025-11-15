@@ -155,7 +155,7 @@
       </div>
       
       <!-- Container 5: Waste Log -->
-      <!-- <div class="col-md-6 col-lg-4 mb-4">
+      <div class="col-md-6 col-lg-4 mb-4">
         <div class="card shadow-lg h-100">
           <div class="card-header bg-secondary text-white">
             <h5 class="card-title mb-0">WASTE LOG</h5>
@@ -352,16 +352,16 @@ const sendMessage = async () => {
   scrollToBottom();
   
   // Simulate bot response
-  setTimeout(() => {
+  setTimeout(async () => {
     chatMessages.value.push({ 
       text: `You said: "${message}"\nI'm here to help with any waste management questions you have.`,
       sender: 'bot' 
     });
-  }
-  
-  // Scroll to bottom after response
-  await nextTick();
-  scrollToBottom();
+    
+    // Scroll to bottom after response
+    await nextTick();
+    scrollToBottom();
+  }, 1000);
   
   // Refocus input after sending message
   if (chatInput.value) {
