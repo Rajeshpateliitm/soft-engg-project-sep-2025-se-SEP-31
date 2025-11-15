@@ -5,12 +5,20 @@
       <div class="row mb-4">
         <div class="col-12">
           <div class="d-flex align-items-center mb-3">
-            <button class="btn btn-link text-white p-0 me-2" @click="goBack">
-              <i class="bi bi-arrow-left" style="font-size: 1.5rem;"></i>
+            <h2 class="text-success fw-bold mb-0">
+              PICKUP DETAILS OF {{ selectedDateFormatted }}
+            </h2>
+            <button class="btn btn-link text-red p-3 me-2" @click="goBack">
+              <i class="bi bi-arrow-right" style="font-size: 1.5rem"></i>
             </button>
-            <h2 class="text-white fw-bold mb-0">PICKUP DETAILS OF {{ selectedDateFormatted }}</h2>
           </div>
-          <p class="text-white-50">{{ isCollector ? 'View and manage pickup requests for the selected date' : 'View all pickup requests and their status for the selected date (Read-only)' }}</p>
+          <p class="text-secondary-emphasis">
+            {{
+              isCollector
+                ? "View and manage pickup requests for the selected date"
+                : "View all pickup requests and their status for the selected date (Read-only)"
+            }}
+          </p>
         </div>
       </div>
 
@@ -20,13 +28,13 @@
           <div class="card shadow-lg">
             <div class="card-body">
               <label class="form-label fw-semibold">Select Date</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 v-model="selectedDate"
                 class="form-control form-control-lg"
-                :max="new Date().toISOString().split('T')[0]"
+                :max="today"
                 @change="updatePickupDetails"
-              >
+              />
             </div>
           </div>
         </div>
@@ -34,7 +42,11 @@
           <div class="card shadow-lg">
             <div class="card-body">
               <label class="form-label fw-semibold">Filter by Status</label>
-              <select v-model="statusFilter" class="form-select form-select-lg" @change="updatePickupDetails">
+              <select
+                v-model="statusFilter"
+                class="form-select form-select-lg"
+                @change="updatePickupDetails"
+              >
                 <option value="">All Status</option>
                 <option value="accepted">Accepted</option>
                 <option value="rejected">Rejected</option>
@@ -99,7 +111,9 @@
         <div class="col-12">
           <div class="card shadow-lg">
             <div class="card-header bg-primary text-white">
-              <h5 class="card-title mb-0">Pickup Requests for {{ selectedDateFormatted }}</h5>
+              <h5 class="card-title mb-0">
+                Pickup Requests for {{ selectedDateFormatted }}
+              </h5>
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
@@ -111,10 +125,9 @@
                       <th>House Number</th>
                       <th>Pick Up Location</th>
                       <th>Date of Pickup</th>
-                      <th>Time of Pickup</th>
                       <th>Disposal Quantity (KG)</th>
                       <th>Status</th>
-                      <th>{{ isCollector ? 'Actions' : 'Status Details' }}</th>
+                      <th>{{ isCollector ? "Actions" : "Status Details" }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -127,56 +140,97 @@
                     </tr>
                     <tr v-else-if="errorMessage">
                       <td colspan="9" class="text-center py-4">
-                        <div class="alert alert-danger mb-0">{{ errorMessage }}</div>
+                        <div class="alert alert-danger mb-0">
+                          {{ errorMessage }}
+                        </div>
                       </td>
                     </tr>
-                    <tr v-else-if="!loading && filteredPickups.length === 0 && pickupRequests.length === 0">
+                    <tr
+                      v-else-if="
+                        !loading &&
+                        filteredPickups.length === 0 &&
+                        pickupRequests.length === 0
+                      "
+                    >
                       <td colspan="9" class="text-center py-4 text-muted">
-                        <i class="bi bi-inbox" style="font-size: 2rem; color: #6c757d;"></i>
-                        <p class="mt-3 mb-0">No pickup requests found for the selected date.</p>
-                        <p class="text-muted small">Pickup requests are created when primary users log waste.</p>
+                        <i
+                          class="bi bi-inbox"
+                          style="font-size: 2rem; color: #6c757d"
+                        ></i>
+                        <p class="mt-3 mb-0">
+                          No pickup requests found for the selected date.
+                        </p>
+                        <p class="text-muted small">
+                          Pickup requests are created when primary users log
+                          waste.
+                        </p>
                       </td>
                     </tr>
-                    <tr v-else-if="!loading && filteredPickups.length === 0 && pickupRequests.length > 0">
+                    <tr
+                      v-else-if="
+                        !loading &&
+                        filteredPickups.length === 0 &&
+                        pickupRequests.length > 0
+                      "
+                    >
                       <td colspan="9" class="text-center py-4 text-muted">
-                        <i class="bi bi-funnel" style="font-size: 2rem; color: #6c757d;"></i>
-                        <p class="mt-3 mb-0">No pickup requests match the selected status filter.</p>
-                        <p class="text-muted small">Try changing the status filter or select a different date.</p>
+                        <i
+                          class="bi bi-funnel"
+                          style="font-size: 2rem; color: #6c757d"
+                        ></i>
+                        <p class="mt-3 mb-0">
+                          No pickup requests match the selected status filter.
+                        </p>
+                        <p class="text-muted small">
+                          Try changing the status filter or select a different
+                          date.
+                        </p>
                       </td>
                     </tr>
-                    <tr v-else v-for="pickup in filteredPickups" :key="pickup.id">
-                      <td><strong>{{ pickup.requestNo }}</strong></td>
-                      <td>{{ pickup.userName || 'Unknown' }}</td>
-                      <td>{{ pickup.houseNumber || 'N/A' }}</td>
+                    <tr
+                      v-else
+                      v-for="pickup in filteredPickups"
+                      :key="pickup.id"
+                    >
+                      <td>
+                        <strong>{{ pickup.requestNo }}</strong>
+                      </td>
+                      <td>{{ pickup.userName || "Unknown" }}</td>
+                      <td>{{ pickup.houseNumber || "N/A" }}</td>
                       <td>{{ pickup.location }}</td>
                       <td>{{ pickup.date }}</td>
-                      <td>{{ pickup.time }}</td>
-                      <td><strong>{{ pickup.quantity }}</strong></td>
+                      <td>
+                        <strong>{{ pickup.quantity }}</strong>
+                      </td>
                       <td>
                         <span :class="getStatusBadgeClass(pickup.status)">
                           {{ getStatusDisplay(pickup.status) }}
                         </span>
                       </td>
                       <td>
-                        <div class="btn-group btn-group-sm" role="group" v-if="isCollector">
-                          <button 
+                        <div
+                          class="btn-group btn-group-sm"
+                          role="group"
+                          v-if="isCollector"
+                        >
+                          <button
                             v-if="pickup.status === 'pending'"
-                            class="btn btn-success" 
+                            class="btn btn-success"
                             @click="acceptPickup(pickup.requestNo)"
                             title="Accept pickup"
                           >
                             <i class="bi bi-check-lg"></i> Accept
                           </button>
-                          <button 
+                          <button
                             v-if="pickup.status === 'pending'"
-                            class="btn btn-danger" 
+                            class="btn btn-danger"
                             @click="rejectPickup(pickup.requestNo)"
                             title="Reject pickup"
                           >
                             <i class="bi bi-x-lg"></i> Reject
                           </button>
-                          <button 
-                            class="btn btn-info" 
+                          <button
+                            class="btn btn-info"
                             @click="viewDetails(pickup.requestNo)"
                             title="View details"
                           >
@@ -192,8 +246,13 @@
                 </table>
               </div>
               <div v-if="filteredPickups.length === 0" class="text-center py-5">
-                <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
-                <p class="text-muted mt-3">No pickup requests found for the selected date and status.</p>
+                <i
+                  class="bi bi-inbox"
+                  style="font-size: 3rem; color: #6c757d"
+                ></i>
+                <p class="text-muted mt-3">
+                  No pickup requests found for the selected date and status.
+                </p>
               </div>
             </div>
           </div>
@@ -204,68 +263,69 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
-import api from '@/services/api';
+import { ref, computed, onMounted, watch } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+import api from "@/services/api";
 
 const router = useRouter();
 const authStore = useAuthStore();
-const selectedDate = ref(new Date().toISOString().split('T')[0]);
-const statusFilter = ref('');
+const selectedDate = ref(new Date().toISOString().split("T")[0]);
+const statusFilter = ref("");
 const loading = ref(false);
-const errorMessage = ref('');
+const errorMessage = ref("");
 const pickupRequests = ref([]);
 
 // Check if user is a collector (not RWA manager)
 const isCollector = computed(() => {
-  return authStore.rwaRole === 'collector';
+  return authStore.rwaRole === "collector";
 });
 
 const selectedDateFormatted = computed(() => {
-  if (!selectedDate.value) return '';
+  if (!selectedDate.value) return "";
   const date = new Date(selectedDate.value);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
   return `${day}-${month}-${year}`;
 });
 
 const filteredPickups = computed(() => {
-  return pickupRequests.value.filter(pickup => {
-    const matchesStatus = !statusFilter.value || pickup.status === statusFilter.value;
+  return pickupRequests.value.filter((pickup) => {
+    const matchesStatus =
+      !statusFilter.value || pickup.status === statusFilter.value;
     return matchesStatus;
   });
 });
 
 const acceptedCount = computed(() => {
-  return pickupRequests.value.filter(p => p.status === 'accepted').length;
+  return pickupRequests.value.filter((p) => p.status === "accepted").length;
 });
 
 const rejectedCount = computed(() => {
-  return pickupRequests.value.filter(p => p.status === 'rejected').length;
+  return pickupRequests.value.filter((p) => p.status === "rejected").length;
 });
 
 const pendingCount = computed(() => {
-  return pickupRequests.value.filter(p => p.status === 'pending').length;
+  return pickupRequests.value.filter((p) => p.status === "pending").length;
 });
 
 const getStatusBadgeClass = (status) => {
   const classes = {
-    'accepted': 'badge bg-success',
-    'rejected': 'badge bg-danger',
-    'pending': 'badge bg-warning text-dark',
-    'completed': 'badge bg-info'
+    accepted: "badge bg-success",
+    rejected: "badge bg-danger",
+    pending: "badge bg-warning text-dark",
+    completed: "badge bg-info",
   };
-  return classes[status] || 'badge bg-secondary';
+  return classes[status] || "badge bg-secondary";
 };
 
 const getStatusDisplay = (status) => {
   const display = {
-    'accepted': 'Accepted',
-    'rejected': 'Rejected',
-    'pending': 'Pending',
-    'completed': 'Completed'
+    accepted: "Accepted",
+    rejected: "Rejected",
+    pending: "Pending",
+    completed: "Completed",
   };
   return display[status] || status;
 };
@@ -273,40 +333,47 @@ const getStatusDisplay = (status) => {
 const fetchPickupDetails = async () => {
   try {
     loading.value = true;
-    errorMessage.value = '';
-    
-    const response = await api.get('/secondary/pickup-details', {
-      params: { date: selectedDate.value }
+    errorMessage.value = "";
+
+    const response = await api.get("/secondary/pickup-details", {
+      params: { date: selectedDate.value },
     });
-    
+
     // Transform backend data to frontend format
     if (response.data && response.data.pickups) {
-      pickupRequests.value = response.data.pickups.map(pickup => ({
+      pickupRequests.value = response.data.pickups.map((pickup) => ({
         pickupId: pickup.pickup_id,
         id: pickup.request_no,
         requestNo: pickup.request_no,
         userId: pickup.user_id,
-        userName: pickup.user_name || 'Unknown',
-        userEmail: pickup.user_email || 'N/A',
-        houseNumber: pickup.house_number || 'N/A',
-        location: pickup.pickup_location || 'N/A',
-        date: pickup.date_of_pickup ? new Date(pickup.date_of_pickup).toLocaleDateString('en-GB') : 'N/A',
-        time: pickup.time_of_pickup || 'N/A',
-        quantity: pickup.disposal_quantity ? `${parseFloat(pickup.disposal_quantity).toFixed(2)}` : '0.00',
-        status: pickup.status || 'pending'
+        userName: pickup.user_name || "Unknown",
+        userEmail: pickup.user_email || "N/A",
+        houseNumber: pickup.house_number || "N/A",
+        location: pickup.pickup_location || "N/A",
+        date: pickup.date_of_pickup
+          ? new Date(pickup.date_of_pickup).toLocaleDateString("en-GB")
+          : "N/A",
+        time: pickup.time_of_pickup || "N/A",
+        quantity: pickup.disposal_quantity
+          ? `${parseFloat(pickup.disposal_quantity).toFixed(2)}`
+          : "0.00",
+        status: pickup.status || "pending",
       }));
     } else {
       pickupRequests.value = [];
     }
   } catch (error) {
-    console.error('Error fetching pickup details:', error);
-    errorMessage.value = error.response?.data?.error || 'Failed to load pickup details. Please try again.';
+    console.error("Error fetching pickup details:", error);
+    errorMessage.value =
+      error.response?.data?.error ||
+      "Failed to load pickup details. Please try again.";
     pickupRequests.value = [];
   } finally {
     loading.value = false;
   }
 };
 
+const today = new Date().toLocaleDateString("en-CA");
 const updatePickupDetails = () => {
   fetchPickupDetails();
 };
@@ -314,69 +381,75 @@ const updatePickupDetails = () => {
 const acceptPickup = async (requestNo) => {
   try {
     // Find the pickup by request_no
-    const pickup = pickupRequests.value.find(p => p.requestNo === requestNo);
+    const pickup = pickupRequests.value.find((p) => p.requestNo === requestNo);
     if (!pickup) {
-      alert('Pickup request not found');
+      alert("Pickup request not found");
       return;
     }
-    
+
     // Use the pickup ID from the backend response
     const pickupId = pickup.pickupId;
-    
+
     if (!pickupId) {
-      alert('Unable to identify pickup request');
+      alert("Unable to identify pickup request");
       return;
     }
-    
+
     await api.post(`/secondary/pickup/${pickupId}/accept`);
-    
+
     // Refresh the list
     await fetchPickupDetails();
-    
+
     alert(`Pickup ${requestNo} accepted successfully!`);
   } catch (error) {
-    console.error('Error accepting pickup:', error);
-    alert(error.response?.data?.error || 'Failed to accept pickup. Please try again.');
+    console.error("Error accepting pickup:", error);
+    alert(
+      error.response?.data?.error ||
+        "Failed to accept pickup. Please try again."
+    );
   }
 };
 
 const rejectPickup = async (requestNo) => {
   try {
     // Find the pickup by request_no
-    const pickup = pickupRequests.value.find(p => p.requestNo === requestNo);
+    const pickup = pickupRequests.value.find((p) => p.requestNo === requestNo);
     if (!pickup) {
-      alert('Pickup request not found');
+      alert("Pickup request not found");
       return;
     }
-    
+
     // Use the pickup ID from the backend response
     const pickupId = pickup.pickupId;
-    
+
     if (!pickupId) {
-      alert('Unable to identify pickup request');
+      alert("Unable to identify pickup request");
       return;
     }
-    
+
     await api.post(`/secondary/pickup/${pickupId}/reject`);
-    
+
     // Refresh the list
     await fetchPickupDetails();
-    
+
     alert(`Pickup ${requestNo} rejected successfully!`);
   } catch (error) {
-    console.error('Error rejecting pickup:', error);
-    alert(error.response?.data?.error || 'Failed to reject pickup. Please try again.');
+    console.error("Error rejecting pickup:", error);
+    alert(
+      error.response?.data?.error ||
+        "Failed to reject pickup. Please try again."
+    );
   }
 };
 
 const viewDetails = (requestNo) => {
-  const pickup = pickupRequests.value.find(p => p.requestNo === requestNo);
+  const pickup = pickupRequests.value.find((p) => p.requestNo === requestNo);
   if (pickup) {
     let details = `Pickup Request Details:\n\n`;
     details += `Request No: ${pickup.requestNo}\n`;
     details += `Household: ${pickup.userName}\n`;
-    details += `House Number: ${pickup.houseNumber || 'N/A'}\n`;
-    details += `Email: ${pickup.userEmail || 'N/A'}\n`;
+    details += `House Number: ${pickup.houseNumber || "N/A"}\n`;
+    details += `Email: ${pickup.userEmail || "N/A"}\n`;
     details += `Location: ${pickup.location}\n`;
     details += `Date: ${pickup.date}\n`;
     details += `Time: ${pickup.time}\n`;
@@ -387,7 +460,7 @@ const viewDetails = (requestNo) => {
 };
 
 const goBack = () => {
-  router.push('/secondary-dashboard/pickup-details');
+  router.push("/secondary-dashboard/pickup-details");
 };
 
 // Watch for date changes
@@ -400,7 +473,7 @@ watch(selectedDate, (newDate) => {
 onMounted(() => {
   // Set default date to today if not set
   if (!selectedDate.value) {
-    selectedDate.value = new Date().toISOString().split('T')[0];
+    selectedDate.value = new Date().toISOString().split("T")[0];
   }
   fetchPickupDetails();
 });
