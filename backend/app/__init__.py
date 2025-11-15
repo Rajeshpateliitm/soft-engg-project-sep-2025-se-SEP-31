@@ -5,7 +5,7 @@ from app.models import db
 from app.core.config import Config
 from app.core.email_service import init_mail
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 import atexit
 
 
@@ -67,20 +67,28 @@ def create_app(config_class=Config):
         scheduler = BackgroundScheduler()
         scheduler.start()
         
-        # Schedule daily waste log reminders at 9:00 AM
+        # Schedule waste log reminders every 5 seconds (for testing)
         from app.core.cron_jobs import send_daily_waste_log_reminders, send_daily_quiz_reminders
+        
+        # Create wrapper functions that pass the app instance
+        def waste_log_job():
+            send_daily_waste_log_reminders(app)
+        
+        def quiz_job():
+            send_daily_quiz_reminders(app)
+        
         scheduler.add_job(
-            func=send_daily_waste_log_reminders,
-            trigger=CronTrigger(hour=9, minute=0),  # 9:00 AM daily
+            func=waste_log_job,
+            trigger=IntervalTrigger(seconds=5),  # Every 5 seconds
             id='daily_waste_log_reminders',
             name='Send daily waste log reminders',
             replace_existing=True
         )
         
-        # Schedule daily quiz reminders at 10:00 AM
+        # Schedule quiz reminders every 5 seconds (for testing)
         scheduler.add_job(
-            func=send_daily_quiz_reminders,
-            trigger=CronTrigger(hour=10, minute=0),  # 10:00 AM daily
+            func=quiz_job,
+            trigger=IntervalTrigger(seconds=5),  # Every 5 seconds
             id='daily_quiz_reminders',
             name='Send daily quiz reminders',
             replace_existing=True
@@ -89,6 +97,14 @@ def create_app(config_class=Config):
         # Shut down scheduler when app exits
         atexit.register(lambda: scheduler.shutdown())
         
-        app.logger.info("Scheduler initialized with daily email reminders")
+        app.logger.info("Scheduler initialized with email reminders every 5 seconds")
+        print("\n" + "=" * 60)
+        print("✅ Email Reminder Scheduler Started (TESTING MODE)")
+        print("=" * 60)
+        print("📧 Waste Log Reminders: Every 5 seconds")
+        print("📧 Quiz Reminders: Every 5 seconds")
+        print("=" * 60)
+        print("⚠️  NOTE: This is for testing. Change back to daily schedule for production!")
+        print("=" * 60 + "\n")
 
     return app
