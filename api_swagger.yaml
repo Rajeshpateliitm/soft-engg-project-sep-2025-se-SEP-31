@@ -1,0 +1,2235 @@
+openapi: 3.0.3
+info:
+  title: WasteWise API
+  description: |
+    RESTful API for WasteWise - A comprehensive waste management platform for Indian households.
+    
+    This API supports three user categories:
+    - **PRIMARY**: Regular household users who can register, log waste, take quizzes, and participate in campaigns
+    - **SECONDARY**: RWA managers and waste collectors who manage pickups, campaigns, and monitor household performance
+    - **TERTIARY**: Government bodies and NGOs who monitor ward-wise performance and city-wide statistics
+    
+    All endpoints use JWT Bearer token authentication except for registration, login, and public endpoints.
+  version: 1.0.0
+  contact:
+    name: WasteWise Development Team
+    email: support@wastewise.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000/api
+    description: Local development server
+  - url: https://api.wastewise.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User registration, login, and profile management
+  - name: Primary User
+    description: Endpoints for household users (PRIMARY category)
+  - name: Secondary User
+    description: Endpoints for RWA managers and waste collectors (SECONDARY category)
+  - name: Tertiary User
+    description: Endpoints for government bodies and NGOs (TERTIARY category)
+  - name: Common
+    description: Shared endpoints for all user categories
+  - name: GenAI
+    description: Generative AI chatbot endpoints using Google Gemini API
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/auth/login endpoint
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        error_details:
+          type: object
+          description: Additional error details (optional)
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - house_number
+        - ward_number
+        - family_members
+        - pincode
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 6
+          example: password123
+        username:
+          type: string
+          example: john_doe
+        house_number:
+          type: string
+          example: "123"
+        ward_number:
+          type: string
+          example: "1"
+        family_members:
+          type: integer
+          minimum: 1
+          example: 4
+        pincode:
+          type: string
+          example: "700001"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: password123
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        username:
+          type: string
+          example: john_doe
+        house_number:
+          type: string
+          example: "123"
+        ward_number:
+          type: string
+          example: "1"
+        family_members_count:
+          type: integer
+          example: 4
+        pincode:
+          type: string
+          example: "700001"
+        points:
+          type: integer
+          example: 150
+        user_category:
+          type: string
+          enum: [PRIMARY, SECONDARY, TERTIARY]
+          example: PRIMARY
+        rwa_role:
+          type: string
+          enum: [admin, collector, member]
+          nullable: true
+          example: null
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: bearer
+        user:
+          $ref: '#/components/schemas/User'
+
+    WasteLogRequest:
+      type: object
+      required:
+        - category
+        - quantity_kg
+        - log_date
+      properties:
+        category:
+          type: string
+          enum: [wet, dry, hazardous]
+          example: wet
+        quantity_kg:
+          type: number
+          minimum: 0
+          example: 2.5
+        log_date:
+          type: string
+          format: date
+          example: "2024-01-15"
+        separated:
+          type: boolean
+          default: false
+          example: true
+        recycled:
+          type: boolean
+          default: false
+          example: false
+        questions_doubts:
+          type: string
+          nullable: true
+          example: "How to dispose of batteries?"
+        feedback:
+          type: string
+          nullable: true
+          example: "Great service!"
+
+    QuizAnswerRequest:
+      type: object
+      required:
+        - question_id
+        - option_id
+      properties:
+        question_id:
+          type: integer
+          example: 1
+        option_id:
+          type: integer
+          example: 2
+
+    QuizSubmitRequest:
+      type: object
+      required:
+        - answers
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizAnswerRequest'
+          minItems: 1
+
+    PickupRequestCreate:
+      type: object
+      required:
+        - scheduled_at
+        - pickup_location
+      properties:
+        scheduled_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:00:00Z"
+        pickup_location:
+          type: string
+          example: "123 Main Street, Ward 1"
+        pincode:
+          type: string
+          example: "700001"
+        quantity:
+          type: number
+          minimum: 0
+          example: 5.0
+        notes:
+          type: string
+          nullable: true
+          example: "Please collect in the morning"
+
+    CampaignCreate:
+      type: object
+      required:
+        - name
+        - description
+        - location
+        - event_datetime
+      properties:
+        name:
+          type: string
+          example: "Clean City Drive"
+        description:
+          type: string
+          example: "A community initiative to promote waste segregation"
+        location:
+          type: string
+          example: "Community Center, Ward 1"
+        event_datetime:
+          type: string
+          format: date-time
+          example: "2024-02-15T10:00:00Z"
+        pincode:
+          type: string
+          example: "700001"
+        ward_id:
+          type: integer
+          nullable: true
+          example: 1
+        image_url:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://example.com/campaign.jpg"
+
+    GenAIChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          example: "How should I dispose of expired medicines?"
+
+    GenAIChatResponse:
+      type: object
+      properties:
+        response:
+          type: string
+          example: "Expired medicines should be disposed in the Red Bin (Domestic Hazardous Waste) because they are pharmaceutical waste..."
+        error:
+          type: string
+          nullable: true
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: |
+        Register a new PRIMARY user. Only PRIMARY users can register through public sign-up.
+        Secondary and Tertiary users are provisioned by administrators.
+        
+        **User Story**: As a household user, I want to register for an account so that I can start using the WasteWise platform.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User registered successfully
+                  user:
+                    $ref: '#/components/schemas/User'
+                  access_token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  token_type:
+                    type: string
+                    example: bearer
+        '400':
+          description: Bad request - Missing required fields or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_field:
+                  value:
+                    error: Missing required field: email
+                email_exists:
+                  value:
+                    error: Email already registered
+                invalid_category:
+                  value:
+                    error: Only primary users can register through public sign-up. Secondary and Tertiary users are provisioned by administrators.
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: |
+        Authenticate user and return JWT access token.
+        
+        **User Story**: As a user, I want to login to my account so that I can access my dashboard and features.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Bad request - Missing email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Email and password required
+        '401':
+          description: Unauthorized - Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Invalid email or password
+        '403':
+          description: Forbidden - Account is inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: User account is inactive
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user information
+      description: |
+        Get authenticated user's profile information.
+        
+        **User Story**: As a user, I want to view my profile information so that I can verify my account details.
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized - Invalid or missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/dashboard:
+    get:
+      tags:
+        - Primary User
+      summary: Get primary user dashboard
+      description: |
+        Get comprehensive dashboard data for PRIMARY users including quiz performance, leaderboard rank, monthly engagement, and waste summary.
+        
+        **User Story**: As a household user, I want to see my dashboard with all my activity summaries so that I can track my progress.
+      responses:
+        '200':
+          description: Dashboard data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quiz_performance:
+                    type: object
+                    properties:
+                      average_score:
+                        type: number
+                        example: 85.5
+                      message:
+                        type: string
+                        example: Great performance in daily quizzes.
+                  leaderboard:
+                    type: object
+                    properties:
+                      rank:
+                        type: integer
+                        example: 5
+                      points:
+                        type: integer
+                        example: 150
+                      message:
+                        type: string
+                        example: Keep climbing for #4!
+                  monthly_engagement:
+                    type: object
+                    properties:
+                      quizzes:
+                        type: integer
+                        example: 15
+                      waste_logs:
+                        type: integer
+                        example: 20
+                      campaigns:
+                        type: integer
+                        example: 2
+                      message:
+                        type: string
+                        example: Your active participation.
+                  waste_summary:
+                    type: object
+                    properties:
+                      wet_kg:
+                        type: number
+                        example: 45.5
+                      dry_kg:
+                        type: number
+                        example: 30.2
+                      hazardous_kg:
+                        type: number
+                        example: 2.1
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/quiz/questions:
+    get:
+      tags:
+        - Primary User
+      summary: Get quiz questions
+      description: |
+        Retrieve quiz questions for a quiz session. Supports filtering by category and limiting number of questions.
+        
+        **User Story**: As a household user, I want to take daily quizzes about waste management so that I can learn and earn points.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+          description: Number of questions to retrieve
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter questions by category
+      responses:
+        '200':
+          description: Quiz questions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        question_text:
+                          type: string
+                          example: "Which bin should wet waste go into?"
+                        category:
+                          type: string
+                          example: "segregation"
+                        options:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 1
+                              option_text:
+                                type: string
+                                example: "Green Bin"
+                              is_correct:
+                                type: boolean
+                                example: true
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/quiz/submit:
+    post:
+      tags:
+        - Primary User
+      summary: Submit quiz answers
+      description: |
+        Submit quiz answers and calculate score. Awards points based on performance.
+        
+        **User Story**: As a household user, I want to submit my quiz answers so that I can see my score and earn points.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizSubmitRequest'
+      responses:
+        '200':
+          description: Quiz submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Quiz submitted successfully
+                  score:
+                    type: integer
+                    example: 8
+                  total_questions:
+                    type: integer
+                    example: 10
+                  percentage:
+                    type: number
+                    example: 80.0
+                  points_earned:
+                    type: integer
+                    example: 10
+        '400':
+          description: Bad request - Missing answers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/quiz/performance:
+    get:
+      tags:
+        - Primary User
+      summary: Get quiz performance details
+      description: |
+        Get detailed quiz performance history including all attempts, scores, and trends.
+        
+        **User Story**: As a household user, I want to view my quiz performance history so that I can track my learning progress.
+      responses:
+        '200':
+          description: Quiz performance retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_attempts:
+                    type: integer
+                    example: 25
+                  average_score:
+                    type: number
+                    example: 82.5
+                  best_score:
+                    type: integer
+                    example: 100
+                  recent_attempts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        score:
+                          type: integer
+                        total_questions:
+                          type: integer
+                        percentage:
+                          type: number
+                        created_at:
+                          type: string
+                          format: date-time
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/waste-log:
+    post:
+      tags:
+        - Primary User
+      summary: Log waste entry
+      description: |
+        Create a new waste log entry for wet, dry, or hazardous waste.
+        
+        **User Story**: As a household user, I want to log my daily waste so that I can track my waste generation and segregation practices.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WasteLogRequest'
+      responses:
+        '201':
+          description: Waste log created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Waste log created successfully
+                  waste_log:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      category:
+                        type: string
+                      quantity_kg:
+                        type: number
+                      log_date:
+                        type: string
+                        format: date
+        '400':
+          description: Bad request - Missing required fields or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/waste-logs:
+    get:
+      tags:
+        - Primary User
+      summary: Get waste logs
+      description: |
+        Retrieve waste log entries with optional date filtering.
+        
+        **User Story**: As a household user, I want to view my waste logging history so that I can track my waste generation over time.
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date for filtering (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date for filtering (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Waste logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        category:
+                          type: string
+                        quantity_kg:
+                          type: number
+                        log_date:
+                          type: string
+                          format: date
+                        separated:
+                          type: boolean
+                        recycled:
+                          type: boolean
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/waste-summary:
+    get:
+      tags:
+        - Primary User
+      summary: Get waste summary
+      description: |
+        Get waste summary statistics for the last 30 days.
+        
+        **User Story**: As a household user, I want to see my waste summary so that I can understand my waste generation patterns.
+      responses:
+        '200':
+          description: Waste summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_wet:
+                    type: number
+                    example: 45.5
+                  total_dry:
+                    type: number
+                    example: 30.2
+                  total_hazardous:
+                    type: number
+                    example: 2.1
+                  total_waste:
+                    type: number
+                    example: 77.8
+                  segregation_rate:
+                    type: number
+                    example: 85.5
+                  recycling_rate:
+                    type: number
+                    example: 60.2
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/leaderboard:
+    get:
+      tags:
+        - Primary User
+      summary: Get community leaderboard
+      description: |
+        Get leaderboard of PRIMARY users in the same ward, ranked by points.
+        
+        **User Story**: As a household user, I want to see the leaderboard so that I can compare my performance with others in my community.
+      responses:
+        '200':
+          description: Leaderboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leaderboard:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rank:
+                          type: integer
+                          example: 1
+                        user_id:
+                          type: integer
+                        username:
+                          type: string
+                        points:
+                          type: integer
+                        house_number:
+                          type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/monthly-engagement:
+    get:
+      tags:
+        - Primary User
+      summary: Get monthly engagement analytics
+      description: |
+        Get monthly engagement statistics including quizzes taken, waste logs created, and campaigns participated.
+        
+        **User Story**: As a household user, I want to see my monthly engagement statistics so that I can track my participation.
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+          description: Month number (1-12)
+        - name: year
+          in: query
+          schema:
+            type: integer
+          description: Year (e.g., 2024)
+      responses:
+        '200':
+          description: Monthly engagement retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  month:
+                    type: integer
+                    example: 1
+                  year:
+                    type: integer
+                    example: 2024
+                  quizzes:
+                    type: integer
+                    example: 15
+                  waste_logs:
+                    type: integer
+                    example: 20
+                  campaigns:
+                    type: integer
+                    example: 2
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/campaigns:
+    get:
+      tags:
+        - Primary User
+      summary: Get available campaigns
+      description: |
+        Get list of active campaigns that PRIMARY users can register for.
+        
+        **User Story**: As a household user, I want to see available campaigns so that I can participate in community waste management initiatives.
+      responses:
+        '200':
+          description: Campaigns retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  campaigns:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        event_datetime:
+                          type: string
+                          format: date-time
+                        location:
+                          type: string
+                        image_url:
+                          type: string
+                          format: uri
+                        registration_count:
+                          type: integer
+                        is_registered:
+                          type: boolean
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /primary/campaigns/{campaign_id}/register:
+    post:
+      tags:
+        - Primary User
+      summary: Register for a campaign
+      description: |
+        Register the current user for a specific campaign.
+        
+        **User Story**: As a household user, I want to register for campaigns so that I can participate in community events.
+      parameters:
+        - name: campaign_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Campaign ID
+      responses:
+        '201':
+          description: Successfully registered for campaign
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully registered for campaign
+                  registration:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      campaign_id:
+                        type: integer
+                      user_id:
+                        type: integer
+        '400':
+          description: Bad request - Already registered or campaign not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/dashboard:
+    get:
+      tags:
+        - Secondary User
+      summary: Get RWA manager dashboard
+      description: |
+        Get dashboard data for RWA managers (admin role). Shows RWA leaderboard rank and household count.
+        
+        **User Story**: As an RWA manager, I want to see my dashboard so that I can monitor my RWA's performance.
+      responses:
+        '200':
+          description: Dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_role:
+                    type: string
+                    example: rwa_manager
+                  rwa_leaderboard:
+                    type: object
+                    properties:
+                      rank:
+                        type: integer
+                        example: 3
+                      households:
+                        type: integer
+                        example: 150
+                      rwa_name:
+                        type: string
+                        example: Park Street RWA
+        '403':
+          description: Forbidden - User is not an RWA manager
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/collector/dashboard:
+    get:
+      tags:
+        - Secondary User
+      summary: Get collector dashboard
+      description: |
+        Get dashboard data for waste collectors. Shows today's pickup summary and ward information.
+        
+        **User Story**: As a waste collector, I want to see my dashboard so that I can manage my daily pickup tasks.
+      responses:
+        '200':
+          description: Dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_role:
+                    type: string
+                    example: collector
+                  ward:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      ward_number:
+                        type: string
+                      pincode:
+                        type: string
+                  pickup_summary:
+                    type: object
+                    properties:
+                      date:
+                        type: string
+                        format: date
+                      total_pickups:
+                        type: integer
+                      completed:
+                        type: integer
+                      pending:
+                        type: integer
+                      accepted:
+                        type: integer
+                      rejected:
+                        type: integer
+                  household_count:
+                    type: integer
+        '403':
+          description: Forbidden - User is not a collector
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/rwa-leaderboard:
+    get:
+      tags:
+        - Secondary User
+      summary: Get RWA leaderboard
+      description: |
+        Get leaderboard of all RWA groups ranked by total points from their PRIMARY users.
+        
+        **User Story**: As an RWA manager, I want to see the RWA leaderboard so that I can compare my RWA's performance with others.
+      responses:
+        '200':
+          description: RWA leaderboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leaderboard:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rank:
+                          type: integer
+                        rwa_id:
+                          type: integer
+                        rwa_name:
+                          type: string
+                        ward_number:
+                          type: string
+                        points:
+                          type: integer
+                        remarks:
+                          type: string
+                          enum: [TOP PERFORMER, EXCELLENT, GOOD, IMPROVING]
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/pickup-summary:
+    get:
+      tags:
+        - Secondary User
+      summary: Get monthly pickup summary
+      description: |
+        Get comprehensive pickup statistics for the last 30 days including completion rates, waste distribution, and daily breakdown.
+        
+        **User Story**: As a waste collector or RWA manager, I want to see pickup summary so that I can analyze pickup performance.
+      parameters:
+        - name: months
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Number of months to include
+      responses:
+        '200':
+          description: Pickup summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_scheduled:
+                    type: integer
+                  total_completed:
+                    type: integer
+                  total_pending:
+                    type: integer
+                  total_rejected:
+                    type: integer
+                  total_waste_collected:
+                    type: number
+                  average_daily_pickup:
+                    type: number
+                  completion_rate:
+                    type: number
+                  rejection_rate:
+                    type: number
+                  pending_rate:
+                    type: number
+                  peak_pickup_day:
+                    type: object
+                    nullable: true
+                  lowest_pickup_day:
+                    type: object
+                    nullable: true
+                  waste_type_distribution:
+                    type: object
+                    properties:
+                      wet:
+                        type: number
+                      dry:
+                        type: number
+                      hazardous:
+                        type: number
+                  daily_breakdown:
+                    type: object
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/pickup-details:
+    get:
+      tags:
+        - Secondary User
+      summary: Get daily pickup details
+      description: |
+        Get detailed list of pickup requests for a specific date.
+        
+        **User Story**: As a waste collector, I want to see daily pickup details so that I can plan my collection route.
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Date in YYYY-MM-DD format (defaults to today)
+      responses:
+        '200':
+          description: Pickup details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  pickups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pickup_id:
+                          type: integer
+                        request_no:
+                          type: string
+                        user_id:
+                          type: integer
+                        user_name:
+                          type: string
+                        pickup_location:
+                          type: string
+                        date_of_pickup:
+                          type: string
+                          format: date
+                        time_of_pickup:
+                          type: string
+                        disposal_quantity:
+                          type: number
+                        status:
+                          type: string
+                          enum: [pending, accepted, completed, rejected]
+        '400':
+          description: Bad request - Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/pickup/{pickup_id}/accept:
+    post:
+      tags:
+        - Secondary User
+      summary: Accept pickup request
+      description: |
+        Accept a pending pickup request. Only collectors can accept. Awards points to the requester if waste was separated/recycled.
+        
+        **User Story**: As a waste collector, I want to accept pickup requests so that I can schedule collections and reward users.
+      parameters:
+        - name: pickup_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Pickup request ID
+      responses:
+        '200':
+          description: Pickup request accepted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Pickup request accepted
+                  points_awarded:
+                    type: integer
+                    example: 15
+        '400':
+          description: Bad request - Pickup is not pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Only collectors can accept pickups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Pickup request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/pickup/{pickup_id}/reject:
+    post:
+      tags:
+        - Secondary User
+      summary: Reject pickup request
+      description: |
+        Reject a pending pickup request. Only collectors can reject. Deducts 5 points from the requester.
+        
+        **User Story**: As a waste collector, I want to reject pickup requests so that I can manage invalid or problematic requests.
+      parameters:
+        - name: pickup_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Pickup request ID
+      responses:
+        '200':
+          description: Pickup request rejected successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Pickup request rejected
+                  points_deducted:
+                    type: integer
+                    example: 5
+        '400':
+          description: Bad request - Pickup is not pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - Only collectors can reject pickups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Pickup request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/waste-summary:
+    get:
+      tags:
+        - Secondary User
+      summary: Get household performance summary
+      description: |
+        Get monthly performance summary for all PRIMARY users in the secondary user's ward including segregation rates and per capita waste.
+        
+        **User Story**: As an RWA manager, I want to see household performance so that I can identify areas for improvement.
+      responses:
+        '200':
+          description: Waste summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_households:
+                    type: integer
+                  segregation_rate:
+                    type: number
+                  recycle_reuse_donations_rate:
+                    type: number
+                  household_details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        household_number:
+                          type: string
+                        user_id:
+                          type: integer
+                        family_size:
+                          type: integer
+                        segregation_percentage:
+                          type: number
+                        per_capita_wet:
+                          type: number
+                        per_capita_dry:
+                          type: number
+                        per_capita_hazardous:
+                          type: number
+                        recycle_reuse_donation_percentage:
+                          type: number
+                        engagement_score:
+                          type: number
+        '400':
+          description: Bad request - Secondary user must have ward or pincode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/campaigns:
+    get:
+      tags:
+        - Secondary User
+      summary: Get all campaigns
+      description: |
+        Get list of all campaigns (secondary users can view all campaigns).
+        
+        **User Story**: As an RWA manager, I want to see all campaigns so that I can monitor community initiatives.
+      responses:
+        '200':
+          description: Campaigns retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  campaigns:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        event_datetime:
+                          type: string
+                          format: date-time
+                        location:
+                          type: string
+                        image_url:
+                          type: string
+                          format: uri
+                        registration_count:
+                          type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/campaigns/create:
+    post:
+      tags:
+        - Secondary User
+      summary: Create a new campaign
+      description: |
+        Create a new waste management campaign. Only secondary users can create campaigns.
+        
+        **User Story**: As an RWA manager, I want to create campaigns so that I can organize community waste management events.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CampaignCreate'
+      responses:
+        '201':
+          description: Campaign created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Campaign created successfully
+                  campaign:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      event_datetime:
+                        type: string
+                        format: date-time
+                      location:
+                        type: string
+                      image_url:
+                        type: string
+                        format: uri
+        '400':
+          description: Bad request - Missing required fields or invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/campaigns/{campaign_id}:
+    put:
+      tags:
+        - Secondary User
+      summary: Update campaign
+      description: |
+        Update an existing campaign.
+        
+        **User Story**: As an RWA manager, I want to update campaign details so that I can modify event information.
+      parameters:
+        - name: campaign_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Campaign ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                location:
+                  type: string
+                event_datetime:
+                  type: string
+                  format: date-time
+                pincode:
+                  type: string
+                ward_id:
+                  type: integer
+                image_url:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Campaign updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Campaign updated successfully
+                  campaign:
+                    type: object
+        '400':
+          description: Bad request - Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Campaign not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Secondary User
+      summary: Delete campaign
+      description: |
+        Soft delete (deactivate) a campaign.
+        
+        **User Story**: As an RWA manager, I want to delete campaigns so that I can remove cancelled or completed events.
+      parameters:
+        - name: campaign_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Campaign ID
+      responses:
+        '200':
+          description: Campaign deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Campaign deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Campaign not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /secondary/waste-logs:
+    get:
+      tags:
+        - Secondary User
+      summary: Get waste logs by date
+      description: |
+        Get waste logs from PRIMARY users in secondary user's ward for a specific date.
+        
+        **User Story**: As an RWA manager or collector, I want to see daily waste logs so that I can monitor household waste generation.
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Date in YYYY-MM-DD format (defaults to today)
+      responses:
+        '200':
+          description: Waste logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  summary:
+                    type: object
+                    properties:
+                      total_households:
+                        type: integer
+                      households_logged:
+                        type: integer
+                      households_not_logged:
+                        type: integer
+                      total_wet_waste:
+                        type: number
+                      total_dry_waste:
+                        type: number
+                      total_hazardous_waste:
+                        type: number
+                      total_waste:
+                        type: number
+                      households_separated:
+                        type: integer
+                      households_recycled:
+                        type: integer
+                  household_waste:
+                    type: array
+                    items:
+                      type: object
+        '400':
+          description: Bad request - Invalid date format or secondary user missing ward/pincode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tertiary/dashboard:
+    get:
+      tags:
+        - Tertiary User
+      summary: Get tertiary user dashboard
+      description: |
+        Get comprehensive dashboard with all ward performance data, city-wide statistics, and priority actions.
+        
+        **User Story**: As a government/NGO representative, I want to see the city-wide dashboard so that I can monitor overall waste management performance.
+      responses:
+        '200':
+          description: Dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wardData:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        wardNo:
+                          type: string
+                        wardNumber:
+                          type: string
+                        wardName:
+                          type: string
+                        pincode:
+                          type: string
+                        totalHouseholds:
+                          type: integer
+                        avgWetWaste:
+                          type: string
+                        avgDryWaste:
+                          type: string
+                        avgHazardousWaste:
+                          type: string
+                        segregationCompliance:
+                          type: string
+                        remarks:
+                          type: string
+                  totalWards:
+                    type: integer
+                  totalHouseholds:
+                    type: integer
+                  averageCompliance:
+                    type: number
+                  totalWetWaste:
+                    type: number
+                  totalDryWaste:
+                    type: number
+                  totalHazardousWaste:
+                    type: number
+                  excellentCount:
+                    type: integer
+                  goodCount:
+                    type: integer
+                  needsImprovementCount:
+                    type: integer
+                  priorityActions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ward:
+                          type: string
+                        description:
+                          type: string
+                        priority:
+                          type: string
+                          enum: [High, Medium, Low]
+        '403':
+          description: Forbidden - User is not a tertiary user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tertiary/ward-performance:
+    get:
+      tags:
+        - Tertiary User
+      summary: Get ward-wise performance summary
+      description: |
+        Get performance summary for all wards including waste generation, segregation compliance, and remarks.
+        
+        **User Story**: As a government/NGO representative, I want to see ward performance so that I can identify areas needing attention.
+      responses:
+        '200':
+          description: Ward performance retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ward_performance:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ward:
+                          type: string
+                        total_households:
+                          type: integer
+                        avg_wet_waste_kg_per_day:
+                          type: number
+                        avg_dry_waste_kg_per_day:
+                          type: number
+                        avg_hazardous_waste_kg_per_day:
+                          type: number
+                        segregation_compliance_pct:
+                          type: number
+                        remarks:
+                          type: string
+        '403':
+          description: Forbidden - User is not a tertiary user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tertiary/ward/{ward_id}/summary:
+    get:
+      tags:
+        - Tertiary User
+      summary: Get detailed ward summary
+      description: |
+        Get detailed monthly summary for a specific ward over a period of time.
+        
+        **User Story**: As a government/NGO representative, I want to see detailed ward summaries so that I can analyze historical performance.
+      parameters:
+        - name: ward_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Ward ID
+        - name: months
+          in: query
+          schema:
+            type: integer
+            default: 12
+          description: Number of months to retrieve
+      responses:
+        '200':
+          description: Ward summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ward:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      ward_number:
+                        type: string
+                      name:
+                        type: string
+                  summaries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        year:
+                          type: integer
+                        month:
+                          type: integer
+                        total_households:
+                          type: integer
+                        avg_wet_kg_per_day:
+                          type: number
+                        avg_dry_kg_per_day:
+                          type: number
+                        avg_hazardous_kg_per_day:
+                          type: number
+                        segregation_compliance_pct:
+                          type: number
+                        remarks:
+                          type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Ward not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tertiary/ward/{ward_id}/update-summary:
+    post:
+      tags:
+        - Tertiary User
+      summary: Update ward monthly summary
+      description: |
+        Create or update monthly summary for a specific ward.
+        
+        **User Story**: As a government/NGO representative, I want to update ward summaries so that I can maintain accurate performance records.
+      parameters:
+        - name: ward_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Ward ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - year
+                - month
+              properties:
+                year:
+                  type: integer
+                  example: 2024
+                month:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  example: 1
+                total_households:
+                  type: integer
+                avg_wet_kg_per_day:
+                  type: number
+                avg_dry_kg_per_day:
+                  type: number
+                avg_hazardous_kg_per_day:
+                  type: number
+                segregation_compliance_pct:
+                  type: number
+                remarks:
+                  type: string
+      responses:
+        '200':
+          description: Ward summary updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Ward summary updated successfully
+                  summary:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      ward_id:
+                        type: integer
+                      year:
+                        type: integer
+                      month:
+                        type: integer
+        '400':
+          description: Bad request - Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Ward not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /common/recyclers:
+    get:
+      tags:
+        - Common
+      summary: Get recycler locations by pincode
+      description: |
+        Get list of recycler locations for a specific pincode. Public endpoint, no authentication required.
+        
+        **User Story**: As a user, I want to find nearby recyclers so that I can dispose of recyclable waste properly.
+      security: []
+      parameters:
+        - name: pincode
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Pincode to search for recyclers
+      responses:
+        '200':
+          description: Recyclers retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recyclers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        address:
+                          type: string
+                        pincode:
+                          type: string
+                        phone:
+                          type: string
+                        website:
+                          type: string
+                          format: uri
+                        latitude:
+                          type: number
+                        longitude:
+                          type: number
+                        materials:
+                          type: array
+                          items:
+                            type: string
+        '400':
+          description: Bad request - Pincode required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /common/pickup-request:
+    post:
+      tags:
+        - Common
+      summary: Create a pickup request
+      description: |
+        Create a waste pickup request. Requires authentication.
+        
+        **User Story**: As a household user, I want to request waste pickup so that I can schedule collection of my waste.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickupRequestCreate'
+      responses:
+        '201':
+          description: Pickup request created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Pickup request created successfully
+                  request:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      request_code:
+                        type: string
+                      scheduled_at:
+                        type: string
+                        format: date-time
+                      status:
+                        type: string
+                        enum: [pending, accepted, completed, rejected]
+        '400':
+          description: Bad request - Missing required fields or invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /common/wards:
+    get:
+      tags:
+        - Common
+      summary: Get all wards
+      description: |
+        Get list of all active wards. Public endpoint, no authentication required.
+        
+        **User Story**: As a user, I want to see available wards so that I can select my ward during registration.
+      security: []
+      responses:
+        '200':
+          description: Wards retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wards:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        ward_number:
+                          type: string
+                        name:
+                          type: string
+                        pincode:
+                          type: string
+
+  /genai/chat:
+    post:
+      tags:
+        - GenAI
+      summary: Chat with WasteWise AI Assistant
+      description: |
+        Send a message to the WasteWise AI chatbot powered by Google Gemini API. Maintains conversation history (last 5 messages).
+        
+        **User Story**: As a household user, I want to chat with an AI assistant so that I can get instant answers about waste management.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenAIChatRequest'
+      responses:
+        '200':
+          description: Chat response received successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenAIChatResponse'
+        '400':
+          description: Bad request - Missing message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error - API configuration issue or network error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /genai/chat/clear:
+    post:
+      tags:
+        - GenAI
+      summary: Clear chat history
+      description: |
+        Clear conversation history for the current user.
+        
+        **User Story**: As a user, I want to clear my chat history so that I can start a fresh conversation.
+      responses:
+        '200':
+          description: Chat history cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Chat history cleared successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
