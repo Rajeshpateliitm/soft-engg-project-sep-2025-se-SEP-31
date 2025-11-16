@@ -1,10 +1,35 @@
 <template>
+  
   <div class="primary-user-quiz">
+    <!-- <button class="btn btn-primary" @click="startRandomQuiz">
+  Try Random Quiz
+</button> -->
+<div class="quiz-header d-flex justify-content-between align-items-center mb-4">
+
+  <!-- LEFT SIDE TEXT -->
+  <h2 class="fw-bold m-0">Waste Management Quiz</h2>
+
+  <!-- RIGHT SIDE BUTTON -->
+  <button class="btn btn-primary" @click="startRandomQuiz">
+    Try Random Quiz
+  </button>
+
+</div>
+
+<!-- FULLSCREEN LOADING OVERLAY -->
+<div v-if="loading" class="loading-overlay">
+  <div class="spinner"></div>
+  <p class="loading-text">Generating your random quiz…</p>
+</div>
+
+
     <div class="quiz-container">
       <!-- Quiz Header -->
+       
       <div class="quiz-header text-center mb-4">
-        <h2 class="fw-bold">Waste Management Quiz</h2>
+        <!-- <h2 class="fw-bold">Waste Management Quiz</h2> -->
         <div class="quiz-progress">
+          
           <div class="progress" style="height: 10px;">
             <div 
               class="progress-bar bg-success" 
@@ -303,6 +328,61 @@ const restartQuiz = () => {
   resetQuestion();
   fetchQuestions();
 };
+
+// const startRandomQuiz = async () => {
+//   const res = await api.post(
+//     "/genai/random-quiz",
+//     {}, 
+//     {
+//       headers: {
+//         Authorization: `Bearer ${localStorage.getItem("token")}`
+//       }
+//     }
+//   );
+
+//   const quiz = res.data;
+
+//   // store quiz temporarily
+//   localStorage.setItem("temp_quiz", JSON.stringify(quiz));
+
+//   // go to quiz page
+//   router.push("/random-quiz");
+// };
+
+const loading = ref(false);
+const startRandomQuiz = async () => {
+  try {
+    loading.value = true;
+
+    // Allow overlay to render
+    await new Promise(r => setTimeout(r, 100));
+    const res = await api.post(
+      "/genai/random-quiz",
+      {}, // no body sent
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      }
+    );
+    if (!res.data || res.data.error) {
+      alert("Error generating quiz: " + res.data?.error);
+      loading.value = false;
+      return;
+    }
+
+    const quiz = res.data; // axios uses res.data
+
+    localStorage.setItem("temp_quiz", JSON.stringify(quiz));
+    router.push({ name: "RandomQuiz" });
+
+  } catch (err) {
+    console.error(err);
+    alert("Could not start random quiz!");
+  }
+};
+
+
 </script>
 
 <style scoped>
@@ -405,11 +485,44 @@ const restartQuiz = () => {
   margin-bottom: 1.5rem;
 }
 
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 6px solid #ddd;
+  border-top-color: #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  margin-top: 15px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+
+
+
 @media (max-width: 768px) {
   .primary-user-quiz {
     padding: 0.5rem;
   }
-  
+   
   .option-item {
     padding: 0.75rem;
   }

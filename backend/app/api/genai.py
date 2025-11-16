@@ -473,3 +473,80 @@ def clear_chat_history(user):
         current_app.logger.info(f"Cleared chat history for user {user.id}")
 
     return jsonify({"message": "Chat history cleared successfully"}), 200
+
+# quiz generator
+@bp.route("/random-quiz", methods=["POST"])
+@token_required
+def random_quiz(user):
+    import json
+    import requests
+
+    try:
+        api = get_api_config()
+        key = api["key"]
+        model = api["model"]
+        url = f"{api['base_url']}/{model}:generateContent?key={key}"
+
+        prompt = """
+        Generate exactly 5 MCQ quiz questions on Waste Management in India.
+        Return ONLY valid JSON:
+        {
+          "questions": [
+            {
+              "question_text": "...",
+              "options": [
+                {"text": "...", "is_correct": false},
+                {"text": "...", "is_correct": true},
+                {"text": "...", "is_correct": false},
+                {"text": "...", "is_correct": false}
+              ]
+            }
+          ]
+        }
+        Do NOT add explanation.
+        """
+
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}]
+                }
+            ]
+        }
+
+        res = requests.post(url, json=payload)
+        res.raise_for_status()
+
+        data = res.json()
+
+        # Extract text safely
+        text = (
+            data.get("candidates", [{}])[0]
+                .get("content", {})
+                .get("parts", [{}])[0]
+                .get("text", "")
+                .strip()
+        )
+
+        # If empty → LLM refused / blocked
+        if not text:
+            return jsonify({"error": "LLM returned empty response"}), 500
+
+        # Try to parse JSON output
+        # Clean code fences: ```json ... ```
+        clean_text = text.replace("```json", "").replace("```", "").strip()
+
+        try:
+           quiz = json.loads(clean_text)
+        except Exception:
+           return jsonify({
+        "error": "Invalid JSON after cleaning code fences",
+        "raw": clean_text
+           }), 500
+
+
+        return jsonify(quiz), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
