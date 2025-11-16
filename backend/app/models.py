@@ -66,9 +66,16 @@ class User(db.Model, TimestampMixin, SoftDeleteMixin):
     engagements = relationship("Engagement", back_populates="user", cascade="all,delete-orphan")  # monthly engagement stats
 
     def set_password(self, password):
-        """Set password hash."""
+        """Set password hash with increased security parameters."""
         # Use pbkdf2:sha256 for Python 3.9 compatibility (scrypt requires Python 3.11+)
-        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+        # Increased iterations to 100,000 for better protection against brute-force attacks
+        # Format: pbkdf2:sha256:iterations (iterations specified in method string)
+        # salt_length=16 provides strong salt generation
+        self.password_hash = generate_password_hash(
+            password,
+            method='pbkdf2:sha256:100000',  # 100,000 iterations for better security
+            salt_length=16
+        )
 
     def check_password(self, password):
         """Check password against hash."""

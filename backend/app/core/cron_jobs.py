@@ -1,27 +1,30 @@
 """Cron job tasks for scheduled email reminders."""
-from flask import current_app
-from app.models import User, UserCategory, WasteLog, QuizAttempt, db
+from app.models import User, UserCategory, db
 from app.core.email_service import send_waste_log_reminder, send_quiz_reminder
 from sqlalchemy import and_
-from datetime import date, datetime, timedelta
 
 
-def send_daily_waste_log_reminders():
+def send_daily_waste_log_reminders(app=None):
     """
-    Send daily waste log reminders to users who haven't logged waste today.
-    Only sends to PRIMARY users.
+    Send daily waste log reminders to all PRIMARY users (force send for testing).
+    Uses the actual HTML email templates.
+    
+    Args:
+        app: Flask application instance (required for scheduler context)
     """
-    with current_app.app_context():
+    if app is None:
+        from flask import current_app
+        app = current_app
+    
+    with app.app_context():
         try:
-            today = date.today()
-            
             # Get PRIMARY user category
             primary_category = UserCategory.query.filter_by(key="PRIMARY").first()
             if not primary_category:
-                current_app.logger.warning("PRIMARY user category not found")
+                app.logger.warning("PRIMARY user category not found")
                 return
             
-            # Get all active PRIMARY users
+            # Get all active PRIMARY users with emails
             primary_users = User.query.filter(
                 and_(
                     User.is_active == True,
@@ -30,48 +33,49 @@ def send_daily_waste_log_reminders():
                 )
             ).all()
             
+            if len(primary_users) == 0:
+                app.logger.warning("No PRIMARY users found with email addresses")
+                return
+            
+            # Force send emails to all PRIMARY users (using HTML templates)
             reminders_sent = 0
             for user in primary_users:
-                # Check if user has logged waste today
-                has_logged_today = WasteLog.query.filter(
-                    and_(
-                        WasteLog.user_id == user.id,
-                        WasteLog.log_date == today,
-                        WasteLog.is_active == True
-                    )
-                ).first() is not None
-                
-                # Send reminder if user hasn't logged waste today
-                if not has_logged_today:
-                    username = user.username or user.email.split('@')[0]
-                    if send_waste_log_reminder(user.email, username):
-                        reminders_sent += 1
-                        current_app.logger.info(f"Sent waste log reminder to {user.email}")
+                username = user.username or user.email.split('@')[0]
+                if send_waste_log_reminder(user.email, username):
+                    reminders_sent += 1
+                    app.logger.info(f"Sent waste log reminder to {user.email}")
+                    print(f"📧 Sent waste log reminder to {user.email}")
             
-            current_app.logger.info(f"Daily waste log reminders: {reminders_sent} emails sent")
+            summary = f"Waste log reminders: {reminders_sent} emails sent (HTML templates)"
+            app.logger.info(summary)
+            print(f"✅ {summary}")
             
         except Exception as e:
-            current_app.logger.error(f"Error sending daily waste log reminders: {str(e)}")
+            app.logger.error(f"Error sending daily waste log reminders: {str(e)}")
+            print(f"❌ Error sending daily waste log reminders: {str(e)}")
 
 
-def send_daily_quiz_reminders():
+def send_daily_quiz_reminders(app=None):
     """
-    Send daily quiz reminders to users who haven't taken a quiz today.
-    Only sends to PRIMARY users.
+    Send daily quiz reminders to all PRIMARY users (force send for testing).
+    Uses the actual HTML email templates.
+    
+    Args:
+        app: Flask application instance (required for scheduler context)
     """
-    with current_app.app_context():
+    if app is None:
+        from flask import current_app
+        app = current_app
+    
+    with app.app_context():
         try:
-            today = date.today()
-            today_start = datetime.combine(today, datetime.min.time())
-            tomorrow_start = datetime.combine(today + timedelta(days=1), datetime.min.time())
-            
             # Get PRIMARY user category
             primary_category = UserCategory.query.filter_by(key="PRIMARY").first()
             if not primary_category:
-                current_app.logger.warning("PRIMARY user category not found")
+                app.logger.warning("PRIMARY user category not found")
                 return
             
-            # Get all active PRIMARY users
+            # Get all active PRIMARY users with emails
             primary_users = User.query.filter(
                 and_(
                     User.is_active == True,
@@ -80,27 +84,24 @@ def send_daily_quiz_reminders():
                 )
             ).all()
             
+            if len(primary_users) == 0:
+                app.logger.warning("No PRIMARY users found with email addresses")
+                return
+            
+            # Force send emails to all PRIMARY users (using HTML templates)
             reminders_sent = 0
             for user in primary_users:
-                # Check if user has taken a quiz today
-                has_quiz_today = QuizAttempt.query.filter(
-                    and_(
-                        QuizAttempt.user_id == user.id,
-                        QuizAttempt.created_at >= today_start,
-                        QuizAttempt.created_at < tomorrow_start,
-                        QuizAttempt.is_active == True
-                    )
-                ).first() is not None
-                
-                # Send reminder if user hasn't taken quiz today
-                if not has_quiz_today:
-                    username = user.username or user.email.split('@')[0]
-                    if send_quiz_reminder(user.email, username):
-                        reminders_sent += 1
-                        current_app.logger.info(f"Sent quiz reminder to {user.email}")
+                username = user.username or user.email.split('@')[0]
+                if send_quiz_reminder(user.email, username):
+                    reminders_sent += 1
+                    app.logger.info(f"Sent quiz reminder to {user.email}")
+                    print(f"📧 Sent quiz reminder to {user.email}")
             
-            current_app.logger.info(f"Daily quiz reminders: {reminders_sent} emails sent")
+            summary = f"Quiz reminders: {reminders_sent} emails sent (HTML templates)"
+            app.logger.info(summary)
+            print(f"✅ {summary}")
             
         except Exception as e:
-            current_app.logger.error(f"Error sending daily quiz reminders: {str(e)}")
+            app.logger.error(f"Error sending daily quiz reminders: {str(e)}")
+            print(f"❌ Error sending daily quiz reminders: {str(e)}")
 
