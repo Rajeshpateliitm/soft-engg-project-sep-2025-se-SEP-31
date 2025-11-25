@@ -85,6 +85,13 @@
         </button>
       </div>
     </div>
+    
+    <!-- GenAI Summary Button -->
+    <GenAISummaryButton 
+      :data="{ quizPerformance, leaderboard, monthlyEngagement, wasteSummary }" 
+      context="Primary User Dashboard Overview. This dashboard shows the user's quiz performance, leaderboard rank, monthly engagement stats, and waste generation summary." 
+    />
+
     <div class="row">
       <!-- Container 1: Quiz Performance -->
       <div class="col-md-6 col-lg-4 mb-4">
@@ -199,6 +206,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import api from "../../services/api";
+import GenAISummaryButton from "../../components/GenAISummaryButton.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -297,28 +305,106 @@ let focusHandler = () => {
   fetchDashboardData();
 };
 
-const checkAutoOpenChat = () => {
+const checkAutoOpenChat = async () => {
   if (route.query.openChat === "true") {
+    // Open chat window
     setTimeout(() => {
       isChatOpen.value = true;
-
-      nextTick(() => {
-        scrollToBottom();
-        if (route.query.quizId) {
-          const quizId = route.query.quizId;
-          setTimeout(() => {
-            chatMessages.value.push({
-              text: `I see you're asking about quiz attempt #${quizId}. How can I help you?`,
-              sender: "bot",
-            });
-            scrollToBottom();
-          }, 500);
-        }
-      });
-
-      router.replace({ path: route.path, query: {} });
     }, 300);
+
+    // If quizId is present, fetch details and prompt chatbot
+    if (route.query.quizId) {
+      const quizId = route.query.quizId;
+      
+      try {
+        // Show initial message
+        await nextTick();
+        chatMessages.value.push({
+          text: `I see you want to discuss quiz attempt #${quizId}. Let me analyze your performance...`,
+          sender: "bot",
+        });
+        scrollToBottom();
+
+        // Fetch quiz attempt details
+        const response = await api.get(`/primary/quiz/attempt/${quizId}`);
+        const attempt = response.data;
+
+        // Construct prompt for GenAI
+        let prompt = `Analyze this quiz attempt (ID: ${attempt.id}) taken on ${new Date(attempt.date).toLocaleDateString()}.\n`;
+        prompt += `Score: ${attempt.score}/${attempt.total_questions}\n\n`;
+        prompt += `Questions and Answers:\n`;
+
+        attempt.questions.forEach((q, index) => {
+          prompt += `${index + 1}. ${q.question_text}\n`;
+          prompt += `   - User Answer: ${q.selected_option} (${q.is_correct ? 'Correct' : 'Incorrect'})\n`;
+          if (!q.is_correct) {
+            prompt += `   - Correct Answer: ${q.correct_option}\n`;
+          }
+          prompt += `\n`;
+        });
+
+        prompt += `Instructions:\n`;
+        prompt += `1. If the user got all questions correct (Score: ${attempt.total_questions}/${attempt.total_questions}), simply congratulate them warmly and encourage them to keep it up.\n`;
+        prompt += `2. If there are incorrect answers, briefly explain WHY the correct answer is right for ONLY the questions they got wrong. Do not list the questions they got right.\n`;
+        prompt += `3. Keep the tone encouraging and educational.\n`;
+        prompt += `4. Keep the response concise (under 150 words).`;
+
+        // Send prompt to chatbot (invisible to user)
+        // We use the existing sendMessage logic but bypass the UI input
+        await sendSystemMessageToBot(prompt);
+
+      } catch (error) {
+        console.error("Error analyzing quiz:", error);
+        chatMessages.value.push({
+          text: "I'm having trouble retrieving the details for this quiz attempt. How else can I help you?",
+          sender: "bot",
+        });
+        scrollToBottom();
+      }
+    }
+    
+    // Clear query params
+    router.replace({ path: route.path, query: {} });
   }
+};
+
+// Helper to send system message to bot without showing it in chat as user message
+const sendSystemMessageToBot = async (prompt) => {
+  // Show loading indicator
+  chatMessages.value.push({
+    text: "Analyzing...",
+    sender: "bot",
+    isLoading: true,
+  });
+  await nextTick();
+  scrollToBottom();
+
+  try {
+    const response = await api.post("/genai/chat", {
+      message: prompt,
+    });
+
+    // Remove loading message
+    chatMessages.value.pop();
+
+    if (response.data && response.data.response) {
+      chatMessages.value.push({
+        text: response.data.response,
+        sender: "bot",
+      });
+    } else {
+      throw new Error("No response from bot");
+    }
+  } catch (error) {
+    chatMessages.value.pop(); // Remove loading
+    chatMessages.value.push({
+      text: "Sorry, I couldn't finish the analysis. Please try asking me a specific question.",
+      sender: "bot",
+    });
+  }
+  
+  await nextTick();
+  scrollToBottom();
 };
 
 watch(

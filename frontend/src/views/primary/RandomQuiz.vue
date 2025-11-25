@@ -61,6 +61,9 @@
       <h2 class="score-animate mt-3">
         🎉 Your Score: {{ animatedScore }} / {{ questions.length }}
       </h2>
+      <h4 class="text-primary fw-bold mt-2">
+        +{{ animatedScore * 10 }} Points Earned
+      </h4>
 
       <h4 class="mt-4">Correct Answers</h4>
       <ul class="list-group mt-3">
@@ -177,6 +180,21 @@ const finishQuiz = () => {
     if (x >= score.value) clearInterval(anim);
     x++;
   }, 50);
+
+  // Submit score to backend
+  submitScore();
+};
+
+const submitScore = async () => {
+  try {
+    await api.post('/genai/random-quiz/score', {
+      score: score.value
+    });
+    // Optional: Show success message or toast
+    // alert(`You earned ${score.value} points!`); 
+  } catch (err) {
+    console.error("Failed to submit score:", err);
+  }
 };
 
 /* BUTTON COLORS */
@@ -282,7 +300,7 @@ const launchConfetti = () => {
   width: 120px;
   height: 120px;
   margin: 15px auto;
-  position: relative;
+  position: relative; 
 }
 .timer-circle svg {
   width: 120px;
@@ -302,10 +320,16 @@ const launchConfetti = () => {
 }
 .timer-text {
   position: absolute;
-  top: 38px;
-  left: 47px;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   font-size: 22px;
   font-weight: bold;
+  pointer-events: none; /* Ensure clicks pass through if needed */
 }
 
 .confetti-canvas {
