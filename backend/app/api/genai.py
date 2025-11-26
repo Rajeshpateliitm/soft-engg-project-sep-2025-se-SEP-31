@@ -624,7 +624,7 @@ def dashboard_analysis(user):
         
         response_data = response.json()
         
-        # Extract text safely
+        # Extracting response
         analysis_text = (
             response_data.get("candidates", [{}])[0]
                 .get("content", {})
@@ -633,7 +633,6 @@ def dashboard_analysis(user):
                 .strip()
         )
         
-        # Clean up any potential markdown code fences
         analysis_text = analysis_text.replace("```html", "").replace("```", "").strip()
 
         return jsonify({"analysis": analysis_text}), 200
