@@ -18,35 +18,7 @@ conversation_history = {}
 MAX_HISTORY_PAIRS = 5
 
 # System prompt for waste management chatbot
-# SYSTEM_PROMPT = """You are the *Wastewise GenAI Chatbot, a specialized, expert assistant for **Indian households* focused on proper domestic waste management. Your primary goal is to promote adherence to the latest Indian waste management policies, specifically the *Waste Management Rules, 2016* and subsequent amendments.
 
-# ### 1. Persona and Goal:
-# * *Name:* Wastewise Guide (or similar helpful name).
-# * *Persona:* A highly knowledgeable, patient, and eco-conscious waste management expert. Your tone is simple, encouraging, and non-judgmental. Use clear, accessible Hindi or English as requested by the user, but default to English.
-# * *Goal:* To provide accurate, actionable, and policy-compliant guidance on household waste segregation, recycling, and creative reuse, focusing specifically on products common in Indian homes.
-
-# ### 2. Core Constraints and Expertise (The Three Bins):
-# * *Segregation Standard:* All advice must align with the *three-bin segregation system* mandated in India:
-#     1.  *Wet Waste / Biodegradable (Green Bin):* For kitchen waste, garden waste, etc.
-#     2.  *Dry Waste / Non-Biodegradable (Blue Bin):* For paper, plastic, metal, glass, etc.
-#     3.  *Domestic Hazardous Waste (Red Bin):* For expired medicines, sanitary waste, batteries, broken glass, chemical cleaners, and e-waste.
-# * *Policy Focus:* Prioritize information based on the *Swachh Bharat Mission* guidelines and the *Solid Waste Management Rules, 2016*.
-# * *Local Context:* Acknowledge and address common Indian household waste items (e.g., milk pouches, oil packets, Pooja flowers/materials, agarbatti ash, expired pickles, coconut shells, sanitary pads, CFL bulbs, etc.).
-
-# ### 3. Response Guidelines:
-# * *Segregation Queries:* When asked "Where does [X] go?", respond clearly with the designated bin and a brief reason.
-#     * Format Example: "[X]** goes into the *[Colour] Bin (Bin Type)* because it is [Reason]. Always ensure it is [Pre-treatment, e.g., rinsed, dried, wrapped]."
-# * *Recycle/Reuse Queries:* When asked "How to recycle/reuse [X]?", provide simple, step-by-step instructions.
-#     * *Recycling:* Specify if the item must be cleaned/dried before placing it in the bin or if it needs to be handed over to an authorized collector (like e-waste).
-#     * *Reuse/Upcycling:* Provide a simple, creative, and practical suggestion for repurposing the item within a household context.
-# * *Unsafe Waste (Hazardous/Sanitary):* For hazardous/sanitary waste, explicitly state that it must be wrapped securely (e.g., in a newspaper/polythene bag and marked with an 'X') before disposal in the designated bin/handover, for the safety of waste handlers.
-# * *Composting/DIY:* Offer simple, accessible methods for home composting wet waste upon request.
-
-# ### 4. Language and Style:
-# * Maintain a clear, simple, and direct communication style.
-# * Use bullet points or numbered lists for step-by-step guides.
-# * Be encouraging and acknowledge the user's effort towards sustainability.
-# ### 5. Answer the user's query by taking previous chats and user details into account only when relevant to the query but reply with username first time or when required."""
 SYSTEM_PROMPT = """
 You are the Wastewise GenAI Chatbot, a specialized assistant for Indian households focused on proper domestic waste management. Your primary goal is to promote adherence to the Solid Waste Management Rules 2016 and subsequent amendments.
 
@@ -79,6 +51,17 @@ You are the Wastewise GenAI Chatbot, a specialized assistant for Indian househol
 - Always prioritize accuracy, safety, and compliance with Indian waste management standards.
 
 6. Answer the user's query by taking previous chats and user details into account only when relevant to the query but reply with username first time or when required.
+
+7. WasteWise Points & Rewards System (Internal Policy):
+- If users ask about points or how to earn them, explain the following rules clearly:
+    * Daily Quiz: Earn 10 points for every correct answer.
+    * Campaign Registration: Earn 20 points for registering for a campaign.
+    * Waste Disposal: Earn points when your pickup is accepted by a collector:
+        - +5 points for separating waste (Wet/Dry/Hazardous).
+        - +10 points for recycling (if marked as recycled).
+        - Total possible per pickup: 15 points.
+    * Penalty: -5 points if a pickup request is rejected by the collector.
+- Encourage users to maintain a streak of logging waste and taking quizzes to climb the Community Leaderboard.
 
 """
 
@@ -549,4 +532,111 @@ def random_quiz(user):
         return jsonify(quiz), 200
 
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/random-quiz/score", methods=["POST"])
+@token_required
+def random_quiz_score(user):
+    """
+    Update user points from random quiz.
+    """
+    try:
+        data = request.get_json()
+        score = data.get("score", 0)
+        
+        if not isinstance(score, int) or score < 0:
+             return jsonify({"error": "Invalid score"}), 400
+
+        # Update user points
+        from app.models import db
+        points_earned = score * 10
+        user.points += points_earned
+        db.session.commit()
+
+        return jsonify({
+            "message": "Score updated successfully",
+            "new_points": user.points,
+            "points_earned": points_earned
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/dashboard-analysis", methods=["POST"])
+@token_required
+def dashboard_analysis(user):
+    """
+    Analyze dashboard data using Gemini.
+    """
+    try:
+        data = request.get_json()
+        dashboard_data = data.get("data")
+        context = data.get("context", "Dashboard Data")
+
+        if not dashboard_data:
+            return jsonify({"error": "No data provided"}), 400
+
+        api_config = get_api_config()
+        gemini_key = api_config["key"]
+        gemini_model = api_config["model"]
+        gemini_base_url = api_config["base_url"]
+        
+        if not gemini_key:
+             return jsonify({"error": "API key not configured"}), 500
+
+        encoded_key = quote_plus(gemini_key)
+        api_url = f"{gemini_base_url}/{gemini_model}:generateContent?key={encoded_key}"
+
+        prompt = f"""
+        Analyze this waste management data for a user.
+        Context: {context}
+        Data: {dashboard_data}
+
+        Please provide:
+        1. A brief, friendly summary (2-3 sentences).
+        2. 2-3 actionable suggestions (including specific campaign ideas or initiatives) based on their waste generation, engagement, and quiz performance.
+        
+        IMPORTANT FORMATTING INSTRUCTIONS:
+        - Return raw HTML without markdown code blocks.
+        - Structure:
+            <p><strong>Summary:</strong> [Summary text]</p>
+            <p><strong>Suggestions:</strong></p>
+            <ul>
+                <li>[Suggestion 1]</li>
+                <li>[Suggestion 2]</li>
+                <li>[Suggestion 3]</li>
+            </ul>
+        - Do NOT use ```html or ``` tags.
+        - Keep it compact and professional.
+        """
+
+        payload = {
+            "contents": [{
+                "role": "user",
+                "parts": [{"text": prompt}]
+            }]
+        }
+
+        response = requests.post(api_url, json=payload)
+        response.raise_for_status()
+        
+        response_data = response.json()
+        
+        # Extracting response
+        analysis_text = (
+            response_data.get("candidates", [{}])[0]
+                .get("content", {})
+                .get("parts", [{}])[0]
+                .get("text", "")
+                .strip()
+        )
+        
+        analysis_text = analysis_text.replace("```html", "").replace("```", "").strip()
+
+        return jsonify({"analysis": analysis_text}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Dashboard analysis error: {str(e)}")
         return jsonify({"error": str(e)}), 500

@@ -11,6 +11,14 @@
     </div>
     
     <div v-else class="row">
+      <!-- GenAI Summary Button -->
+       <div class="col-12 mb-4" v-if="wasteSummaryData">
+        <GenAISummaryButton 
+          :data="{ rwa_stats: dashboardData.rwa_leaderboard, waste_summary: wasteSummaryData }" 
+          context="RWA Dashboard (Secondary User). This data represents the aggregated performance of all households in this RWA/Locality. The 'rwa_stats' shows their rank compared to other RWAs. The 'waste_summary' shows detailed segregation and recycling rates of households. Please provide suggestions to improve their RWA Rank and overall waste management efficiency, including specific ideas for new campaigns they could launch." 
+        />
+      </div>
+
       <!-- RWA Leaderboard Card -->
       <div class="col-md-6 col-lg-4 mb-4">
         <div class="card shadow-lg h-100">
@@ -87,6 +95,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
+import GenAISummaryButton from '@/components/GenAISummaryButton.vue';
 
 const loading = ref(true);
 const errorMessage = ref('');
@@ -94,6 +103,7 @@ const dashboardData = ref({
   user_role: null,
   rwa_leaderboard: null
 });
+const wasteSummaryData = ref(null);
 
 const fetchDashboard = async () => {
   try {
@@ -101,6 +111,10 @@ const fetchDashboard = async () => {
     errorMessage.value = '';
     const response = await api.get('/secondary/dashboard');
     dashboardData.value = response.data;
+
+    // Fetch waste summary for GenAI analysis
+    const summaryResponse = await api.get('/secondary/waste-summary');
+    wasteSummaryData.value = summaryResponse.data;
   } catch (error) {
     console.error('Error fetching dashboard:', error);
     errorMessage.value = error.response?.data?.error || 'Failed to load dashboard data. Please try again.';

@@ -277,6 +277,50 @@ def get_quiz_performance(user):
     }), 200
 
 
+@bp.route("/quiz/attempt/<int:attempt_id>", methods=["GET"])
+@token_required
+def get_quiz_attempt_details(user, attempt_id):
+    """Get detailed information about a specific quiz attempt."""
+    attempt = QuizAttempt.query.filter_by(id=attempt_id, user_id=user.id).first()
+    
+    if not attempt:
+        return jsonify({"error": "Quiz attempt not found"}), 404
+        
+    details = {
+        "id": attempt.id,
+        "date": attempt.created_at.isoformat(),
+        "score": attempt.score,
+        "total_questions": attempt.total_questions,
+        "questions": []
+    }
+    
+    # Fetch answers and related question details
+    for answer in attempt.answers:
+        question = answer.question
+        selected_option = answer.selected_option
+        
+        # Get all options for this question to identify the correct one
+        options = []
+        correct_option_text = ""
+        for opt in question.options:
+            options.append({
+                "text": opt.option_text,
+                "is_correct": opt.is_correct
+            })
+            if opt.is_correct:
+                correct_option_text = opt.option_text
+        
+        details["questions"].append({
+            "question_text": question.question_text,
+            "selected_option": selected_option.option_text if selected_option else "Skipped",
+            "is_correct": answer.is_correct,
+            "correct_option": correct_option_text,
+            "options": options
+        })
+        
+    return jsonify(details), 200
+
+
 @bp.route("/waste-log", methods=["POST"])
 @token_required
 def log_waste(user):

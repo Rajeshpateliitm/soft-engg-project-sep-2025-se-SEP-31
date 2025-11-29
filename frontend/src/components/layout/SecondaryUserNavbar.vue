@@ -42,24 +42,24 @@
                 DASHBOARD
               </router-link>
             </li>
-            <li class="nav-item">
+            <!-- <li class="nav-item">
               <router-link
                 to="/secondary-dashboard/waste-summary"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
               >
-                <!-- WASTE SUMMARY
+                WASTE SUMMARY
               </router-link>
-            </li>
-            <li class="nav-item">
+            </li> -->
+            <!-- <li class="nav-item">
               <router-link 
                 to="/secondary-dashboard/campaigns" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
-              > -->
+              >
                 CAMPAIGNS
               </router-link>
-            </li>
+            </li> -->
             <li class="nav-item">
               <router-link
                 to="/secondary-dashboard/daily-pickup-details"
