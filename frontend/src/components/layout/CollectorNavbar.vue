@@ -38,6 +38,7 @@
                 to="/collector-dashboard"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 COLLECTOR PICKUP DASHBOARD
               </router-link>
@@ -99,10 +100,15 @@ const currentDateTime = ref("");
 
 const updateDateTime = () => {
   const now = new Date();
-  currentDateTime.value =
-    now.toISOString().split("T")[0] +
-    " " +
-    now.toISOString().split("T")[1].substring(0, 8);
+  currentDateTime.value = now.toLocaleString("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
 
 const handleLogout = () => {
@@ -114,7 +120,7 @@ let datetimeInterval;
 
 onMounted(() => {
   updateDateTime();
-  datetimeInterval = setInterval(updateDateTime, 1000);
+  datetimeInterval = setInterval(updateDateTime, 60000); // Update every minute
 });
 
 onUnmounted(() => {

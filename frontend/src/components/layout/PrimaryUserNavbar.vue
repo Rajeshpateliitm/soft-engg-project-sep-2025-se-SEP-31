@@ -38,6 +38,7 @@
                 to="/primary-dashboard"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 DASHBOARD
               </router-link>
@@ -47,6 +48,7 @@
                 to="/primary-dashboard/quiz"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 QUIZ
               </router-link>
@@ -56,6 +58,7 @@
                 to="/primary-dashboard/wastelog"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 WASTELOG
               </router-link>
@@ -65,6 +68,7 @@
                 to="/primary-dashboard/campaigns"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 CAMPAIGNS
               </router-link>

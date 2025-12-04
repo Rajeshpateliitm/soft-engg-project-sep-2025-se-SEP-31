@@ -38,6 +38,7 @@
                 to="/secondary-dashboard"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 DASHBOARD
               </router-link>
@@ -47,6 +48,7 @@
                 to="/secondary-dashboard/waste-summary"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 WASTE SUMMARY
               </router-link>
@@ -56,6 +58,7 @@
                 to="/secondary-dashboard/campaigns" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 CAMPAIGNS
               </router-link>
@@ -65,6 +68,7 @@
                 to="/secondary-dashboard/daily-pickup-details"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 PICKUP REQUESTS
               </router-link>
@@ -74,6 +78,7 @@
                 to="/secondary-dashboard/pickup-summary"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
+                exact-active-class="active"
               >
                 PICKUP SUMMARY
               </router-link>
@@ -135,11 +140,15 @@ const currentDateTime = ref("");
 
 const updateDateTime = () => {
   const now = new Date();
-  // Format as ISO 8601 format
-  currentDateTime.value =
-    now.toISOString().split("T")[0] +
-    " " +
-    now.toISOString().split("T")[1].substring(0, 8);
+  currentDateTime.value = now.toLocaleString("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
 
 const handleLogout = () => {
@@ -151,7 +160,7 @@ let datetimeInterval;
 
 onMounted(() => {
   updateDateTime();
-  datetimeInterval = setInterval(updateDateTime, 1000); // Update every second for ISO format
+  datetimeInterval = setInterval(updateDateTime, 60000); // Update every minute
 });
 
 onUnmounted(() => {
