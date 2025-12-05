@@ -1,11 +1,11 @@
 <template>
-  <div class="signin-page">
+  <div class="reset-password-page">
     <div class="container py-5">
       <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
           <div class="card shadow-lg">
             <div class="card-header bg-primary text-white text-center py-3">
-              <h2 class="mb-0">Sign In</h2>
+              <h2 class="mb-0">Reset Password</h2>
             </div>
             <div class="card-body p-4">
               <form @submit.prevent="handleSubmit" class="needs-validation" novalidate>
@@ -17,24 +17,42 @@
                     id="email" 
                     v-model="formData.email" 
                     required
+                    placeholder="Enter your registered email"
                   >
                   <div class="invalid-feedback">
                     Please enter a valid email address.
                   </div>
                 </div>
 
-                <div class="mb-3">
-                  <label for="password" class="form-label">Password</label>
-                  <input 
-                    type="password" 
-                    class="form-control" 
-                    id="password" 
-                    v-model="formData.password" 
-                    required
-                    minlength="6"
-                  >
-                  <div class="invalid-feedback">
-                    Password must be at least 6 characters long.
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="password" class="form-label">New Password</label>
+                    <input 
+                      type="password" 
+                      class="form-control" 
+                      id="password" 
+                      v-model="formData.password" 
+                      required
+                      minlength="8"
+                      placeholder="At least 8 characters"
+                    >
+                    <div class="invalid-feedback">
+                      Password must be at least 8 characters long.
+                    </div>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label for="confirmPassword" class="form-label">Confirm Password</label>
+                    <input 
+                      type="password" 
+                      class="form-control" 
+                      id="confirmPassword" 
+                      v-model="formData.confirmPassword" 
+                      required
+                      placeholder="Re-enter password"
+                    >
+                    <div class="invalid-feedback">
+                      Passwords must match.
+                    </div>
                   </div>
                 </div>
 
@@ -42,21 +60,8 @@
                   {{ errorMessage }}
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                  <div class="form-check">
-                    <input 
-                      class="form-check-input" 
-                      type="checkbox" 
-                      id="rememberMe" 
-                      v-model="formData.rememberMe"
-                    >
-                    <label class="form-check-label" for="rememberMe">
-                      Remember me
-                    </label>
-                  </div>
-                  <div>
-                    <router-link to="/reset-password" class="text-primary">Forgot password?</router-link>
-                  </div>
+                <div v-if="successMessage" class="alert alert-success mb-3" role="alert">
+                  {{ successMessage }}
                 </div>
 
                 <div class="d-grid gap-2">
@@ -66,15 +71,15 @@
                     :disabled="isLoading"
                   >
                     <span v-if="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    {{ isLoading ? 'Signing In...' : 'Sign In' }}
+                    {{ isLoading ? 'Resetting Password...' : 'Reset Password' }}
                   </button>
                 </div>
               </form>
 
               <div class="text-center mt-4">
                 <p class="mb-0">
-                  Don't have an account? 
-                  <router-link to="/register">Sign up here</router-link>
+                  Remember your password? 
+                  <router-link to="/signin">Sign in here</router-link>
                 </p>
               </div>
             </div>
@@ -88,23 +93,24 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth';
+import api from '../services/api';
 
 const router = useRouter();
-const authStore = useAuthStore();
 
 const formData = ref({
   email: '',
   password: '',
-  rememberMe: false
+  confirmPassword: ''
 });
 
 const isLoading = ref(false);
 const errorMessage = ref('');
+const successMessage = ref('');
 
 const handleSubmit = async (event) => {
   const form = document.querySelector('.needs-validation');
   errorMessage.value = '';
+  successMessage.value = '';
   
   if (form.checkValidity() === false) {
     event.preventDefault();
@@ -113,30 +119,63 @@ const handleSubmit = async (event) => {
     return;
   }
 
+  // Validate password match
+  if (formData.value.password !== formData.value.confirmPassword) {
+    errorMessage.value = 'Passwords do not match';
+    form.classList.add('was-validated');
+    return;
+  }
+
+  // Validate password length
+  if (formData.value.password.length < 8) {
+    errorMessage.value = 'Password must be at least 8 characters long';
+    form.classList.add('was-validated');
+    return;
+  }
+
   isLoading.value = true;
 
   try {
-    const result = await authStore.login(formData.value.email, formData.value.password);
-    
-    if (result.success) {
-      // Redirect based on user category from backend response
-      const dashboardRoute = authStore.getDashboardRoute();
-      router.push(dashboardRoute);
-    } else {
-      errorMessage.value = result.error || 'Login failed. Please check your credentials.';
+    const response = await api.post('/auth/reset-password', {
+      email: formData.value.email,
+      new_password: formData.value.password,
+      confirm_password: formData.value.confirmPassword
+    });
+
+    if (response.status === 200) {
+      successMessage.value = 'Password has been successfully reset! Redirecting to sign in...';
+      
+      // Reset form
+      formData.value = {
+        email: '',
+        password: '',
+        confirmPassword: ''
+      };
+      form.classList.remove('was-validated');
+
+      // Redirect to signin after 2 seconds
+      setTimeout(() => {
+        router.push('/signin');
+      }, 2000);
     }
   } catch (error) {
-    console.error('Login error:', error);
-    errorMessage.value = 'An error occurred during login. Please try again.';
+    console.error('Password reset error:', error);
+    if (error.response?.data?.error) {
+      errorMessage.value = error.response.data.error;
+    } else if (error.response?.data?.message) {
+      errorMessage.value = error.response.data.message;
+    } else {
+      errorMessage.value = 'An error occurred while resetting your password. Please try again.';
+    }
+    form.classList.add('was-validated');
   } finally {
     isLoading.value = false;
-    form.classList.add('was-validated');
   }
 };
 </script>
 
 <style scoped>
-.signin-page {
+.reset-password-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   padding: 2rem 0;
@@ -172,6 +211,12 @@ const handleSubmit = async (event) => {
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
 a {
   text-decoration: none;
   transition: all 0.3s ease;
@@ -204,5 +249,20 @@ a:hover {
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.1875rem) center;
   background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.alert {
+  border-radius: 0.375rem;
+  border: none;
+}
+
+.alert-success {
+  background-color: #d1e7dd;
+  color: #0f5132;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  color: #842029;
 }
 </style>

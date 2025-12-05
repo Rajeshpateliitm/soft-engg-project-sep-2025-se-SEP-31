@@ -13,6 +13,11 @@
             <div class="nav-left">
               <span class="nav-item active">DASHBOARD</span>
             </div>
+            <div class="nav-center">
+              <span class="nav-item">
+                <i class="bi bi-clock me-1"></i> {{ currentDateTime }}
+              </span>
+            </div>
             <div class="nav-right">
               <!-- <span class="nav-item">&lt;&lt;&gt;&gt;</span>
               <span class="nav-item">&lt;&lt;&gt;&gt;</span> -->
@@ -223,13 +228,31 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
 
 const router = useRouter();
 const authStore = useAuthStore();
+
+// DateTime
+const currentDateTime = ref('');
+
+const updateDateTime = () => {
+  const now = new Date();
+  currentDateTime.value = now.toLocaleString("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+let datetimeInterval;
 
 // Dashboard data
 const loading = ref(true);
@@ -316,7 +339,15 @@ const getComplianceBadgeClass = (compliance) => {
 
 // Fetch data on component mount
 onMounted(() => {
+  updateDateTime();
+  datetimeInterval = setInterval(updateDateTime, 60000); // Update every minute
   fetchDashboardData();
+});
+
+onUnmounted(() => {
+  if (datetimeInterval) {
+    clearInterval(datetimeInterval);
+  }
 });
 </script>
 
@@ -354,6 +385,7 @@ onMounted(() => {
 }
 
 .nav-left,
+.nav-center,
 .nav-right {
   display: flex;
   gap: 2rem;
