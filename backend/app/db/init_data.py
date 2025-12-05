@@ -227,6 +227,16 @@ def init_sample_data():
                     "pincode": "700064",
                     "image_url": None,
                     "ward_id": ward_2.id
+                },
+                {
+                    
+                    "name": "Plastic-Free Neighborhood Drive",
+                    "description": "Join us for a hands-on community initiative to reduce single-use plastics and promote sustainable alternatives.",
+                    "event_datetime": datetime(2026, 3, 5, 10, 30),
+                    "location": "BD Market Park, Salt Lake",
+                    "pincode": "700064",
+                    "image_url": None,
+                    "ward_id": ward_2.id
                 }
             ]
             

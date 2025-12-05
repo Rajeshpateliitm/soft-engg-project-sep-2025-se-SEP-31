@@ -36,9 +36,7 @@
             <li class="nav-item">
               <router-link
                 to="/primary-dashboard"
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
-                exact-active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/primary-dashboard') ? 'active' : '']"
               >
                 DASHBOARD
               </router-link>
@@ -46,9 +44,7 @@
             <li class="nav-item">
               <router-link
                 to="/primary-dashboard/quiz"
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
-                exact-active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/primary-dashboard/quiz') ? 'active' : '']"
               >
                 QUIZ
               </router-link>
@@ -56,9 +52,7 @@
             <li class="nav-item">
               <router-link
                 to="/primary-dashboard/wastelog"
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
-                exact-active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/primary-dashboard/wastelog') ? 'active' : '']"
               >
                 WASTELOG
               </router-link>
@@ -66,9 +60,7 @@
             <li class="nav-item">
               <router-link
                 to="/primary-dashboard/campaigns"
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
-                exact-active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/primary-dashboard/campaigns') ? 'active' : '']"
               >
                 CAMPAIGNS
               </router-link>
@@ -124,12 +116,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import ThemeToggle from "../ThemeToggle.vue";
 import AppFooter from "./AppFooter.vue";
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const currentDateTime = ref("");
 
@@ -144,6 +137,10 @@ const updateDateTime = () => {
     minute: "2-digit",
     hour12: true,
   });
+};
+
+const isActive = (path) => {
+  return route.path === path;
 };
 
 const handleLogout = () => {

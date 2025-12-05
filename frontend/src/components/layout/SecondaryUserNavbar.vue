@@ -36,8 +36,7 @@
             <li class="nav-item">
               <router-link
                 to="/secondary-dashboard"
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/secondary-dashboard') ? 'active' : '']"
               >
                 DASHBOARD
               </router-link>
@@ -45,8 +44,7 @@
             <!-- <li class="nav-item">
               <router-link
                 to="/secondary-dashboard/waste-summary"
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/secondary-dashboard/waste-summary') ? 'active' : '']"
               >
                 WASTE SUMMARY
               </router-link>
@@ -54,8 +52,7 @@
             <!-- <li class="nav-item">
               <router-link 
                 to="/secondary-dashboard/campaigns" 
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/secondary-dashboard/campaigns') ? 'active' : '']"
               >
                 CAMPAIGNS
               </router-link>
@@ -63,8 +60,7 @@
             <li class="nav-item">
               <router-link
                 to="/secondary-dashboard/daily-pickup-details"
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/secondary-dashboard/daily-pickup-details') ? 'active' : '']"
               >
                 PICKUP REQUESTS
               </router-link>
@@ -72,8 +68,7 @@
             <li class="nav-item">
               <router-link
                 to="/secondary-dashboard/pickup-summary"
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/secondary-dashboard/pickup-summary') ? 'active' : '']"
               >
                 PICKUP SUMMARY
               </router-link>
@@ -124,12 +119,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import ThemeToggle from "../ThemeToggle.vue";
 import AppFooter from "./AppFooter.vue";
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const currentDateTime = ref("");
 
@@ -144,6 +140,10 @@ const updateDateTime = () => {
   const seconds = String(now.getSeconds()).padStart(2, '0');
   
   currentDateTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+const isActive = (path) => {
+  return route.path === path;
 };
 
 const handleLogout = () => {
