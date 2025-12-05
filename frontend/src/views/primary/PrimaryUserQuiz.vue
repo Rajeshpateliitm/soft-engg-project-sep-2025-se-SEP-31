@@ -285,12 +285,15 @@ const selectOption = (index) => {
     selectedOption.value = index;
 
     const question = currentQuestion.value;
-    if (question && question.options && question.options[index]) {
-      const selectedOptionObj = question.options[index];
-      userAnswers.value[question.id] = selectedOptionObj.id;
-    }
+
+const selectedOptionObj = question?.options?.[index];
+if (selectedOptionObj) {
+  userAnswers.value[question?.id] = selectedOptionObj.id;
+}
+
   }
 };
+
 
 const checkAnswer = () => {
   if (selectedOption.value === null || !currentQuestion.value) return;
@@ -298,12 +301,10 @@ const checkAnswer = () => {
   showFeedback.value = true;
 
   const question = currentQuestion.value;
-  if (question.options && question.options[selectedOption.value]) {
-    const selectedOptionObj = question.options[selectedOption.value];
+  const selectedOptionObj = question?.options?.[selectedOption.value];
 
-    if (selectedOptionObj.is_correct) {
-      score.value++;
-    }
+  if (selectedOptionObj?.is_correct) {
+    score.value++;
   }
 };
 
@@ -326,15 +327,16 @@ const previousQuestion = () => {
 
 const resetQuestion = () => {
   const question = currentQuestion.value;
-  if (question && question.options && userAnswers.value[question.id]) {
-    const selectedOptionId = userAnswers.value[question.id];
-    const optionIndex = question.options.findIndex(opt => opt.id === selectedOptionId);
-    selectedOption.value = optionIndex >= 0 ? optionIndex : null;
-  } else {
-    selectedOption.value = null;
-  }
+
+  const selectedOptionId = userAnswers.value?.[question?.id];
+  const optionIndex = question?.options?.findIndex(
+    opt => opt.id === selectedOptionId
+  ) ?? -1;
+
+  selectedOption.value = optionIndex >= 0 ? optionIndex : null;
   showFeedback.value = false;
 };
+
 
 // ============================================================================
 // QUIZ SUBMISSION

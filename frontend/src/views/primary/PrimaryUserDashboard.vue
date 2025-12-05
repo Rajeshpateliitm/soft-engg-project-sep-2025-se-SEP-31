@@ -345,7 +345,7 @@ const checkAutoOpenChat = async () => {
 
         prompt += `Instructions:\n`;
         prompt += `1. If the user got all questions correct (Score: ${attempt.total_questions}/${attempt.total_questions}), simply congratulate them warmly and encourage them to keep it up.\n`;
-        prompt += `2. If there are incorrect answers, briefly explain WHY the correct answer is right for ONLY the questions they got wrong. Do not list the questions they got right.\n`;
+        prompt += `2. For each incorrect answer, FIRST write the 'Question Text', THEN write "The correct answer is [Answer]" and explain why.\n`;
         prompt += `3. Keep the tone encouraging and educational.\n`;
         prompt += `4. Keep the response concise (under 150 words).`;
 
