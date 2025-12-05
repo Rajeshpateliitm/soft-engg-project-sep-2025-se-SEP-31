@@ -1,42 +1,37 @@
 <template>
-  
   <div class="primary-user-quiz">
-    <!-- <button class="btn btn-primary" @click="startRandomQuiz">
-  Try Random Quiz
-</button> -->
-<div class="quiz-header d-flex justify-content-between align-items-center mb-4">
+    <!-- Header with Title and Random Quiz Button -->
+    <div class="quiz-header d-flex justify-content-between align-items-center mb-4">
+      <h2 class="fw-bold m-0">Waste Management Quiz</h2>
+      <button class="btn btn-primary" @click="startRandomQuiz" :disabled="loading">
+        Try Random Quiz
+      </button>
+    </div>
 
-  <!-- LEFT SIDE TEXT -->
-  <h2 class="fw-bold m-0">Waste Management Quiz</h2>
+    <!-- Error Message -->
+    <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+      {{ errorMessage }}
+      <button type="button" class="btn-close" @click="errorMessage = ''"></button>
+    </div>
 
-  <!-- RIGHT SIDE BUTTON -->
-  <button class="btn btn-primary" @click="startRandomQuiz">
-    Try Random Quiz
-  </button>
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="loading-overlay">
+      <div class="spinner"></div>
+      <p class="loading-text">Generating your random quiz…</p>
+    </div>
 
-</div>
-
-<!-- FULLSCREEN LOADING OVERLAY -->
-<div v-if="loading" class="loading-overlay">
-  <div class="spinner"></div>
-  <p class="loading-text">Generating your random quiz…</p>
-</div>
-
-
+    <!-- Quiz Container -->
     <div class="quiz-container">
-      <!-- Quiz Header -->
-       
+      <!-- Progress Bar -->
       <div class="quiz-header text-center mb-4">
-        <!-- <h2 class="fw-bold">Waste Management Quiz</h2> -->
         <div class="quiz-progress">
-          
           <div class="progress" style="height: 10px;">
-            <div 
-              class="progress-bar bg-success" 
-              role="progressbar" 
+            <div
+              class="progress-bar bg-success"
+              role="progressbar"
               :style="{ width: progress + '%' }"
-              :aria-valuenow="progress" 
-              aria-valuemin="0" 
+              :aria-valuenow="progress"
+              aria-valuemin="0"
               aria-valuemax="100"
             ></div>
           </div>
@@ -66,21 +61,22 @@
         <div class="question-card card shadow-sm mb-4">
           <div class="card-body">
             <h4 class="question-text mb-4">{{ currentQuestion.question_text }}</h4>
-            
+
             <div v-if="currentQuestion.image" class="question-image mb-4">
-              <img 
-                :src="currentQuestion.image" 
-                :alt="'Question ' + (currentQuestionIndex + 1)" 
+              <img
+                :src="currentQuestion.image"
+                :alt="'Question ' + (currentQuestionIndex + 1)"
                 class="img-fluid rounded"
               >
             </div>
 
+            <!-- Options -->
             <div class="options-container">
-              <div 
-                v-for="(option, index) in currentQuestion.options" 
+              <div
+                v-for="(option, index) in currentQuestion.options"
                 :key="index"
                 class="option-item mb-3"
-                :class="{ 
+                :class="{
                   'selected': selectedOption === index,
                   'correct': showFeedback && option.is_correct,
                   'incorrect': showFeedback && selectedOption === index && !option.is_correct
@@ -92,11 +88,11 @@
                   <span class="option-text">{{ option.option_text }}</span>
                 </div>
                 <div v-if="showFeedback" class="feedback-icon">
-                  <i 
-                    v-if="option.is_correct" 
+                  <i
+                    v-if="option.is_correct"
                     class="bi bi-check-circle-fill text-success"
                   ></i>
-                  <i 
+                  <i
                     v-else-if="selectedOption === index && !option.is_correct"
                     class="bi bi-x-circle-fill text-danger"
                   ></i>
@@ -108,26 +104,26 @@
 
         <!-- Navigation Buttons -->
         <div class="quiz-navigation d-flex justify-content-between">
-          <button 
-            class="btn btn-outline-primary" 
+          <button
+            class="btn btn-outline-primary"
             :disabled="currentQuestionIndex === 0"
             @click="previousQuestion"
           >
             <i class="bi bi-arrow-left me-1"></i> Previous
           </button>
-          
-          <button 
+
+          <button
             v-if="!showFeedback"
-            class="btn btn-primary" 
+            class="btn btn-primary"
             :disabled="selectedOption === null"
             @click="checkAnswer"
           >
             Submit Answer
           </button>
-          
-          <button 
+
+          <button
             v-else
-            class="btn btn-primary" 
+            class="btn btn-primary"
             @click="nextQuestion"
           >
             {{ isLastQuestion ? 'Finish Quiz' : 'Next Question' }}
@@ -169,44 +165,34 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import api from '../../services/api';
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import api from "../../services/api";
 
 const router = useRouter();
 
+// ============================================================================
+// STATE
+// ============================================================================
+
 const questions = ref([]);
-const userAnswers = ref({}); // Store {question_id: selected_option_id}
+const userAnswers = ref({});
 const currentQuestionIndex = ref(0);
 const selectedOption = ref(null);
 const score = ref(0);
 const showFeedback = ref(false);
 const quizCompleted = ref(false);
 const isLoading = ref(true);
-const errorMessage = ref('');
+const errorMessage = ref("");
 const submittedScore = ref(null);
+const loading = ref(false);
 
-// Fetch questions from backend
-const fetchQuestions = async () => {
-  try {
-    isLoading.value = true;
-    const response = await api.get('/primary/quiz/questions?limit=10');
-    questions.value = response.data.questions;
-    
-    if (questions.value.length === 0) {
-      errorMessage.value = 'No quiz questions available. Please try again later.';
-    }
-  } catch (error) {
-    console.error('Error fetching questions:', error);
-    errorMessage.value = 'Failed to load quiz questions. Please try again.';
-  } finally {
-    isLoading.value = false;
-  }
-};
+// Daily quiz limit tracking
+const DAILY_QUIZ_LIMIT = 2;
 
-onMounted(() => {
-  fetchQuestions();
-});
+// ============================================================================
+// COMPUTED
+// ============================================================================
 
 const currentQuestion = computed(() => {
   if (questions.value.length === 0 || currentQuestionIndex.value >= questions.value.length) {
@@ -214,28 +200,90 @@ const currentQuestion = computed(() => {
   }
   return questions.value[currentQuestionIndex.value];
 });
+
 const isLastQuestion = computed(() => {
   if (questions.value.length === 0) return false;
   return currentQuestionIndex.value === questions.value.length - 1;
 });
+
 const progress = computed(() => {
   if (questions.value.length === 0) return 0;
   return ((currentQuestionIndex.value + 1) / questions.value.length) * 100;
 });
+
 const getResultMessage = computed(() => {
-  if (questions.value.length === 0) return '';
+  if (questions.value.length === 0) return "";
   const percentage = (score.value / questions.value.length) * 100;
-  if (percentage >= 80) return 'Excellent! You\'re a waste management expert!';
-  if (percentage >= 60) return 'Good job! You know quite a bit about waste management.';
-  if (percentage >= 40) return 'Not bad! Keep learning about proper waste disposal.';
-  return 'Keep trying! Check out our resources to learn more about waste management.';
+  if (percentage >= 80) return "Excellent! You're a waste management expert!";
+  if (percentage >= 60) return "Good job! You know quite a bit about waste management.";
+  if (percentage >= 40) return "Not bad! Keep learning about proper waste disposal.";
+  return "Keep trying! Check out our resources to learn more about waste management.";
 });
+
+// ============================================================================
+// DAILY LIMIT HELPERS
+// ============================================================================
+
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split("T")[0];
+};
+
+const getQuizAttemptsToday = () => {
+  const today = getTodayDate();
+  const key = `quiz_attempts_${today}`;
+  const attempts = localStorage.getItem(key);
+  return attempts ? parseInt(attempts, 10) : 0;
+};
+
+const incrementQuizAttempts = () => {
+  const today = getTodayDate();
+  const key = `quiz_attempts_${today}`;
+  const current = getQuizAttemptsToday();
+  localStorage.setItem(key, (current + 1).toString());
+};
+
+const hasReachedDailyLimit = () => {
+  return getQuizAttemptsToday() >= DAILY_QUIZ_LIMIT;
+};
+
+// ============================================================================
+// LIFECYCLE
+// ============================================================================
+
+onMounted(() => {
+  fetchQuestions();
+});
+
+// ============================================================================
+// QUIZ LOADING
+// ============================================================================
+
+const fetchQuestions = async () => {
+  try {
+    isLoading.value = true;
+    const response = await api.get("/primary/quiz/questions?limit=10");
+    questions.value = response.data.questions;
+
+    if (questions.value.length === 0) {
+      errorMessage.value = "No quiz questions available. Please try again later.";
+    }
+  } catch (error) {
+    console.error("Error fetching questions:", error);
+    errorMessage.value = "Failed to load quiz questions. Please try again.";
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// ============================================================================
+// QUIZ INTERACTION
+// ============================================================================
 
 const selectOption = (index) => {
   if (!showFeedback.value && !quizCompleted.value && currentQuestion.value) {
     selectedOption.value = index;
-    
-    // Store the answer
+
     const question = currentQuestion.value;
     if (question && question.options && question.options[index]) {
       const selectedOptionObj = question.options[index];
@@ -246,13 +294,13 @@ const selectOption = (index) => {
 
 const checkAnswer = () => {
   if (selectedOption.value === null || !currentQuestion.value) return;
-  
+
   showFeedback.value = true;
-  
+
   const question = currentQuestion.value;
   if (question.options && question.options[selectedOption.value]) {
     const selectedOptionObj = question.options[selectedOption.value];
-    
+
     if (selectedOptionObj.is_correct) {
       score.value++;
     }
@@ -261,40 +309,11 @@ const checkAnswer = () => {
 
 const nextQuestion = async () => {
   if (isLastQuestion.value) {
-    // Submit quiz when finished
     await submitQuiz();
     quizCompleted.value = true;
   } else {
     currentQuestionIndex.value++;
     resetQuestion();
-  }
-};
-
-const submitQuiz = async () => {
-  try {
-    // Prepare answers in the format expected by backend
-    const answers = Object.entries(userAnswers.value).map(([question_id, selected_option_id]) => ({
-      question_id: parseInt(question_id),
-      selected_option_id: selected_option_id
-    }));
-
-    const response = await api.post('/primary/quiz/submit', {
-      answers: answers
-    });
-
-    submittedScore.value = {
-      score: response.data.score,
-      total_questions: response.data.total_questions,
-      percentage: response.data.percentage,
-      points_earned: response.data.points_earned,
-      total_points: response.data.total_points
-    };
-
-    // Update score with actual score from backend
-    score.value = response.data.score;
-  } catch (error) {
-    console.error('Error submitting quiz:', error);
-    errorMessage.value = 'Failed to submit quiz. Your answers may not be saved.';
   }
 };
 
@@ -306,7 +325,6 @@ const previousQuestion = () => {
 };
 
 const resetQuestion = () => {
-  // Restore previously selected option if exists
   const question = currentQuestion.value;
   if (question && question.options && userAnswers.value[question.id]) {
     const selectedOptionId = userAnswers.value[question.id];
@@ -318,74 +336,115 @@ const resetQuestion = () => {
   showFeedback.value = false;
 };
 
+// ============================================================================
+// QUIZ SUBMISSION
+// ============================================================================
+
+const submitQuiz = async () => {
+  try {
+    const answers = Object.entries(userAnswers.value).map(([question_id, selected_option_id]) => ({
+      question_id: parseInt(question_id),
+      selected_option_id: selected_option_id
+    }));
+
+    const response = await api.post("/primary/quiz/submit", {
+      answers: answers
+    });
+
+    submittedScore.value = {
+      score: response.data.score,
+      total_questions: response.data.total_questions,
+      percentage: response.data.percentage,
+      points_earned: response.data.points_earned,
+      total_points: response.data.total_points
+    };
+
+    score.value = response.data.score;
+  } catch (error) {
+    console.error("Error submitting quiz:", error);
+    errorMessage.value = "Failed to submit quiz. Your answers may not be saved.";
+  }
+};
+
+// ============================================================================
+// QUIZ RESTART
+// ============================================================================
+
 const restartQuiz = () => {
   currentQuestionIndex.value = 0;
   score.value = 0;
   quizCompleted.value = false;
   userAnswers.value = {};
   submittedScore.value = null;
-  errorMessage.value = '';
+  errorMessage.value = "";
   resetQuestion();
   fetchQuestions();
 };
 
-// const startRandomQuiz = async () => {
-//   const res = await api.post(
-//     "/genai/random-quiz",
-//     {}, 
-//     {
-//       headers: {
-//         Authorization: `Bearer ${localStorage.getItem("token")}`
-//       }
-//     }
-//   );
+// ============================================================================
+// RANDOM QUIZ
+// ============================================================================
 
-//   const quiz = res.data;
-
-//   // store quiz temporarily
-//   localStorage.setItem("temp_quiz", JSON.stringify(quiz));
-
-//   // go to quiz page
-//   router.push("/random-quiz");
-// };
-
-const loading = ref(false);
 const startRandomQuiz = async () => {
-  try {
-    loading.value = true;
+  // Check daily limit
+  if (hasReachedDailyLimit()) {
+    errorMessage.value = "You have tried your daily quiz limit. Try next day...";
+    return;
+  }
 
-    // Allow overlay to render
-    await new Promise(r => setTimeout(r, 100));
+  loading.value = true;
+  errorMessage.value = "";
+
+  await new Promise((r) => setTimeout(r, 80));
+
+  try {
     const res = await api.post(
       "/genai/random-quiz",
-      {}, // no body sent
+      {},
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+        },
+        timeout: 20000
       }
     );
+
     if (!res.data || res.data.error) {
-      alert("Error generating quiz: " + res.data?.error);
-      loading.value = false;
+      errorMessage.value = res.data?.error || "Failed to generate quiz.";
       return;
     }
 
-    const quiz = res.data; // axios uses res.data
+    // Increment attempt counter
+    incrementQuizAttempts();
 
-    localStorage.setItem("temp_quiz", JSON.stringify(quiz));
+    localStorage.setItem("temp_quiz", JSON.stringify(res.data));
     router.push({ name: "RandomQuiz" });
 
   } catch (err) {
-    console.error(err);
-    alert("Could not start random quiz!");
+    console.error("Random quiz error:", err);
+
+    if (err.code === "ECONNABORTED") {
+      errorMessage.value = "Quiz generation is taking too long. Please try again.";
+      setTimeout(() => (errorMessage.value = ""), 3000);
+    } else if (!err.response) {
+      errorMessage.value = "Network error — check your internet connection.";
+    } else if (err.response.status === 401) {
+      errorMessage.value = "Session expired. Please sign in again.";
+      router.push("/signin");
+    } else {
+      errorMessage.value = err.response?.data?.error || "Server error — please try again.";
+    }
   }
+
+  loading.value = false;
 };
-
-
 </script>
 
 <style scoped>
+/* ========================================================================== */
+/* LAYOUT */
+/* ========================================================================== */
+
 .primary-user-quiz {
   max-width: 800px;
   margin: 0 auto;
@@ -400,6 +459,10 @@ const startRandomQuiz = async () => {
   color: #2c3e50;
   margin-bottom: 1.5rem;
 }
+
+/* ========================================================================== */
+/* QUESTION CARD */
+/* ========================================================================== */
 
 .question-card {
   border: none;
@@ -418,6 +481,10 @@ const startRandomQuiz = async () => {
   color: #2c3e50;
   font-weight: 600;
 }
+
+/* ========================================================================== */
+/* OPTIONS */
+/* ========================================================================== */
 
 .option-item {
   padding: 1rem;
@@ -471,9 +538,17 @@ const startRandomQuiz = async () => {
   font-size: 1.25rem;
 }
 
+/* ========================================================================== */
+/* NAVIGATION */
+/* ========================================================================== */
+
 .quiz-navigation {
   margin-top: 2rem;
 }
+
+/* ========================================================================== */
+/* RESULTS */
+/* ========================================================================== */
 
 .quiz-results {
   max-width: 600px;
@@ -485,12 +560,17 @@ const startRandomQuiz = async () => {
   margin-bottom: 1.5rem;
 }
 
+/* ============================================================== */
+/* LOADING OVERLAY */
+/* ==============================================================*/
+
 .loading-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  backdrop-filter: blur(4px);
   background: rgba(255, 255, 255, 0.85);
   display: flex;
   flex-direction: column;
@@ -515,23 +595,29 @@ const startRandomQuiz = async () => {
   color: #333;
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
-
+/* ========================================================================== */
+/* RESPONSIVE */
+/* ========================================================================== */
 
 @media (max-width: 768px) {
   .primary-user-quiz {
     padding: 0.5rem;
   }
-   
+
   .option-item {
     padding: 0.75rem;
   }
-  
+
   .quiz-navigation {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .quiz-navigation button {
     width: 100%;
   }

@@ -79,7 +79,7 @@ def create_app(config_class=Config):
         
         scheduler.add_job(
             func=waste_log_job,
-            trigger=IntervalTrigger(seconds=5),  # Every 5 seconds
+            trigger=IntervalTrigger(seconds=5000),  # Every 5 seconds
             id='daily_waste_log_reminders',
             name='Send daily waste log reminders',
             replace_existing=True
@@ -88,7 +88,7 @@ def create_app(config_class=Config):
         # Schedule quiz reminders every 5 seconds (for testing)
         scheduler.add_job(
             func=quiz_job,
-            trigger=IntervalTrigger(seconds=5),  # Every 5 seconds
+            trigger=IntervalTrigger(seconds=5000),  # Every 5 seconds
             id='daily_quiz_reminders',
             name='Send daily quiz reminders',
             replace_existing=True

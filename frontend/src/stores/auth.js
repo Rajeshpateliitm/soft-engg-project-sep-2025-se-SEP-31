@@ -105,7 +105,29 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // Logout
-    logout() {
+    async logout() {
+      const token = this.token || localStorage.getItem('access_token');
+
+      // Best-effort attempt to clear GenAI chat history on backend.
+      // This should never block logout for the user.
+      if (token) {
+        try {
+          await api.post(
+            '/genai/chat/clear',
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          );
+        } catch (error) {
+          // Log for debugging, but don't surface to user or prevent logout
+          console.warn('Failed to clear GenAI chat history on logout:', error);
+        }
+      }
+
+      // Always clear local auth state, regardless of API call outcome
       this.clearAuth();
     },
 
