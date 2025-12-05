@@ -38,7 +38,6 @@
                 to="/secondary-dashboard"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
-                exact-active-class="active"
               >
                 DASHBOARD
               </router-link>
@@ -48,7 +47,6 @@
                 to="/secondary-dashboard/waste-summary"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
-                exact-active-class="active"
               >
                 WASTE SUMMARY
               </router-link>
@@ -58,7 +56,6 @@
                 to="/secondary-dashboard/campaigns" 
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
-                exact-active-class="active"
               >
                 CAMPAIGNS
               </router-link>
@@ -68,7 +65,6 @@
                 to="/secondary-dashboard/daily-pickup-details"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
-                exact-active-class="active"
               >
                 PICKUP REQUESTS
               </router-link>
@@ -78,7 +74,6 @@
                 to="/secondary-dashboard/pickup-summary"
                 class="nav-link fw-semibold text-dark"
                 active-class="active"
-                exact-active-class="active"
               >
                 PICKUP SUMMARY
               </router-link>
@@ -140,15 +135,15 @@ const currentDateTime = ref("");
 
 const updateDateTime = () => {
   const now = new Date();
-  currentDateTime.value = now.toLocaleString("en-US", {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+  // Format date as YYYY-MM-DD using local timezone
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  
+  currentDateTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
 const handleLogout = () => {
@@ -160,7 +155,7 @@ let datetimeInterval;
 
 onMounted(() => {
   updateDateTime();
-  datetimeInterval = setInterval(updateDateTime, 60000); // Update every minute
+  datetimeInterval = setInterval(updateDateTime, 1000); // Update every second for ISO format
 });
 
 onUnmounted(() => {

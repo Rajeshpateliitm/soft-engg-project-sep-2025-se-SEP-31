@@ -5,6 +5,12 @@
         <h3 class="card-title mb-0">Log Your Waste</h3>
       </div>
       <div class="card-body">
+        <!-- Already logged today message -->
+        <div v-if="alreadyLoggedToday" class="alert alert-warning mb-4" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          <strong>You have already logged waste today.</strong> You can only log waste once per day. Please come back tomorrow to log your next entry.
+        </div>
+        
         <form @submit.prevent="submitWasteLog" class="wastelog-form">
           <div class="row g-3">
             <div class="col-md-4">
@@ -17,6 +23,7 @@
                 min="0"
                 step="0.1"
                 placeholder="0.0"
+                :disabled="alreadyLoggedToday"
               />
             </div>
 
@@ -30,6 +37,7 @@
                 min="0"
                 step="0.1"
                 placeholder="0.0"
+                :disabled="alreadyLoggedToday"
               />
             </div>
 
@@ -45,17 +53,7 @@
                 min="0"
                 step="0.1"
                 placeholder="0.0"
-              />
-            </div>
-
-            <div class="col-12">
-              <label for="date" class="form-label">Date</label>
-              <input
-                type="date"
-                class="form-control"
-                id="date"
-                v-model="wasteLog.log_date"
-                required
+                :disabled="alreadyLoggedToday"
               />
             </div>
 
@@ -66,6 +64,7 @@
                   type="checkbox"
                   id="separated"
                   v-model="wasteLog.separated"
+                  :disabled="alreadyLoggedToday"
                 />
                 <label class="form-check-label" for="separated">
                   Waste was properly separated
@@ -80,6 +79,7 @@
                   type="checkbox"
                   id="recycled"
                   v-model="wasteLog.recycled"
+                  :disabled="alreadyLoggedToday"
                 />
                 <label class="form-check-label" for="recycled">
                   Waste was recycled/reused/donated
@@ -97,6 +97,7 @@
                 rows="2"
                 v-model="wasteLog.questions_doubts"
                 placeholder="Any questions about waste segregation or disposal..."
+                :disabled="alreadyLoggedToday"
               ></textarea>
             </div>
 
@@ -110,6 +111,7 @@
                 rows="2"
                 v-model="wasteLog.feedback"
                 placeholder="Any feedback or suggestions..."
+                :disabled="alreadyLoggedToday"
               ></textarea>
             </div>
 
@@ -127,7 +129,7 @@
               <button
                 type="submit"
                 class="btn btn-primary"
-                :disabled="isSubmitting"
+                :disabled="isSubmitting || alreadyLoggedToday"
               >
                 <span
                   v-if="isSubmitting"
@@ -141,6 +143,7 @@
                 type="button"
                 class="btn btn-outline-secondary ms-2"
                 @click="resetForm"
+                :disabled="alreadyLoggedToday"
               >
                 Reset
               </button>
@@ -223,12 +226,10 @@ import api from "../../services/api";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-const today = new Date().toLocaleDateString("en-CA");
 const wasteLog = ref({
   wet_waste: 0,
   dry_waste: 0,
   hazardous_waste: 0,
-  log_date: today,
   separated: false,
   recycled: false,
   questions_doubts: "",
@@ -239,6 +240,7 @@ const recentEntries = ref([]);
 const isSubmitting = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
+const alreadyLoggedToday = ref(false);
 
 // Group entries by date with separate columns for each category
 const groupedEntries = computed(() => {
@@ -290,6 +292,16 @@ const groupedEntries = computed(() => {
   });
 });
 
+// Check if user can log waste today
+const checkCanLogToday = async () => {
+  try {
+    const response = await api.get("/primary/waste-log/can-log-today");
+    alreadyLoggedToday.value = response.data.already_logged_today || false;
+  } catch (error) {
+    console.error("Error checking if can log today:", error);
+  }
+};
+
 // Fetch waste logs from backend
 const fetchWasteLogs = async () => {
   try {
@@ -303,6 +315,7 @@ const fetchWasteLogs = async () => {
 
 // Load entries from backend on component mount
 onMounted(() => {
+  checkCanLogToday();
   fetchWasteLogs();
 });
 
@@ -323,11 +336,11 @@ const submitWasteLog = async () => {
   successMessage.value = "";
 
   try {
+    // Date/time is auto-filled by the backend at logging time
     const response = await api.post("/primary/waste-log", {
       wet_waste: wasteLog.value.wet_waste || 0,
       dry_waste: wasteLog.value.dry_waste || 0,
       hazardous_waste: wasteLog.value.hazardous_waste || 0,
-      log_date: wasteLog.value.log_date,
       separated: wasteLog.value.separated,
       recycled: wasteLog.value.recycled,
       questions_doubts: wasteLog.value.questions_doubts || null,
@@ -339,6 +352,9 @@ const submitWasteLog = async () => {
     // Reset form
     resetForm();
 
+    // Mark as already logged today
+    alreadyLoggedToday.value = true;
+
     // Refresh the list
     await fetchWasteLogs();
 
@@ -348,6 +364,12 @@ const submitWasteLog = async () => {
     }, 5000);
   } catch (error) {
     console.error("Error logging waste:", error);
+    
+    // Check if the error is because user already logged today
+    if (error.response?.data?.already_logged_today) {
+      alreadyLoggedToday.value = true;
+    }
+    
     errorMessage.value =
       error.response?.data?.error || "Failed to log waste. Please try again.";
   } finally {
@@ -360,7 +382,6 @@ const resetForm = () => {
     wet_waste: 0,
     dry_waste: 0,
     hazardous_waste: 0,
-    log_date: new Date().toISOString().split("T")[0],
     separated: false,
     recycled: false,
     questions_doubts: "",
