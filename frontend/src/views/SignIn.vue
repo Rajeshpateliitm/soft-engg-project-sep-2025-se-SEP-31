@@ -55,7 +55,13 @@
                     </label>
                   </div>
                   <div>
-                    <router-link to="/reset-password" class="text-primary">Forgot password?</router-link>
+                    <button 
+                      type="button" 
+                      class="btn btn-link text-primary p-0"
+                      @click="showForgotPasswordModal = true"
+                    >
+                      Forgot password?
+                    </button>
                   </div>
                 </div>
 
@@ -82,6 +88,38 @@
         </div>
       </div>
     </div>
+
+    <!-- Forgot Password Modal -->
+    <div 
+      v-if="showForgotPasswordModal" 
+      class="modal-overlay"
+      @click="showForgotPasswordModal = false"
+    >
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h5 class="modal-title">Forgot Password</h5>
+          <button 
+            type="button" 
+            class="btn-close" 
+            @click="showForgotPasswordModal = false"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0">
+            You are requested to email us at <strong>admin@wastewise.com</strong> and we will reply with a reset password link.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button 
+            type="button" 
+            class="btn btn-secondary" 
+            @click="showForgotPasswordModal = false"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -101,6 +139,7 @@ const formData = ref({
 
 const isLoading = ref(false);
 const errorMessage = ref('');
+const showForgotPasswordModal = ref(false);
 
 const handleSubmit = async (event) => {
   const form = document.querySelector('.needs-validation');
@@ -204,5 +243,101 @@ a:hover {
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.1875rem) center;
   background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-close:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  color: #555;
+  line-height: 1.6;
+}
+
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
 }
 </style>

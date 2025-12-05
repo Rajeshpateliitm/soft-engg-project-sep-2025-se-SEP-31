@@ -121,6 +121,7 @@ http://localhost:5173
 ```bash
 cd backend
 source venv/bin/activate  # If using virtual environment
+venv\Scripts\activate # If using virtual environment in terminal
 python main.py
 # Server runs on http://localhost:8000
 # Database is automatically initialized on first run
