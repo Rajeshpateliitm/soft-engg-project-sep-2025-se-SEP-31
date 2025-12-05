@@ -332,7 +332,22 @@ def log_waste(user):
         if field not in data:
             return jsonify({"error": f"Missing required field: {field}"}), 400
     
-    log_date = datetime.strptime(data.get("log_date", date.today().isoformat()), "%Y-%m-%d").date()
+    # Auto-fill date/time at logging time (server-side for reliability)
+    log_date = date.today()
+    
+    # Check if user has already logged waste today (once per day restriction)
+    existing_log_today = WasteLog.query.filter(
+        and_(
+            WasteLog.user_id == user.id,
+            WasteLog.log_date == log_date
+        )
+    ).first()
+    
+    if existing_log_today:
+        return jsonify({
+            "error": "You have already logged waste today. You can only log waste once per day.",
+            "already_logged_today": True
+        }), 400
     
     # Create pickup request first (if waste is logged)
     total_waste = data["wet_waste"] + data["dry_waste"] + data["hazardous_waste"]
@@ -345,9 +360,8 @@ def log_waste(user):
         import string
         request_code = "REQ-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
         
-        # Set scheduled date/time (default to log_date at 10:00 AM)
-        from datetime import time as dt_time
-        scheduled_datetime = datetime.combine(log_date, dt_time(hour=10, minute=0))
+        # Set scheduled date/time to the actual current time when waste is logged
+        scheduled_datetime = datetime.now()
         
         # Create pickup location from user's address with ward information
         location_parts = []
@@ -450,6 +464,26 @@ def log_waste(user):
         "pickup_request_id": pickup_request_id,
         "status": "pending"
     }), 201
+
+
+@bp.route("/waste-log/can-log-today", methods=["GET"])
+@token_required
+def can_log_waste_today(user):
+    """Check if user can log waste today (once per day restriction)."""
+    today = date.today()
+    
+    existing_log_today = WasteLog.query.filter(
+        and_(
+            WasteLog.user_id == user.id,
+            WasteLog.log_date == today
+        )
+    ).first()
+    
+    return jsonify({
+        "can_log": existing_log_today is None,
+        "already_logged_today": existing_log_today is not None,
+        "date": today.isoformat()
+    }), 200
 
 
 @bp.route("/waste-logs", methods=["GET"])
@@ -1286,10 +1320,18 @@ def get_monthly_engagement(user):
 @bp.route("/campaigns", methods=["GET"])
 @token_required
 def get_campaigns(user):
-    """Get available campaigns."""
-    # For now, show all active campaigns to ensure visibility
-    # In the future, we can add location-based filtering if needed
-    campaigns = Campaign.query.filter_by(is_active=True).order_by(Campaign.event_datetime).all()
+    """Get available campaigns (excludes expired campaigns)."""
+    # Get current datetime to filter out expired campaigns
+    now = datetime.now()
+    
+    # Only show active campaigns that haven't expired (event_datetime >= today)
+    # Campaigns with no event_datetime are also shown (considered as ongoing)
+    campaigns = Campaign.query.filter(
+        and_(
+            Campaign.is_active == True,
+            (Campaign.event_datetime >= now) | (Campaign.event_datetime == None)
+        )
+    ).order_by(Campaign.event_datetime).all()
     
     # Get user's registered campaigns
     registered_ids = {

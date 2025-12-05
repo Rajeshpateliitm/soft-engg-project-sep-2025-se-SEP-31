@@ -22,7 +22,6 @@
           <option value="">All Status</option>
           <option value="active">Active</option>
           <option value="upcoming">Upcoming</option>
-          <option value="completed">Completed</option>
         </select>
       </div>
       <div class="col-md-3">
@@ -328,53 +327,61 @@ const fetchCampaigns = async () => {
     loading.value = true;
     const response = await api.get('/primary/campaigns');
     const data = response.data;
+    const now = new Date();
     
-    // Transform backend data to frontend format
-    campaigns.value = data.campaigns.map(campaign => {
-      const eventDate = campaign.event_datetime ? new Date(campaign.event_datetime) : null;
-      const now = new Date();
-      
-      // Determine status based on event_datetime
-      let status = 'upcoming';
-      if (eventDate) {
-        if (eventDate < now) {
-          status = 'completed';
-        } else if (eventDate <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)) {
-          // Within 7 days
-          status = 'active';
+    // Transform backend data to frontend format and filter out expired campaigns
+    campaigns.value = data.campaigns
+      .filter(campaign => {
+        // Filter out expired campaigns (event_datetime in the past)
+        if (campaign.event_datetime) {
+          const eventDate = new Date(campaign.event_datetime);
+          return eventDate >= now;
         }
-      }
-      
-      // Derive category from description (simple keyword matching)
-      let category = 'education'; // default
-      const desc = (campaign.description || '').toLowerCase();
-      if (desc.includes('recycl') || desc.includes('plastic') || desc.includes('e-waste')) {
-        category = 'recycling';
-      } else if (desc.includes('compost')) {
-        category = 'composting';
-      } else if (desc.includes('cleanup') || desc.includes('clean up')) {
-        category = 'cleanup';
-      } else if (desc.includes('workshop') || desc.includes('seminar') || desc.includes('learn')) {
-        category = 'education';
-      }
-      
-      return {
-        id: campaign.id,
-        title: campaign.name,
-        description: campaign.description || '',
-        category: category,
-        status: status,
-        startDate: eventDate ? eventDate.toISOString().split('T')[0] : null,
-        endDate: eventDate ? eventDate.toISOString().split('T')[0] : null,
-        event_datetime: campaign.event_datetime,
-        location: campaign.location,
-        pincode: campaign.pincode || null,
-        participants: campaign.registration_count || 0,
-        goal: 100, // Default goal
-        image: campaign.image_url || defaultImage,
-        is_registered: campaign.is_registered || false
-      };
-    });
+        // Campaigns without event_datetime are shown (considered ongoing)
+        return true;
+      })
+      .map(campaign => {
+        const eventDate = campaign.event_datetime ? new Date(campaign.event_datetime) : null;
+        
+        // Determine status based on event_datetime
+        let status = 'upcoming';
+        if (eventDate) {
+          if (eventDate <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)) {
+            // Within 7 days
+            status = 'active';
+          }
+        }
+        
+        // Derive category from description (simple keyword matching)
+        let category = 'education'; // default
+        const desc = (campaign.description || '').toLowerCase();
+        if (desc.includes('recycl') || desc.includes('plastic') || desc.includes('e-waste')) {
+          category = 'recycling';
+        } else if (desc.includes('compost')) {
+          category = 'composting';
+        } else if (desc.includes('cleanup') || desc.includes('clean up')) {
+          category = 'cleanup';
+        } else if (desc.includes('workshop') || desc.includes('seminar') || desc.includes('learn')) {
+          category = 'education';
+        }
+        
+        return {
+          id: campaign.id,
+          title: campaign.name,
+          description: campaign.description || '',
+          category: category,
+          status: status,
+          startDate: eventDate ? eventDate.toISOString().split('T')[0] : null,
+          endDate: eventDate ? eventDate.toISOString().split('T')[0] : null,
+          event_datetime: campaign.event_datetime,
+          location: campaign.location,
+          pincode: campaign.pincode || null,
+          participants: campaign.registration_count || 0,
+          goal: 100, // Default goal
+          image: campaign.image_url || defaultImage,
+          is_registered: campaign.is_registered || false
+        };
+      });
   } catch (error) {
     console.error('Error fetching campaigns:', error);
     errorMessage.value = error.response?.data?.error || 'Failed to load campaigns. Please try again.';
