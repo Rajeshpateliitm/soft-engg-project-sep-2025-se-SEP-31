@@ -1,45 +1,54 @@
 <template>
   <div class="container py-4">
-
-    <!-- RETRY BUTTON -->
+    <!-- Retry Button -->
     <button class="btn btn-primary mt-3 mb-2" @click="retryQuiz" :disabled="loading">
-      🔄 Try Another Random Quiz
+      Try Another Random Quiz
     </button>
 
-    <!-- LOADING OVERLAY -->
+    <!-- Error Message -->
+    <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+      {{ errorMessage }}
+      <button type="button" class="btn-close" @click="errorMessage = ''"></button>
+    </div>
+
+    <!-- Loading Overlay -->
     <div v-if="loading" class="loading-overlay">
       <div class="spinner"></div>
       <p class="loading-text">Generating a new quiz…</p>
     </div>
 
-    <!-- TIMER -->
-    <div class="timer-circle">
-      <svg>
-        <circle cx="50" cy="50" r="45"></circle>
+    <!-- Timer Circle -->
+    <div class="timer-circle" :class="{ pulse: isPulsing }">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="45" class="track"></circle>
         <circle
           cx="50"
           cy="50"
           r="45"
-          :style="{ strokeDashoffset: dashOffset }"
+          :style="{
+            strokeDashoffset: dashOffset,
+            stroke: strokeColor,
+            transition: isRestoring ? 'none' : 'stroke-dashoffset 0.9s linear, stroke 0.3s linear'
+          }"
+          class="progress"
         ></circle>
       </svg>
       <div class="timer-text">{{ timer }}</div>
     </div>
 
-    <!-- QUIZ LOADING -->
+    <!-- Quiz Loading State -->
     <div v-if="!questions.length && !quizFinished && !loading" class="text-center mt-4">
       <h4 class="text-muted">Loading quiz…</h4>
     </div>
 
-    <!-- QUIZ ACTIVE -->
+    <!-- Quiz Active -->
     <div v-else-if="!quizFinished && !loading">
       <h3 class="fw-bold text-dark">
         Question: {{ index + 1 }} / {{ questions.length }}
       </h3>
-
       <p class="lead question-text">{{ currentQuestion.question_text }}</p>
 
-      <!-- OPTIONS -->
+      <!-- Options -->
       <div class="mt-4">
         <button
           v-for="(opt, i) in currentQuestion.options"
@@ -54,7 +63,7 @@
       </div>
     </div>
 
-    <!-- QUIZ FINISHED -->
+    <!-- Quiz Finished -->
     <div v-else class="text-center mt-5">
       <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
 
@@ -73,17 +82,20 @@
         </li>
       </ul>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import api from "@/services/api";
 import confetti from "canvas-confetti";
 
 const router = useRouter();
+
+// ============================================================================
+// STATE
+// ============================================================================
 
 const questions = ref([]);
 const index = ref(0);
@@ -95,16 +107,72 @@ const optionsLocked = ref(false);
 const score = ref(0);
 const animatedScore = ref(0);
 const loading = ref(false);
+const errorMessage = ref("");
+const restoredProgress = ref(false);
+const isRestoring = ref(false);
 
-/* CURRENT QUESTION */
+const strokeColor = ref("#28a745");
+const isPulsing = ref(false);
+
+// Daily quiz limit tracking
+const DAILY_QUIZ_LIMIT = 2;
+const CIRCUMFERENCE = 2 * Math.PI * 45;
+
+// ============================================================================
+// COMPUTED
+// ============================================================================
+
 const currentQuestion = computed(() => questions.value[index.value]);
 
-/* LOAD INITIAL QUIZ */
-onMounted(() => loadQuizFromLocal());
-onBeforeUnmount(() => clearInterval(intervalId.value));
+// ============================================================================
+// DAILY LIMIT HELPERS
+// ============================================================================
 
-/* LOAD QUIZ FROM LOCALSTORAGE */
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split("T")[0];
+};
+
+const getQuizAttemptsToday = () => {
+  const today = getTodayDate();
+  const key = `quiz_attempts_${today}`;
+  const attempts = localStorage.getItem(key);
+  return attempts ? parseInt(attempts, 10) : 0;
+};
+
+const incrementQuizAttempts = () => {
+  const today = getTodayDate();
+  const key = `quiz_attempts_${today}`;
+  const current = getQuizAttemptsToday();
+  localStorage.setItem(key, (current + 1).toString());
+};
+
+const hasReachedDailyLimit = () => {
+  return getQuizAttemptsToday() >= DAILY_QUIZ_LIMIT;
+};
+
+// ============================================================================
+// LIFECYCLE
+// ============================================================================
+
+onMounted(() => {
+  const saved = localStorage.getItem("quiz_progress");
+
+  if (saved) {
+    restoredProgress.value = true;
+    loadSavedProgress(JSON.parse(saved));
+  } else {
+    loadQuizFromLocal();
+  }
+});
+
+// ============================================================================
+// QUIZ LOADING
+// ============================================================================
+
 const loadQuizFromLocal = () => {
+  if (restoredProgress.value) return;
+
   const saved = localStorage.getItem("temp_quiz");
 
   if (!saved) {
@@ -121,7 +189,6 @@ const loadQuizFromLocal = () => {
     return;
   }
 
-  // Reset quiz state
   questions.value = quiz.questions;
   index.value = 0;
   score.value = 0;
@@ -131,46 +198,128 @@ const loadQuizFromLocal = () => {
   startTimer();
 };
 
-/* TIMER */
-const startTimer = () => {
+const loadSavedProgress = (saved) => {
+  questions.value = saved.questions;
+  index.value = saved.index;
+  timer.value = saved.timer;
+  score.value = saved.score;
+  quizFinished.value = saved.quizFinished;
+
+  // Compute progress arc for restored timer
+  const progress = timer.value / 15;
+  dashOffset.value = Math.round(CIRCUMFERENCE * (1 - progress));
+
+  // Restore color and pulsing state
+  if (timer.value > 10) {
+    strokeColor.value = "#28a745";
+    isPulsing.value = false;
+  } else if (timer.value > 5) {
+    strokeColor.value = "#ffc107";
+    isPulsing.value = false;
+  } else {
+    strokeColor.value = "#dc3545";
+    isPulsing.value = true;
+  }
+
+  if (!quizFinished.value) {
+    startTimer(true);
+  }
+};
+
+// ============================================================================
+// TIMER
+// ============================================================================
+
+const startTimer = (isRestore = false) => {
   clearInterval(intervalId.value);
 
-  timer.value = 15;
-  dashOffset.value = 283;
+  if (!isRestore) {
+    timer.value = 15;
+    dashOffset.value = 0;
+  } else {
+    const progress = timer.value / 15;
+    dashOffset.value = Math.round(CIRCUMFERENCE * (1 - progress));
+  }
+
   optionsLocked.value = false;
+  isPulsing.value = false;
 
   intervalId.value = setInterval(() => {
     timer.value--;
-    dashOffset.value = (timer.value / 15) * 283;
+
+    const progress = timer.value / 15;
+    dashOffset.value = Math.round(CIRCUMFERENCE * (1 - progress));
+
+    if (timer.value > 10) {
+      strokeColor.value = "#28a745";
+      isPulsing.value = false;
+    } else if (timer.value > 5) {
+      strokeColor.value = "#ffc107";
+      isPulsing.value = false;
+    } else {
+      strokeColor.value = "#dc3545";
+      isPulsing.value = true;
+    }
+
+    saveProgress();
 
     if (timer.value <= 0) nextQuestion();
   }, 1000);
 };
 
-/* SELECT OPTION */
+// ============================================================================
+// QUIZ INTERACTION
+// ============================================================================
+
 const selectOption = (opt) => {
   optionsLocked.value = true;
 
   if (opt.is_correct) score.value++;
 
+  saveProgress();
+
   setTimeout(() => nextQuestion(), 650);
 };
 
-/* NEXT QUESTION */
 const nextQuestion = () => {
   clearInterval(intervalId.value);
 
   if (index.value < questions.value.length - 1) {
     index.value++;
+    saveProgress();
     startTimer();
   } else {
     finishQuiz();
   }
 };
 
-/* FINISH QUIZ */
+const buttonClass = (opt) => {
+  if (!optionsLocked.value) return "btn-outline-primary";
+  return opt.is_correct ? "btn-success" : "btn-danger";
+};
+
+// ============================================================================
+// PROGRESS PERSISTENCE
+// ============================================================================
+
+const saveProgress = () => {
+  const progress = {
+    index: index.value,
+    timer: timer.value,
+    score: score.value,
+    questions: questions.value,
+    quizFinished: quizFinished.value
+  };
+  localStorage.setItem("quiz_progress", JSON.stringify(progress));
+};
+
+// ============================================================================
+// QUIZ COMPLETION
+// ============================================================================
+
 const finishQuiz = () => {
   quizFinished.value = true;
+  localStorage.removeItem("quiz_progress");
 
   launchConfetti();
 
@@ -181,59 +330,79 @@ const finishQuiz = () => {
     x++;
   }, 50);
 
-  // Submit score to backend
   submitScore();
 };
 
 const submitScore = async () => {
   try {
-    await api.post('/genai/random-quiz/score', {
+    await api.post("/genai/random-quiz/score", {
       score: score.value
     });
-    // Optional: Show success message or toast
-    // alert(`You earned ${score.value} points!`); 
   } catch (err) {
     console.error("Failed to submit score:", err);
   }
 };
 
-/* BUTTON COLORS */
-const buttonClass = (opt) => {
-  if (!optionsLocked.value) return "btn-outline-primary";
-  return opt.is_correct ? "btn-success" : "btn-danger";
-};
+// ============================================================================
+// RETRY QUIZ
+// ============================================================================
 
-/* RETRY QUIZ */
 const retryQuiz = async () => {
+  // Check daily limit
+  if (hasReachedDailyLimit()) {
+    errorMessage.value = "You have tried your daily quiz limit. Try next day...";
+    return;
+  }
+
+  loading.value = true;
+  errorMessage.value = "";
+
+  await new Promise((r) => setTimeout(r, 80));
+
   try {
-    loading.value = true;
-
-    await new Promise(r => setTimeout(r, 80)); // Let overlay show
-
     const res = await api.post(
       "/genai/random-quiz",
       {},
-      { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        timeout: 20000
+      }
     );
 
     if (!res.data || res.data.error) {
-      alert("Error generating quiz: " + res.data?.error);
-      loading.value = false;
+      errorMessage.value = "Failed to generate quiz. Please try again.";
       return;
     }
+
+    // Increment attempt counter
+    incrementQuizAttempts();
 
     localStorage.setItem("temp_quiz", JSON.stringify(res.data));
     loadQuizFromLocal();
 
   } catch (err) {
-    console.error(err);
-    alert("Network or server error. Try again.");
+    console.error("Quiz error:", err);
+
+    if (err.code === "ECONNABORTED") {
+      errorMessage.value = "Quiz is taking too long. Please try again.";
+      setTimeout(() => (errorMessage.value = ""), 4000);
+    } else if (!err.response) {
+      errorMessage.value = "Network error — check your connection.";
+    } else if (err.response.status === 401) {
+      errorMessage.value = "Session expired. Redirecting...";
+      router.push("/signin");
+    } else {
+      errorMessage.value = err.response?.data?.error || "Unknown server error.";
+    }
   }
 
   loading.value = false;
 };
 
-/* CONFETTI */
+// ============================================================================
+// CONFETTI
+// ============================================================================
+
 const launchConfetti = () => {
   const canvas = document.getElementById("confetti-canvas");
   if (!canvas) return;
@@ -249,13 +418,20 @@ const launchConfetti = () => {
 </script>
 
 <style scoped>
+/* ========================================================================== */
+/* QUESTION TEXT */
+/* ========================================================================== */
+
 .question-text {
   font-size: 20px;
   font-weight: 500;
   color: #333;
 }
 
+/* ========================================================================== */
 /* LOADING OVERLAY */
+/* ========================================================================== */
+
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -270,6 +446,7 @@ const launchConfetti = () => {
   align-items: center;
   z-index: 3000;
 }
+
 .spinner {
   width: 60px;
   height: 60px;
@@ -278,59 +455,90 @@ const launchConfetti = () => {
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
+
 .loading-text {
   margin-top: 12px;
   font-size: 18px;
   color: #333;
   font-weight: 600;
 }
+
 @keyframes spin {
   from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }
 
+/* ========================================================================== */
 /* OPTIONS */
+/* ========================================================================== */
+
 .option-button {
   font-size: 17px;
   padding: 12px;
 }
 
-/* TIMER */
+/* ========================================================================== */
+/* TIMER CIRCLE */
+/* ========================================================================== */
+
 .timer-circle {
   width: 120px;
   height: 120px;
   margin: 15px auto;
-  position: relative; 
-}
-.timer-circle svg {
-  width: 120px;
-  height: 120px;
-  transform: rotate(-90deg);
-}
-.timer-circle circle {
-  fill: none;
-  stroke-width: 10;
-  stroke: #ddd;
-}
-.timer-circle circle:nth-child(2) {
-  stroke: #ff0000;
-  stroke-linecap: round;
-  stroke-dasharray: 283;
-  transition: stroke-dashoffset 1s linear;
-}
-.timer-text {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: transform 0.18s ease;
+}
+
+.timer-circle.pulse {
+  transform: scale(1.05);
+}
+
+.timer-circle svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.timer-circle .track {
+  fill: none;
+  stroke: #e0e0e0;
+  stroke-width: 8;
+}
+
+.timer-circle .progress {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 282.743;
+}
+
+.timer-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   font-size: 22px;
   font-weight: bold;
-  pointer-events: none; /* Ensure clicks pass through if needed */
+  text-align: center;
+  pointer-events: none;
 }
+
+.timer-circle.pulse .timer-text {
+  animation: pulseText 0.8s ease-in-out infinite;
+}
+
+@keyframes pulseText {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.12); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ========================================================================== */
+/* CONFETTI */
+/* ========================================================================== */
 
 .confetti-canvas {
   position: fixed;
@@ -338,6 +546,10 @@ const launchConfetti = () => {
   left: 0;
   pointer-events: none;
 }
+
+/* ========================================================================== */
+/* SCORE ANIMATION */
+/* ========================================================================== */
 
 .score-animate {
   animation: pop 0.6s ease-out;

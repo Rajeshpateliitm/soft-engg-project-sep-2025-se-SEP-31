@@ -24,7 +24,7 @@ python3 -m venv venv
 source venv/bin/activate
 
 # On Windows:
-# venv\Scripts\activate
+venv\Scripts\activate
 ```
 
 ### Step 3: Install Dependencies
