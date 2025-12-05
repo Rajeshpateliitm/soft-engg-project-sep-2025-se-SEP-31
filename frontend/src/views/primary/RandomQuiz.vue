@@ -320,6 +320,7 @@ const saveProgress = () => {
 const finishQuiz = () => {
   quizFinished.value = true;
   localStorage.removeItem("quiz_progress");
+  localStorage.removeItem("temp_quiz");
 
   launchConfetti();
 
