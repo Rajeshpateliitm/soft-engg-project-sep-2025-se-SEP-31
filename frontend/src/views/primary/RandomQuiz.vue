@@ -351,11 +351,13 @@ const retryQuiz = async () => {
       setTimeout(() => (errorMessage.value = ""), 4000);
     } else if (!err.response) {
       errorMessage.value = "Network error — check your connection.";
+      setTimeout(() => (errorMessage.value = ""), 3000);
     } else if (err.response.status === 401) {
       errorMessage.value = "Session expired. Redirecting...";
       router.push("/signin");
     } else if (err.response.status === 429) {
       errorMessage.value = err.response?.data?.error || "You have reached your daily quiz limit. Try again tomorrow!";
+      setTimeout(() => (errorMessage.value = ""), 3000);
     } else {
       errorMessage.value = err.response?.data?.error || "Unknown server error.";
     }
@@ -364,7 +366,7 @@ const retryQuiz = async () => {
   loading.value = false;
 };
 
-// ============================================================================
+
 // CONFETTI
 // ============================================================================
 
@@ -383,7 +385,7 @@ const launchConfetti = () => {
 </script>
 
 <style scoped>
-/* ========================================================================== */
+
 /* QUESTION TEXT */
 /* ========================================================================== */
 
@@ -393,7 +395,6 @@ const launchConfetti = () => {
   color: #333;
 }
 
-/* ========================================================================== */
 /* LOADING OVERLAY */
 /* ========================================================================== */
 
@@ -433,7 +434,6 @@ const launchConfetti = () => {
   to { transform: rotate(360deg); }
 }
 
-/* ========================================================================== */
 /* OPTIONS */
 /* ========================================================================== */
 
@@ -442,7 +442,6 @@ const launchConfetti = () => {
   padding: 12px;
 }
 
-/* ========================================================================== */
 /* TIMER CIRCLE */
 /* ========================================================================== */
 
@@ -501,7 +500,6 @@ const launchConfetti = () => {
   100% { transform: translate(-50%, -50%) scale(1); }
 }
 
-/* ========================================================================== */
 /* CONFETTI */
 /* ========================================================================== */
 
@@ -512,7 +510,6 @@ const launchConfetti = () => {
   pointer-events: none;
 }
 
-/* ========================================================================== */
 /* SCORE ANIMATION */
 /* ========================================================================== */
 
