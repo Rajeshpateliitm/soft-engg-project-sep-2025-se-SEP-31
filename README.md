@@ -249,6 +249,51 @@ soft-engg-project-sep-2025-se-SEP-31-dev/
 │   ├── init_db.py        # Database initialization
 │   ├── requirements.txt  # Python dependencies
 │   └── wastewise.db     # SQLite database (auto-created)
+
+## Test User Credentials
+
+### Secondary User (Collector)
+```json
+{
+  "email": "collector1@wastewise.com",
+  "password": "Collector@123"
+}
+```
+
+### Tertiary User
+```json
+{
+  "email": "tertiary@wastewise.com",
+  "password": "Tertiary@123"
+}
+```
+
+## Gemini API Configuration
+
+The application uses Google's Gemini API for AI-powered features. To set it up:
+
+1. Get a Google API key with access to the Gemini API from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Configure the API key in your environment variables or in the Flask configuration:
+
+### Option 1: Environment Variable (Recommended)
+```bash
+export GEMINI_API_KEY='your-api-key-here'
+```
+
+### Option 2: Flask Config
+Add the following to your Flask configuration (e.g., in `config.py` or `main.py`):
+```python
+app.config['GEMINI_API_KEY'] = 'your-api-key-here'
+app.config['GEMINI_API_MODEL'] = 'gemini-1.5-flash'  # or your preferred model
+```
+
+### Optional Configuration
+You can also configure the base URL if needed (default is Google's API endpoint):
+```python
+app.config['GEMINI_API_BASE_URL'] = 'https://generativelanguage.googleapis.com/v1beta/models'
+```
+
+After setting up the API key, restart your Flask application for the changes to take effect.
 │
 └── frontend/             # Vue.js frontend
     ├── src/
