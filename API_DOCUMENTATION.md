@@ -93,8 +93,11 @@ The following custom API endpoints have been created for the WasteWise applicati
 ### GenAI APIs (`/api/genai`)
 35. `POST /api/genai/chat` - Chat with WasteWise AI Assistant
 36. `POST /api/genai/chat/clear` - Clear chat history
+37. `POST /api/genai/random-quiz` - Generate random waste management quiz
+38. `POST /api/genai/random-quiz/score` - Submit random quiz score
+39. `POST /api/genai/dashboard-analysis` - Analyze dashboard data with AI
 
-**Total Custom APIs Created**: 36 endpoints
+**Total Custom APIs Created**: 39 endpoints
 
 ---
 
@@ -322,6 +325,27 @@ The following custom API endpoints have been created for the WasteWise applicati
 - **Response**: Confirmation message
 - **Status Codes**: 200 (OK), 401 (Unauthorized)
 
+#### 37. POST /api/genai/random-quiz
+- **Description**: Generate a random quiz with 5 MCQ questions about waste management using Google Gemini API
+- **Request Body**: None (empty POST request)
+- **Response**: Quiz object with 5 questions and multiple choice options
+- **Status Codes**: 200 (OK), 401 (Unauthorized), 429 (Too Many Requests - Daily limit reached), 500 (Internal Server Error)
+- **Special Notes**: Enforces a daily limit of 2 quiz generations per user. Limit is tracked per user account in the database.
+
+#### 38. POST /api/genai/random-quiz/score
+- **Description**: Submit the score from a random quiz and update user points
+- **Request Body**: score (integer, 0-5)
+- **Response**: Confirmation message, new total points, and points earned (10 points per correct answer)
+- **Status Codes**: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 500 (Internal Server Error)
+- **Special Notes**: Awards 10 points per correct answer
+
+#### 39. POST /api/genai/dashboard-analysis
+- **Description**: Analyze user dashboard data using Google Gemini API and provide personalized insights
+- **Request Body**: data (object with dashboard metrics), context (optional string)
+- **Response**: HTML-formatted analysis with summary and actionable suggestions
+- **Status Codes**: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 500 (Internal Server Error)
+- **Special Notes**: Provides AI-powered personalized recommendations based on quiz performance, waste logs, and engagement metrics
+
 ---
 
 ## User Stories Mapping
@@ -346,6 +370,9 @@ The following custom API endpoints have been created for the WasteWise applicati
 | As a user, I want to find nearby recyclers | `GET /api/common/recyclers` | Recycler search |
 | As a household user, I want to request waste pickup | `POST /api/common/pickup-request` | Pickup scheduling |
 | As a household user, I want to chat with an AI assistant | `POST /api/genai/chat` | AI chatbot |
+| As a household user, I want to generate random quizzes | `POST /api/genai/random-quiz` | Random quiz generation |
+| As a household user, I want to submit my random quiz score | `POST /api/genai/random-quiz/score` | Quiz score submission |
+| As a household user, I want AI analysis of my dashboard | `POST /api/genai/dashboard-analysis` | AI-powered insights |
 | As a user, I want to see available wards | `GET /api/common/wards` | Ward listing |
 
 ### Secondary User Stories (RWA Managers)
@@ -395,6 +422,7 @@ The API uses standard HTTP status codes to indicate the result of API requests:
 - **401 Unauthorized**: Missing or invalid authentication token
 - **403 Forbidden**: Authenticated but insufficient permissions
 - **404 Not Found**: Resource not found
+- **429 Too Many Requests**: Rate limit exceeded (e.g., daily quiz generation limit)
 - **500 Internal Server Error**: Server-side error
 
 ### Error Response Format
@@ -489,6 +517,15 @@ All error responses follow a consistent format:
 ```json
 {
   "error": "User already registered for this campaign"
+}
+```
+
+**429 Too Many Requests - Daily Limit Reached**
+```json
+{
+  "error": "You have reached your daily quiz limit. Try again tomorrow!",
+  "attempts_today": 2,
+  "limit": 2
 }
 ```
 
