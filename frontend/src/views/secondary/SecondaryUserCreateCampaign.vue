@@ -4,12 +4,14 @@
       <div class="row mb-4">
         <div class="col-12">
           <div class="d-flex align-items-center mb-3">
-            <button class="btn btn-link text-white p-0 me-2" @click="goBack">
+            <button class="btn btn-link text-success p-0 me-2" @click="goBack">
               <i class="bi bi-arrow-left" style="font-size: 1.5rem;"></i>
             </button>
-            <h2 class="text-white fw-bold mb-0">{{ isEditMode ? 'EDIT CAMPAIGN' : 'CREATE CAMPAIGN' }}</h2>
+            <h2 class="text-success fw-bold mb-0">{{ isEditMode ? 'EDIT CAMPAIGN' : 'CREATE CAMPAIGN' }}</h2>
           </div>
-          <p class="text-white-50">{{ isEditMode ? 'Update your waste management campaign' : 'Create a new waste management campaign for your RWA community' }}</p>
+          <p class="text-secondary-emphasis">
+            {{ isEditMode ? 'Update your waste management campaign' : 'Create a new waste management campaign for your RWA community' }}
+          </p>
         </div>
       </div>
 

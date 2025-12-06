@@ -12,26 +12,9 @@
     <template v-else>
     <div class="row mb-4">
       <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h2 class="mb-1">Monthly Engagement</h2>
-            <p class="text-muted mb-0">Track your monthly activity and participation</p>
-          </div>
-          <div class="d-flex gap-2">
-            <select v-model="selectedYear" class="form-select form-select-sm" style="width: 120px;">
-              <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
-            </select>
-            <div class="dropdown">
-              <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-download me-1"></i> Export
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
-                <li><a class="dropdown-item" href="#" @click.prevent="exportData('pdf')"><i class="bi bi-file-earmark-pdf me-2"></i>PDF</a></li>
-                <li><a class="dropdown-item" href="#" @click.prevent="exportData('csv')"><i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV</a></li>
-                <li><a class="dropdown-item" href="#" @click.prevent="exportData('print')"><i class="bi bi-printer me-2"></i>Print</a></li>
-              </ul>
-            </div>
-          </div>
+        <div>
+          <h2 class="mb-1">Monthly Engagement</h2>
+          <p class="text-muted mb-0">Track your monthly activity and participation</p>
         </div>
       </div>
     </div>
@@ -931,10 +914,6 @@ const closeGoalModal = () => {
   editingGoal.value = null;
 };
 
-const exportData = (format) => {
-  // In a real app, this would generate and download a file
-  alert(`Exporting data as ${format.toUpperCase()}...`);
-};
 
 // Watchers
 watch(activeChartTab, () => {

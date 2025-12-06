@@ -3,8 +3,10 @@
     <div class="container">
       <div class="row mb-4">
         <div class="col-12">
-          <h2 class="text-white fw-bold mb-3">RWA LEADERBOARD</h2>
-          <p class="text-white-50">View RWA rankings based on waste management performance</p>
+          <h2 class="text-success fw-bold mb-3">RWA LEADERBOARD</h2>
+          <p class="text-secondary-emphasis">
+            View RWA rankings based on waste management performance
+          </p>
         </div>
       </div>
 

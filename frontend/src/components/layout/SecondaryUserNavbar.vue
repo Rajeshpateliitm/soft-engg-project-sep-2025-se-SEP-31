@@ -88,6 +88,11 @@
               </span>
             </li>
             <li class="nav-item">
+              <span class="nav-link fw-semibold text-dark">
+                <i class="bi bi-person me-1"></i> {{ authStore.userName }}
+              </span>
+            </li>
+            <li class="nav-item">
               <router-link
                 to="/"
                 class="btn btn-outline-danger btn-sm ms-2 fw-semibold"
