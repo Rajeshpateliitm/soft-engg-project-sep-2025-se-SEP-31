@@ -114,8 +114,6 @@ const isRestoring = ref(false);
 const strokeColor = ref("#28a745");
 const isPulsing = ref(false);
 
-// Daily quiz limit tracking
-const DAILY_QUIZ_LIMIT = 2;
 const CIRCUMFERENCE = 2 * Math.PI * 45;
 
 // ============================================================================
@@ -123,33 +121,6 @@ const CIRCUMFERENCE = 2 * Math.PI * 45;
 // ============================================================================
 
 const currentQuestion = computed(() => questions.value[index.value]);
-
-// ============================================================================
-// DAILY LIMIT HELPERS
-// ============================================================================
-
-const getTodayDate = () => {
-  const today = new Date();
-  return today.toISOString().split("T")[0];
-};
-
-const getQuizAttemptsToday = () => {
-  const today = getTodayDate();
-  const key = `quiz_attempts_${today}`;
-  const attempts = localStorage.getItem(key);
-  return attempts ? parseInt(attempts, 10) : 0;
-};
-
-const incrementQuizAttempts = () => {
-  const today = getTodayDate();
-  const key = `quiz_attempts_${today}`;
-  const current = getQuizAttemptsToday();
-  localStorage.setItem(key, (current + 1).toString());
-};
-
-const hasReachedDailyLimit = () => {
-  return getQuizAttemptsToday() >= DAILY_QUIZ_LIMIT;
-};
 
 // ============================================================================
 // LIFECYCLE
@@ -349,12 +320,6 @@ const submitScore = async () => {
 // ============================================================================
 
 const retryQuiz = async () => {
-  // Check daily limit
-  if (hasReachedDailyLimit()) {
-    errorMessage.value = "You have tried your daily quiz limit. Try next day...";
-    return;
-  }
-
   loading.value = true;
   errorMessage.value = "";
 
@@ -375,9 +340,6 @@ const retryQuiz = async () => {
       return;
     }
 
-    // Increment attempt counter
-    incrementQuizAttempts();
-
     localStorage.setItem("temp_quiz", JSON.stringify(res.data));
     loadQuizFromLocal();
 
@@ -392,6 +354,8 @@ const retryQuiz = async () => {
     } else if (err.response.status === 401) {
       errorMessage.value = "Session expired. Redirecting...";
       router.push("/signin");
+    } else if (err.response.status === 429) {
+      errorMessage.value = err.response?.data?.error || "You have reached your daily quiz limit. Try again tomorrow!";
     } else {
       errorMessage.value = err.response?.data?.error || "Unknown server error.";
     }
