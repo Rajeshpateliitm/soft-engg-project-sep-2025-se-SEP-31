@@ -27,7 +27,6 @@ def init_sample_data():
         wards_data = [
             {"ward_number": "1", "name": "Park Street", "pincode": "700001"},
             {"ward_number": "2", "name": "Salt Lake", "pincode": "700064"},
-            {"ward_number": "3", "name": "Howrah", "pincode": "700001"},
         ]
         
         for ward_data in wards_data:

@@ -6,6 +6,7 @@ from app.core.config import Config
 from app.core.email_service import init_mail
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+#from apscheduler.triggers.cron import CronTrigger
 import atexit
 
 
@@ -67,7 +68,7 @@ def create_app(config_class=Config):
         scheduler = BackgroundScheduler()
         scheduler.start()
         
-        # Schedule waste log reminders every 5 seconds (for testing)
+        # Schedule waste log reminders every 5 minutes (for testing with MailHog)
         from app.core.cron_jobs import send_daily_waste_log_reminders, send_daily_quiz_reminders
         
         # Create wrapper functions that pass the app instance
@@ -77,18 +78,35 @@ def create_app(config_class=Config):
         def quiz_job():
             send_daily_quiz_reminders(app)
         
+        # for everydat 6am
+        '''
         scheduler.add_job(
             func=waste_log_job,
-            trigger=IntervalTrigger(seconds=5000),  # Every 5 seconds
+            trigger=CronTrigger(hour=6, minute=0),  # Every day at 6:00 AM
+            id='daily_waste_log_reminders',
+            name='Send daily waste log reminders',
+            replace_existing=True
+        )'''
+        scheduler.add_job(
+            func=waste_log_job,
+            trigger=IntervalTrigger(minutes=5),  # Every 5 minutes
             id='daily_waste_log_reminders',
             name='Send daily waste log reminders',
             replace_existing=True
         )
-        
-        # Schedule quiz reminders every 5 seconds (for testing)
+        '''
         scheduler.add_job(
             func=quiz_job,
-            trigger=IntervalTrigger(seconds=5000),  # Every 5 seconds
+            trigger=CronTrigger(hour=6, minute=0),  # Every day at 6:00 AM
+            id='daily_quiz_reminders',
+            name='Send daily quiz reminders',
+            replace_existing=True
+        )'''
+        
+        # Schedule quiz reminders every 5 minutes (for testing with MailHog)
+        scheduler.add_job(
+            func=quiz_job,
+            trigger=IntervalTrigger(minutes=5),  # Every 5 minutes
             id='daily_quiz_reminders',
             name='Send daily quiz reminders',
             replace_existing=True
@@ -97,14 +115,14 @@ def create_app(config_class=Config):
         # Shut down scheduler when app exits
         atexit.register(lambda: scheduler.shutdown())
         
-        app.logger.info("Scheduler initialized with email reminders every 5 seconds")
+        app.logger.info("Scheduler initialized with email reminders every 5 minutes")
         print("\n" + "=" * 60)
         print("✅ Email Reminder Scheduler Started (TESTING MODE)")
         print("=" * 60)
-        print("📧 Waste Log Reminders: Every 5 seconds")
-        print("📧 Quiz Reminders: Every 5 seconds")
+        print("📧 Waste Log Reminders: Every 5 minutes")
+        print("📧 Quiz Reminders: Every 5 minutes")
         print("=" * 60)
-        print("⚠️  NOTE: This is for testing. Change back to daily schedule for production!")
+        print("⚠️  NOTE: This is for testing with MailHog. Change back to daily schedule for production!")
         print("=" * 60 + "\n")
 
     return app

@@ -796,6 +796,11 @@ def create_campaign(user):
     except (ValueError, AttributeError) as e:
         return jsonify({"error": f"Invalid event_datetime format: {str(e)}"}), 400
     
+    # Validate that event_datetime is not in the past
+    now = datetime.now()
+    if event_datetime < now:
+        return jsonify({"error": "Event date and time cannot be in the past. Please select a current or future date and time."}), 400
+    
     # Get ward_id from secondary user if not provided
     ward_id = data.get("ward_id") or user.ward_id
     pincode = data.get("pincode") or user.pincode
@@ -843,14 +848,21 @@ def update_campaign(user, campaign_id):
         try:
             event_datetime_str = data["event_datetime"]
             if "T" in event_datetime_str:
-                campaign.event_datetime = datetime.fromisoformat(event_datetime_str.replace("Z", "+00:00"))
+                event_datetime = datetime.fromisoformat(event_datetime_str.replace("Z", "+00:00"))
             elif " " in event_datetime_str:
                 try:
-                    campaign.event_datetime = datetime.strptime(event_datetime_str, "%Y-%m-%d %H:%M:%S")
+                    event_datetime = datetime.strptime(event_datetime_str, "%Y-%m-%d %H:%M:%S")
                 except ValueError:
-                    campaign.event_datetime = datetime.strptime(event_datetime_str, "%Y-%m-%d %H:%M")
+                    event_datetime = datetime.strptime(event_datetime_str, "%Y-%m-%d %H:%M")
             else:
                 return jsonify({"error": "Invalid event_datetime format. Use YYYY-MM-DD HH:MM or ISO format"}), 400
+            
+            # Validate that event_datetime is not in the past
+            now = datetime.now()
+            if event_datetime < now:
+                return jsonify({"error": "Event date and time cannot be in the past. Please select a current or future date and time."}), 400
+            
+            campaign.event_datetime = event_datetime
         except (ValueError, AttributeError) as e:
             return jsonify({"error": f"Invalid event_datetime format: {str(e)}"}), 400
     if data.get("pincode"):
