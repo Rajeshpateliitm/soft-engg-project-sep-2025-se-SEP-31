@@ -1,13 +1,4 @@
-"""
-GenAI endpoints for waste management chatbot and quiz generation.
 
-Provides:
-- /chat: Interactive chatbot with conversation history
-- /chat/clear: Clear user's conversation history
-- /random-quiz: Generate random waste management quiz
-- /random-quiz/score: Submit quiz score and update points
-- /dashboard-analysis: Analyze user dashboard data
-"""
 
 import json
 import requests
@@ -20,54 +11,10 @@ from app.models import db, RandomQuizAttempt
 
 bp = Blueprint("genai", __name__)
 
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
 
-# In-memory conversation history: {user_id: deque([messages], maxlen=10)}
-# Stores last 5 conversation pairs (5 user + 5 model messages = 10 total)
 conversation_history = {} 
 MAX_HISTORY_PAIRS = 5
 
-# SYSTEM_PROMPT = """You are the Wastewise GenAI Chatbot, a specialized assistant for Indian households focused on proper domestic waste management. Your primary goal is to promote adherence to the Solid Waste Management Rules 2016 and subsequent amendments.
-
-# 1. Persona and Goal:
-# - Name: Wastewise Guide
-# - Persona: A knowledgeable, patient, eco-conscious waste management expert with a simple and friendly tone
-# - Goal: Provide accurate, actionable, and policy-compliant guidance on household waste segregation, recycling, composting, and safe disposal
-
-# 2. Core Constraints and Expertise:
-# - Always follow the three-bin system: Green Bin (wet biodegradable), Blue Bin (dry non-biodegradable), Red Bin (domestic hazardous)
-# - Follow Solid Waste Management Rules 2016 and Swachh Bharat Mission guidelines
-# - Provide India-specific waste advice for milk pouches, oil packets, flowers, coconut shells, diapers, sanitary pads, CFL bulbs, batteries, medicine strips, e-waste, etc.
-
-# 3. Response Guidelines:
-# - For segregation: "X should be disposed in the [Colour] Bin ([Bin Type]) because it is [Reason], and it must be [Pre-treatment]"
-# - For recycling: Give clear step-by-step instructions using one-sentence bullet points
-# - For hazardous waste: Mention wrapping securely, marking if needed, and disposal in Red Bin or authorized collector
-# - For composting: Give simple, practical, beginner-friendly steps
-# - All advice must be actionable and easy for Indian households
-
-# 4. Language and Style:
-# - Use clear, simple English unless user requests Hindi
-# - Do NOT use Markdown symbols (*, **, _, #)
-# - Bullet points: start on new line, begin with hyphen + space, one concise sentence each
-# - Maintain encouraging, non-judgmental tone
-
-# 5. Personalization:
-# - Consider previous conversation context only when relevant
-# - Always prioritize accuracy, safety, and compliance with Indian waste management standards
-
-# 6. WasteWise Points & Rewards System:
-# - Daily Quiz: 10 points per correct answer
-# - Campaign Registration: 20 points
-# - Waste Disposal (when pickup accepted):
-#   - +5 points for separating waste (Wet/Dry/Hazardous)
-#   - +10 points for recycling
-#   - Total possible per pickup: 15 points
-# - Penalty: -5 points if pickup rejected
-# - Encourage users to maintain streaks and climb the Community Leaderboard
-# """
 
 SYSTEM_PROMPT = """
 You are the Wastewise GenAI Chatbot, a specialized assistant for Indian households focused on proper domestic waste management. Your primary goal is to promote adherence to the Solid Waste Management Rules 2016 and subsequent amendments.
@@ -132,18 +79,10 @@ Return ONLY valid JSON (no markdown, no code fences):
 }
 Do NOT add explanations or code fences."""
 
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
 
 
 def get_api_config():
-    """
-    Get Gemini API configuration from Flask app config.
-
-    Returns:
-        dict: API key, model name, and base URL
-    """
+    
     return {
         "key": current_app.config.get("GEMINI_API_KEY", ""),
         "model": current_app.config.get("GEMINI_API_MODEL", "gemini-1.5-flash"),
@@ -155,15 +94,7 @@ def get_api_config():
 
 
 def get_user_context(user):
-    """
-    Build personalized user context string from database.
-
-    Args:
-        user: User model instance
-
-    Returns:
-        str: Formatted user context for LLM personalization
-    """
+    
     context_parts = []
 
     # User identification
@@ -200,29 +131,14 @@ def get_user_context(user):
 
 
 def get_conversation_history(user_id):
-    """
-    Retrieve conversation history for a user.
-
-    Args:
-        user_id: User ID
-
-    Returns:
-        list: List of conversation messages in Gemini API format
-    """
+    
     if user_id not in conversation_history:
         return []
     return list(conversation_history[user_id])
 
 
 def add_to_history(user_id, user_message, assistant_message):
-    """
-    Add a user-assistant message pair to conversation history.
-
-    Args:
-        user_id: User ID
-        user_message: User's message text
-        assistant_message: Assistant's response text
-    """
+    
     if user_id not in conversation_history:
         conversation_history[user_id] = deque(maxlen=MAX_HISTORY_PAIRS * 2)
 
@@ -235,15 +151,7 @@ def add_to_history(user_id, user_message, assistant_message):
 
 
 def extract_gemini_response(response_data):
-    """
-    Extract text from Gemini API response.
-
-    Args:
-        response_data: JSON response from Gemini API
-
-    Returns:
-        str: Extracted response text or None if not found
-    """
+    
     # Primary extraction path
     if "candidates" in response_data and len(response_data["candidates"]) > 0:
         candidate = response_data["candidates"][0]
@@ -263,15 +171,7 @@ def extract_gemini_response(response_data):
 
 
 def check_api_key_configured(gemini_key):
-    """
-    Validate that API key is properly configured.
 
-    Args:
-        gemini_key: API key string
-
-    Returns:
-        tuple: (is_valid, error_message)
-    """
     if not gemini_key or gemini_key == "your-gemini-api-key-here" or not gemini_key.strip():
         return False, "API key not configured"
 
@@ -284,15 +184,7 @@ def check_api_key_configured(gemini_key):
 
 
 def handle_api_error(error):
-    """
-    Handle API errors and extract meaningful error messages.
-
-    Args:
-        error: Exception from requests library
-
-    Returns:
-        tuple: (error_message, error_details, status_code)
-    """
+    
     if isinstance(error, requests.exceptions.Timeout):
         return "Request timeout. Please try again.", None, 500
 
@@ -325,36 +217,12 @@ def handle_api_error(error):
     return f"Unexpected error: {str(error)}", None, 500
 
 
-# ============================================================================
-# ENDPOINTS
-# ============================================================================
 
 
 @bp.route("/chat", methods=["POST"])
 @token_required
 def chat(user):
-    """
-    Chat endpoint for interactive waste management guidance.
-
-    Maintains conversation history (last 5 pairs) and personalizes responses
-    based on user context from database.
-
-    Request body:
-        {
-            "message": "user's question about waste management"
-        }
-
-    Response:
-        {
-            "response": "AI-generated response",
-            "error": null (if successful)
-        }
-
-    Status codes:
-        200: Success or API key not configured (fallback response)
-        400: Invalid request (missing/empty message)
-        500: API error or network issue
-    """
+    
     try:
         # Validate request
         data = request.get_json()
@@ -485,20 +353,7 @@ def chat(user):
 @bp.route("/chat/clear", methods=["POST"])
 @token_required
 def clear_chat_history(user):
-    """
-    Clear conversation history for the authenticated user.
-
-    This endpoint is idempotent: it returns success whether or not
-    the user had any history stored.
-
-    Response:
-        {
-            "message": "Chat history cleared successfully"
-        }
-
-    Status codes:
-        200: Success (always)
-    """
+    
     if user.id in conversation_history:
         del conversation_history[user.id]
         current_app.logger.info(f"Cleared chat history for user {user.id}")
@@ -509,30 +364,7 @@ def clear_chat_history(user):
 @bp.route("/random-quiz", methods=["POST"])
 @token_required
 def random_quiz(user):
-    """
-    Generate a random waste management quiz with 5 MCQ questions.
     
-    Enforces a daily limit of 2 quiz generations per user.
-
-    Response:
-        {
-            "questions": [
-                {
-                    "question_text": "...",
-                    "options": [
-                        {"text": "...", "is_correct": false},
-                        ...
-                    ]
-                },
-                ...
-            ]
-        }
-
-    Status codes:
-        200: Success
-        429: Daily limit reached (2 quizzes per day)
-        500: API error or invalid response format
-    """
     try:
         # Check daily limit (2 quizzes per day per user)
         DAILY_QUIZ_LIMIT = 2
@@ -623,26 +455,7 @@ def random_quiz(user):
 @bp.route("/random-quiz/score", methods=["POST"])
 @token_required
 def random_quiz_score(user):
-    """
-    Submit quiz score and update user points.
-
-    Request body:
-        {
-            "score": 3  (number of correct answers)
-        }
-
-    Response:
-        {
-            "message": "Score updated successfully",
-            "new_points": 150,
-            "points_earned": 30
-        }
-
-    Status codes:
-        200: Success
-        400: Invalid score
-        500: Database error
-    """
+    
     try:
         data = request.get_json()
         score = data.get("score", 0)
@@ -675,25 +488,7 @@ def random_quiz_score(user):
 @bp.route("/dashboard-analysis", methods=["POST"])
 @token_required
 def dashboard_analysis(user):
-    """
-    Analyze user dashboard data and provide personalized insights.
-
-    Request body:
-        {
-            "data": {...},  (dashboard data to analyze)
-            "context": "Weekly"  (optional, default: "Dashboard Data")
-        }
-
-    Response:
-        {
-            "analysis": "<p>HTML formatted analysis</p>"
-        }
-
-    Status codes:
-        200: Success
-        400: Missing data
-        500: API error or key not configured
-    """
+    
     try:
         data = request.get_json()
         dashboard_data = data.get("data")

@@ -2233,3 +2233,204 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /genai/random-quiz:
+    post:
+      tags:
+        - GenAI
+      summary: Generate random waste management quiz
+      description: |
+        Generate a random quiz with 5 MCQ questions about waste management using Google Gemini API.
+        Enforces a daily limit of 2 quiz generations per user.
+        
+        **User Story**: As a household user, I want to generate random quizzes so that I can test my knowledge on different waste management topics.
+      responses:
+        '200':
+          description: Quiz generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        question_text:
+                          type: string
+                          example: "What is the correct way to dispose of plastic bottles?"
+                        options:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              text:
+                                type: string
+                                example: "Blue Bin (Dry Waste)"
+                              is_correct:
+                                type: boolean
+                                example: true
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Daily limit reached - User has already generated 2 quizzes today
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "You have reached your daily quiz limit. Try again tomorrow!"
+                  attempts_today:
+                    type: integer
+                    example: 2
+                  limit:
+                    type: integer
+                    example: 2
+        '500':
+          description: Internal server error - API configuration issue, network error, or invalid LLM response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /genai/random-quiz/score:
+    post:
+      tags:
+        - GenAI
+      summary: Submit random quiz score
+      description: |
+        Submit the score from a random quiz and update user points. Awards 10 points per correct answer.
+        
+        **User Story**: As a household user, I want to submit my random quiz score so that I can earn points based on my performance.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - score
+              properties:
+                score:
+                  type: integer
+                  minimum: 0
+                  maximum: 5
+                  example: 3
+                  description: Number of correct answers (out of 5 questions)
+      responses:
+        '200':
+          description: Score submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Score updated successfully"
+                  new_points:
+                    type: integer
+                    example: 180
+                    description: User's total points after update
+                  points_earned:
+                    type: integer
+                    example: 30
+                    description: Points earned from this quiz (score * 10)
+        '400':
+          description: Bad request - Invalid score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Invalid score"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error - Database error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /genai/dashboard-analysis:
+    post:
+      tags:
+        - GenAI
+      summary: Analyze dashboard data with AI
+      description: |
+        Analyze user dashboard data using Google Gemini API and provide personalized insights and suggestions.
+        
+        **User Story**: As a household user, I want AI-powered analysis of my dashboard data so that I can get personalized recommendations for improving my waste management practices.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: object
+                  description: Dashboard data to analyze (quiz performance, waste logs, engagement metrics, etc.)
+                  example:
+                    quiz_performance:
+                      average_score: 85.5
+                      total_attempts: 25
+                    waste_summary:
+                      wet_kg: 45.5
+                      dry_kg: 30.2
+                      hazardous_kg: 2.1
+                    monthly_engagement:
+                      quizzes: 15
+                      waste_logs: 20
+                      campaigns: 2
+                context:
+                  type: string
+                  description: Optional context for the analysis
+                  example: "Weekly"
+                  default: "Dashboard Data"
+      responses:
+        '200':
+          description: Analysis generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysis:
+                    type: string
+                    description: HTML-formatted analysis with summary and suggestions
+                    example: "<p><strong>Summary:</strong> You're doing great with waste segregation!</p><p><strong>Suggestions:</strong></p><ul><li>Try to reduce wet waste by composting</li><li>Continue your excellent quiz performance</li></ul>"
+        '400':
+          description: Bad request - Missing data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "No data provided"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error - API configuration issue or network error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
