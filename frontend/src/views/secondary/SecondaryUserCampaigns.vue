@@ -169,7 +169,7 @@ const statusFilter = ref('');
 const categoryFilter = ref('');
 
 // Default image for campaigns without images
-const defaultImage = 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80';
+const defaultImage = 'https://images.unsplash.com/photo-1466611653911-95081537e5b7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80';
 
 // Fetch campaigns from backend
 const fetchCampaigns = async () => {

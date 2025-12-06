@@ -36,8 +36,7 @@
             <li class="nav-item">
               <router-link
                 to="/collector-dashboard"
-                class="nav-link fw-semibold text-dark"
-                active-class="active"
+                :class="['nav-link', 'fw-semibold', 'text-dark', isActive('/collector-dashboard') ? 'active' : '']"
               >
                 COLLECTOR PICKUP DASHBOARD
               </router-link>
@@ -88,12 +87,13 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import ThemeToggle from "../ThemeToggle.vue";
 import AppFooter from "./AppFooter.vue";
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const currentDateTime = ref("");
 
@@ -108,6 +108,10 @@ const updateDateTime = () => {
   const seconds = String(now.getSeconds()).padStart(2, '0');
   
   currentDateTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+const isActive = (path) => {
+  return route.path === path;
 };
 
 const handleLogout = () => {
