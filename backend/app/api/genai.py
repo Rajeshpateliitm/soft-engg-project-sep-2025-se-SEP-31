@@ -13,9 +13,10 @@ import json
 import requests
 from urllib.parse import quote_plus
 from collections import deque
+from datetime import date
 from flask import Blueprint, request, jsonify, current_app
 from app.core.security import token_required
-from app.models import db
+from app.models import db, RandomQuizAttempt
 
 bp = Blueprint("genai", __name__)
 
@@ -510,6 +511,8 @@ def clear_chat_history(user):
 def random_quiz(user):
     """
     Generate a random waste management quiz with 5 MCQ questions.
+    
+    Enforces a daily limit of 2 quiz generations per user.
 
     Response:
         {
@@ -527,9 +530,30 @@ def random_quiz(user):
 
     Status codes:
         200: Success
+        429: Daily limit reached (2 quizzes per day)
         500: API error or invalid response format
     """
     try:
+        # Check daily limit (2 quizzes per day per user)
+        DAILY_QUIZ_LIMIT = 2
+        today = date.today()
+        
+        attempts_today = db.session.query(RandomQuizAttempt).filter(
+            RandomQuizAttempt.user_id == user.id,
+            RandomQuizAttempt.attempt_date == today,
+            RandomQuizAttempt.is_active == True
+        ).count()
+        
+        if attempts_today >= DAILY_QUIZ_LIMIT:
+            current_app.logger.info(
+                f"User {user.id} reached daily quiz limit ({attempts_today}/{DAILY_QUIZ_LIMIT})"
+            )
+            return jsonify({
+                "error": "You have reached your daily quiz limit. Try again tomorrow!",
+                "attempts_today": attempts_today,
+                "limit": DAILY_QUIZ_LIMIT
+            }), 429
+
         api_config = get_api_config()
         gemini_key = api_config["key"]
         gemini_model = api_config["model"]
@@ -564,6 +588,19 @@ def random_quiz(user):
 
         try:
             quiz = json.loads(clean_text)
+            
+            # Record the attempt in database
+            attempt = RandomQuizAttempt(
+                user_id=user.id,
+                attempt_date=today
+            )
+            db.session.add(attempt)
+            db.session.commit()
+            
+            current_app.logger.info(
+                f"User {user.id} generated quiz successfully ({attempts_today + 1}/{DAILY_QUIZ_LIMIT})"
+            )
+            
             return jsonify(quiz), 200
         except json.JSONDecodeError:
             current_app.logger.error(f"Invalid JSON from LLM: {clean_text[:200]}")
@@ -573,10 +610,12 @@ def random_quiz(user):
             }), 500
 
     except requests.exceptions.RequestException as e:
+        db.session.rollback()
         current_app.logger.error(f"Random quiz API error: {str(e)}")
         return jsonify({"error": f"API error: {str(e)}"}), 500
 
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f"Random quiz error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 

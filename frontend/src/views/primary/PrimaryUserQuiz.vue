@@ -187,9 +187,6 @@ const errorMessage = ref("");
 const submittedScore = ref(null);
 const loading = ref(false);
 
-// Daily quiz limit tracking
-const DAILY_QUIZ_LIMIT = 2;
-
 // ============================================================================
 // COMPUTED
 // ============================================================================
@@ -219,33 +216,6 @@ const getResultMessage = computed(() => {
   if (percentage >= 40) return "Not bad! Keep learning about proper waste disposal.";
   return "Keep trying! Check out our resources to learn more about waste management.";
 });
-
-// ============================================================================
-// DAILY LIMIT HELPERS
-// ============================================================================
-
-const getTodayDate = () => {
-  const today = new Date();
-  return today.toISOString().split("T")[0];
-};
-
-const getQuizAttemptsToday = () => {
-  const today = getTodayDate();
-  const key = `quiz_attempts_${today}`;
-  const attempts = localStorage.getItem(key);
-  return attempts ? parseInt(attempts, 10) : 0;
-};
-
-const incrementQuizAttempts = () => {
-  const today = getTodayDate();
-  const key = `quiz_attempts_${today}`;
-  const current = getQuizAttemptsToday();
-  localStorage.setItem(key, (current + 1).toString());
-};
-
-const hasReachedDailyLimit = () => {
-  return getQuizAttemptsToday() >= DAILY_QUIZ_LIMIT;
-};
 
 // ============================================================================
 // LIFECYCLE
@@ -388,12 +358,6 @@ const restartQuiz = () => {
 // ============================================================================
 
 const startRandomQuiz = async () => {
-  // Check daily limit
-  if (hasReachedDailyLimit()) {
-    errorMessage.value = "You have tried your daily quiz limit. Try next day...";
-    return;
-  }
-
   loading.value = true;
   errorMessage.value = "";
 
@@ -416,9 +380,6 @@ const startRandomQuiz = async () => {
       return;
     }
 
-    // Increment attempt counter
-    incrementQuizAttempts();
-
     localStorage.setItem("temp_quiz", JSON.stringify(res.data));
     router.push({ name: "RandomQuiz" });
 
@@ -433,6 +394,8 @@ const startRandomQuiz = async () => {
     } else if (err.response.status === 401) {
       errorMessage.value = "Session expired. Please sign in again.";
       router.push("/signin");
+    } else if (err.response.status === 429) {
+      errorMessage.value = err.response?.data?.error || "You have reached your daily quiz limit. Try again tomorrow!";
     } else {
       errorMessage.value = err.response?.data?.error || "Server error — please try again.";
     }

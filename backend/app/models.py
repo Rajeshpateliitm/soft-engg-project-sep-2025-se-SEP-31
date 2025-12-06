@@ -126,6 +126,15 @@ class QuizAnswer(db.Model, TimestampMixin, SoftDeleteMixin):
     question = relationship("QuizQuestion")  # denormalized link for convenience
 
 
+class RandomQuizAttempt(db.Model, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "random_quiz_attempts"
+
+    id = db.Column(db.Integer, primary_key=True)  # PK
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)  # FK -> user
+    attempt_date = db.Column(db.Date, server_default=func.current_date(), nullable=False, index=True)  # date of attempt
+    user = relationship("User")  # user who generated the quiz
+
+
 class WasteLog(db.Model, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "waste_logs"
 
