@@ -247,7 +247,7 @@
                 <tr v-if="displayedLogs.length === 0">
                   <td colspan="5" class="text-center py-4">
                     <p class="text-muted mb-0">No waste logs found</p>
-                    <router-link to="/primary-dashboard/waste-log" class="btn btn-sm btn-primary mt-2">
+                    <router-link to="/primary-dashboard/wastelog" class="btn btn-sm btn-primary mt-2">
                       <i class="bi bi-plus-lg me-1"></i> Add Waste Log
                     </router-link>
                   </td>
