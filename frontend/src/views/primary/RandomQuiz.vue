@@ -346,21 +346,25 @@ const retryQuiz = async () => {
   } catch (err) {
     console.error("Quiz error:", err);
 
+    // Default user-friendly message
+    let userMessage = "There was a problem generating the quiz. Please try again later.";
+
     if (err.code === "ECONNABORTED") {
-      errorMessage.value = "Quiz is taking too long. Please try again.";
-      setTimeout(() => (errorMessage.value = ""), 4000);
+      userMessage = "Quiz is taking too long. Please try again.";
     } else if (!err.response) {
-      errorMessage.value = "Network error — check your connection.";
-      setTimeout(() => (errorMessage.value = ""), 3000);
+      userMessage = "Network error — check your connection.";
     } else if (err.response.status === 401) {
-      errorMessage.value = "Session expired. Redirecting...";
-      router.push("/signin");
+      userMessage = "Session expired. Redirecting...";
+      setTimeout(() => router.push("/signin"), 1500);
     } else if (err.response.status === 429) {
-      errorMessage.value = err.response?.data?.error || "You have reached your daily quiz limit. Try again tomorrow!";
-      setTimeout(() => (errorMessage.value = ""), 3000);
-    } else {
-      errorMessage.value = err.response?.data?.error || "Unknown server error.";
+      // Use backend message for rate limiting
+      userMessage = err.response?.data?.error || "You have reached your daily quiz limit. Try again tomorrow!";
+    } else if (err.response?.data?.error) {
+      // Use backend error message (already user-friendly)
+      userMessage = err.response.data.error;
     }
+
+    errorMessage.value = userMessage;
   }
 
   loading.value = false;

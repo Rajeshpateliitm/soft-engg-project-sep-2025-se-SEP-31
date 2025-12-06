@@ -62,7 +62,13 @@ const analyzeData = async () => {
     }
   } catch (err) {
     console.error('Analysis failed:', err);
-    error.value = 'Failed to generate analysis. Please try again.';
+    
+    // Use backend error message if available, otherwise use default
+    if (err.response && err.response.data && err.response.data.error) {
+      error.value = err.response.data.error;
+    } else {
+      error.value = 'Unable to analyze the data at this time. Please try again later.';
+    }
   } finally {
     loading.value = false;
   }
