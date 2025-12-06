@@ -5,7 +5,6 @@ const StandardLayout = () => import('@/components/layout/StandardLayout.vue');
 const Home = () => import('@/views/Home.vue');
 const Registration = () => import('@/views/Registration.vue');
 const SignIn = () => import('@/views/SignIn.vue');
-const ResetPassword = () => import('@/views/ResetPassword.vue');
 const PrimaryUserNavbar = () => import('@/components/layout/PrimaryUserNavbar.vue');
 const PrimaryUserDashboard = () => import('@/views/primary/PrimaryUserDashboard.vue');
 const PrimaryUserQuiz = () => import('@/views/primary/PrimaryUserQuiz.vue');
@@ -50,11 +49,6 @@ const routes = [
         path: 'signin', 
         name: 'SignIn',
         component: SignIn 
-      },
-      { 
-        path: 'reset-password', 
-        name: 'ResetPassword',
-        component: ResetPassword 
       }
     ]
   },
