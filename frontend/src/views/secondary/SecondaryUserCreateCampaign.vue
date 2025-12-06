@@ -96,8 +96,10 @@
                       type="date" 
                       class="form-control form-control-lg"
                       v-model="formData.startDate"
+                      :min="minDate"
                       required
                     >
+                    <small class="text-muted">Only current and future dates are allowed</small>
                   </div>
                   <div class="col-md-6 mb-4">
                     <label class="form-label fw-bold">Event Time</label>
@@ -158,7 +160,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '@/services/api';
 
@@ -168,6 +170,15 @@ const imageInput = ref(null);
 const isSubmitting = ref(false);
 const isEditMode = ref(false);
 const campaignId = ref(null);
+
+// Compute minimum date (today) for date input
+const minDate = computed(() => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+});
 
 const formData = ref({
   campaignName: '',
@@ -249,6 +260,27 @@ const submitForm = async () => {
       !formData.value.campaignLocation || !formData.value.startDate || 
       !formData.value.startTime) {
     alert('Please fill in all required fields (Name, Description, Location, Date, and Time)');
+    return;
+  }
+
+  // Validate that the date is not in the past
+  const selectedDate = new Date(formData.value.startDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  selectedDate.setHours(0, 0, 0, 0);
+  
+  if (selectedDate < today) {
+    alert('Event date cannot be in the past. Please select a current or future date.');
+    return;
+  }
+
+  // Validate that the combined date and time is not in the past
+  const eventDateTimeStr = `${formData.value.startDate} ${formData.value.startTime}`;
+  const eventDateTime = new Date(eventDateTimeStr);
+  const now = new Date();
+  
+  if (eventDateTime < now) {
+    alert('Event date and time cannot be in the past. Please select a current or future date and time.');
     return;
   }
 
