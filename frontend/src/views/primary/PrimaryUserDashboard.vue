@@ -464,7 +464,7 @@ const sendMessage = async () => {
     } else if (response.data && response.data.error) {
       // Handle API errors gracefully
       chatMessages.value.push({
-        text: "Sorry, I encountered an error. Please try again later.",
+        text: "The service is temporarily unavailable. Please try again later.",
         sender: "bot",
       });
     } else {
@@ -480,22 +480,15 @@ const sendMessage = async () => {
 
     // Handle errors
     console.error("Chat error:", error);
-    let errorMessage =
-      "Sorry, I'm having trouble connecting. Please try again.";
+    let errorMessage = "The service is temporarily unavailable. Please try again later.";
 
-    if (error.response) {
-      // Server responded with error status
-      const errorData = error.response.data;
-      if (errorData && errorData.error) {
-        errorMessage = `Error: ${errorData.error}`;
-      } else {
-        errorMessage =
-          "Sorry, the service is temporarily unavailable. Please try again later.";
-      }
+    if (error.response && error.response.data && error.response.data.error) {
+      // Use the error message from backend (already user-friendly)
+      errorMessage = error.response.data.error;
     } else if (error.request) {
       // Request was made but no response received
       errorMessage =
-        "Unable to connect to the server. Please check your connection.";
+        "Unable to connect. Please check your connection.";
     }
 
     chatMessages.value.push({
