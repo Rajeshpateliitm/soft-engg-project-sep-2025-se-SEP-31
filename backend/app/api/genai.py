@@ -170,51 +170,46 @@ def extract_gemini_response(response_data):
     return None
 
 
-def check_api_key_configured(gemini_key):
+# def check_api_key_configured(gemini_key):
 
-    if not gemini_key or gemini_key == "your-gemini-api-key-here" or not gemini_key.strip():
-        return False, "API key not configured"
+#     if not gemini_key or gemini_key == "your-gemini-api-key-here" or not gemini_key.strip():
+#         return False, "API key not configured"
 
-    if not gemini_key.startswith("AIza"):
-        current_app.logger.warning(
-            f"API key format may be incorrect. Expected to start with 'AIza', got: {gemini_key[:5]}..."
-        )
+#     if not gemini_key.startswith("AIza"):
+#         current_app.logger.warning(
+#             f"API key format may be incorrect. Expected to start with 'AIza', got: {gemini_key[:5]}..."
+#         )
 
-    return True, None
+#     return True, None
 
 
 def handle_api_error(error):
-    
+    user_message = "I'm having trouble right now. Please try again later."
     if isinstance(error, requests.exceptions.Timeout):
-        return "Request timeout. Please try again.", None, 500
+        current_app.logger.error(f"API timeout error: {str(error)}")
+        return user_message, None, 500
 
     if isinstance(error, requests.exceptions.HTTPError):
-        error_message = f"API error: {error.response.status_code}"
-        error_details = None
+        
 
         try:
             error_data = error.response.json()
-            current_app.logger.error(f"Gemini API error: {error_data}")
-
-            if "error" in error_data:
-                error_info = error_data["error"]
-                error_message = error_info.get("message", error_message)
-                error_details = error_info
-            elif "message" in error_data:
-                error_message = error_data["message"]
-                error_details = error_data
+            current_app.logger.error(f"Gemini API error ({error.response.status_code}): {error_data}")
         except Exception as parse_error:
+            current_app.logger.error(f"Gemini API error ({error.response.status_code}): {error.response.text[:500]}")
             current_app.logger.error(f"Failed to parse error: {parse_error}")
 
-        return error_message, error_details, 500
+        return user_message, None, 500
 
     if isinstance(error, requests.exceptions.RequestException):
-        return f"Network error: {str(error)}", None, 500
-
+        current_app.logger.error(f"Network error: {str(error)}")
+        return user_message, None, 500
     if isinstance(error, ValueError):
-        return str(error), None, 400
+        current_app.logger.error(f"Value error: {str(error)}")
+        return user_message, None, 400
 
-    return f"Unexpected error: {str(error)}", None, 500
+    current_app.logger.error(f"Unexpected error: {str(error)}")
+    return user_message, None, 500
 
 
 
@@ -239,16 +234,11 @@ def chat(user):
         gemini_model = api_config["model"]
         gemini_base_url = api_config["base_url"]
 
-        # Check API key
-        is_valid, error_msg = check_api_key_configured(gemini_key)
-        if not is_valid:
-            current_app.logger.warning(f"GenAI chat: {error_msg}")
-            return jsonify(
-                {
-                    "response": "I'm here to help with waste management! Please configure the GEMINI_API_KEY environment variable in the .env file with your actual Gemini API key from https://aistudio.google.com/app/apikey",
-                    "error": error_msg,
-                }
-            ), 200
+        if not gemini_key:
+            current_app.logger.error("Gemini API key not configured")
+            return jsonify({"error": "The service is temporarily unavailable. Please try again later.", "response": None}), 500
+
+        
 
         # Build enhanced system prompt with user context
         user_context = get_user_context(user)
@@ -325,7 +315,7 @@ def chat(user):
                     current_app.logger.warning(
                         f"Response blocked: {finish_reason}"
                     )
-                    raise ValueError(f"Response blocked by API. Reason: {finish_reason}")
+                    raise ValueError("Response blocked by API")
 
             raise ValueError("Empty response from API")
 
@@ -336,18 +326,13 @@ def chat(user):
 
     except (requests.exceptions.Timeout, requests.exceptions.HTTPError, 
             requests.exceptions.RequestException, ValueError, Exception) as e:
-        error_message, error_details, status_code = handle_api_error(e)
-        
+        error_message, _, status_code = handle_api_error(e)        
         if status_code == 500 and not isinstance(e, (requests.exceptions.Timeout, 
                                                        requests.exceptions.HTTPError,
                                                        requests.exceptions.RequestException)):
             current_app.logger.error(f"Unexpected error in chat: {str(e)}")
         
-        response_data = {"error": error_message, "response": None}
-        if error_details:
-            response_data["error_details"] = error_details
-        
-        return jsonify(response_data), status_code
+        return jsonify({"error": error_message, "response": None}), status_code
 
 
 @bp.route("/chat/clear", methods=["POST"])
@@ -392,7 +377,8 @@ def random_quiz(user):
         gemini_base_url = api_config["base_url"]
 
         if not gemini_key:
-            return jsonify({"error": "API key not configured"}), 500
+            current_app.logger.error("Gemini API key not configured")
+            return jsonify({"error": "The service is temporarily unavailable. Please try again later."}), 500
 
         encoded_key = quote_plus(gemini_key)
         api_url = f"{gemini_base_url}/{gemini_model}:generateContent?key={encoded_key}"
@@ -413,8 +399,8 @@ def random_quiz(user):
         text = extract_gemini_response(response_data)
 
         if not text:
-            return jsonify({"error": "LLM returned empty response"}), 500
-
+            current_app.logger.error("LLM returned empty response for quiz generation")
+            return jsonify({"error": "There was a problem generating the quiz. Please try again later."}), 500
         # Clean code fences
         clean_text = text.replace("```json", "").replace("```", "").strip()
 
@@ -434,22 +420,20 @@ def random_quiz(user):
             )
             
             return jsonify(quiz), 200
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as json_err:
             current_app.logger.error(f"Invalid JSON from LLM: {clean_text[:200]}")
-            return jsonify({
-                "error": "Invalid JSON from LLM",
-                "raw": clean_text[:500]
-            }), 500
+            current_app.logger.error(f"JSON decode error: {str(json_err)}")
+            return jsonify({"error": "There was a problem generating the quiz. Please try again later."}), 500
 
     except requests.exceptions.RequestException as e:
         db.session.rollback()
         current_app.logger.error(f"Random quiz API error: {str(e)}")
-        return jsonify({"error": f"API error: {str(e)}"}), 500
+        return jsonify({"error": "There was a problem generating the quiz. Please try again later."}), 500
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Random quiz error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "There was a problem generating the quiz. Please try again later."}), 500
 
 
 @bp.route("/random-quiz/score", methods=["POST"])
@@ -462,8 +446,8 @@ def random_quiz_score(user):
 
         # Validate score
         if not isinstance(score, int) or score < 0:
-            return jsonify({"error": "Invalid score"}), 400
-
+            current_app.logger.warning(f"Invalid score submitted: {score}")
+            return jsonify({"error": "Invalid score provided"}), 400
         # Update user points (10 points per correct answer)
         points_earned = score * 10
         user.points += points_earned
@@ -482,8 +466,7 @@ def random_quiz_score(user):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error updating quiz score: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
+        return jsonify({"error": "Unable to update score. Please try again."}), 500
 
 @bp.route("/dashboard-analysis", methods=["POST"])
 @token_required
@@ -503,7 +486,8 @@ def dashboard_analysis(user):
         gemini_base_url = api_config["base_url"]
 
         if not gemini_key:
-            return jsonify({"error": "API key not configured"}), 500
+            current_app.logger.error("Gemini API key not configured")
+            return jsonify({"error": "The service is temporarily unavailable. Please try again later."}), 500
 
         encoded_key = quote_plus(gemini_key)
         api_url = f"{gemini_base_url}/{gemini_model}:generateContent?key={encoded_key}"
@@ -541,8 +525,8 @@ Do NOT use ```html or ``` tags. Keep it compact and professional."""
         analysis_text = extract_gemini_response(response_data)
 
         if not analysis_text:
-            return jsonify({"error": "Empty response from API"}), 500
-
+            current_app.logger.error("Empty response from Gemini API")
+            return jsonify({"error": "Unable to analyze the data at this time. Please try again later."}), 500
         # Clean code fences
         analysis_text = analysis_text.replace("```html", "").replace("```", "").strip()
 
@@ -550,8 +534,8 @@ Do NOT use ```html or ``` tags. Keep it compact and professional."""
 
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Dashboard analysis API error: {str(e)}")
-        return jsonify({"error": f"API error: {str(e)}"}), 500
+        return jsonify({"error": "Unable to analyze the data at this time. Please try again later."}), 500
 
     except Exception as e:
         current_app.logger.error(f"Dashboard analysis error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Unable to analyze the data at this time. Please try again later."}), 500
