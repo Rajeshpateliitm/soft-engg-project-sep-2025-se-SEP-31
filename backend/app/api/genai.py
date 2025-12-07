@@ -1,5 +1,3 @@
-
-
 import json
 import requests
 from urllib.parse import quote_plus
@@ -81,16 +79,118 @@ Do NOT add explanations or code fences."""
 
 
 
-def get_api_config():
+
+class KeyRotator:
+    _instance = None
     
-    return {
-        "key": current_app.config.get("GEMINI_API_KEY", ""),
-        "model": current_app.config.get("GEMINI_API_MODEL", "gemini-1.5-flash"),
-        "base_url": current_app.config.get(
-            "GEMINI_API_BASE_URL",
-            "https://generativelanguage.googleapis.com/v1beta/models",
-        ),
-    }
+    def __init__(self):
+        self._current_index = 0
+        self._keys = []
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def get_key(self):
+        if not self._keys:
+            self._keys = current_app.config.get("GEMINI_API_KEYS", [])
+            # Fallback for backward compatibility
+            if not self._keys:
+                single_key = current_app.config.get("GEMINI_API_KEY")
+                if single_key:
+                    self._keys = [single_key]
+        
+        if not self._keys:
+            return None
+            
+        return self._keys[self._current_index % len(self._keys)]
+
+    def rotate(self):
+        if self._keys:
+            old_index = self._current_index
+            self._current_index = (self._current_index + 1) % len(self._keys)
+            if old_index != self._current_index:
+                current_app.logger.info(f"Rotated Gemini API Key from index {old_index} to {self._current_index}")
+
+
+def call_gemini_with_retry(payload, model=None):
+    """
+    Calls Gemini API with automatic key rotation on 429 errors.
+    """
+    rotator = KeyRotator.get_instance()
+    
+    
+    if not model:
+        model = current_app.config.get("GEMINI_API_MODEL", "gemini-1.5-flash")
+    
+    
+    first_key = rotator.get_key()
+    if not first_key:
+        return None, "API key not configured", 500
+        
+    keys_count = len(rotator._keys)
+    
+    max_attempts = keys_count if keys_count > 0 else 1
+    
+    base_url = current_app.config.get(
+        "GEMINI_API_BASE_URL",
+        "https://generativelanguage.googleapis.com/v1beta/models",
+    )
+    
+    last_error = None
+    last_status = 500
+    
+    for attempt in range(max_attempts):
+        current_key = rotator.get_key()
+        encoded_key = quote_plus(current_key)
+        api_url = f"{base_url}/{model}:generateContent?key={encoded_key}"
+        
+        # Mask key for logging
+        masked_key = f"{current_key[:4]}...{current_key[-4:]}" if len(current_key) > 8 else "***"
+        
+        try:
+            current_app.logger.info(f"Calling Gemini API (Attempt {attempt+1}/{max_attempts}) model={model} key={masked_key}")
+            response = requests.post(
+                api_url, 
+                json=payload, 
+                headers={"Content-Type": "application/json"}, 
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                return response.json(), None, 200
+                
+            if response.status_code == 429:
+                current_app.logger.warning(f"Rate limit (429) hit for key {masked_key}. Rotating key...")
+                rotator.rotate()
+                last_error = "Rate limit exceeded"
+                last_status = 429
+                continue
+            
+            
+            try:
+                err_body = response.json()
+            except:
+                err_body = response.text[:200]
+            current_app.logger.error(f"Gemini API Error {response.status_code}: {err_body}")
+            
+            return None, f"API Error: {response.status_code}", response.status_code
+
+        except requests.exceptions.RequestException as e:
+            current_app.logger.error(f"Network error in Gemini call: {str(e)}")
+            last_error = "Network error connecting to AI service"
+            last_status = 500
+            break
+            
+    return None, last_error or "Failed to get valid response after retries", last_status
+
+
+def get_api_config():
+
+    pass
+
 
 
 def get_user_context(user):
@@ -228,17 +328,7 @@ def chat(user):
         if not user_message:
             return jsonify({"error": "Message is required", "response": None}), 400
 
-        # Get API configuration
-        api_config = get_api_config()
-        gemini_key = api_config["key"]
-        gemini_model = api_config["model"]
-        gemini_base_url = api_config["base_url"]
-
-        if not gemini_key:
-            current_app.logger.error("Gemini API key not configured")
-            return jsonify({"error": "The service is temporarily unavailable. Please try again later.", "response": None}), 500
-
-        
+        gemini_model = current_app.config.get("GEMINI_API_MODEL", "gemini-1.5-flash")
 
         # Build enhanced system prompt with user context
         user_context = get_user_context(user)
@@ -249,10 +339,6 @@ def chat(user):
         # Get conversation history
         history = get_conversation_history(user.id)
 
-        # Build API request
-        encoded_key = quote_plus(gemini_key)
-        api_url = f"{gemini_base_url}/{gemini_model}:generateContent?key={encoded_key}"
-
         contents = []
         contents.extend(history)
         contents.append({"role": "user", "parts": [{"text": user_message}]})
@@ -261,7 +347,7 @@ def chat(user):
             "contents": contents,
             "generationConfig": {
                 "temperature": 0.7,
-                "maxOutputTokens": 200,
+                # "maxOutputTokens": 200,
                 "topP": 0.8,
                 "topK": 40,
             },
@@ -277,33 +363,21 @@ def chat(user):
                     enhanced_prompt + "\n\n" + contents[0]["parts"][0]["text"]
                 )
 
-        headers = {"Content-Type": "application/json"}
+        # Call Gemini API with retry logic
+        current_app.logger.info(f"Calling Gemini API for user {user.id}")
+        
+        response_data, error_msg, status_code = call_gemini_with_retry(payload, model=gemini_model)
+        
+        if error_msg:
+             current_app.logger.error(f"Gemini API failed: {error_msg}")
+             return jsonify({"error": "The service is temporarily unavailable. Please try again later.", "response": None}), status_code
 
-        # Call Gemini API
-        current_app.logger.info(
-            f"Calling Gemini API for user {user.id}: {gemini_model}"
-        )
-
-        response = requests.post(
-            api_url,
-            json=payload,
-            headers=headers,
-            timeout=30,
-        )
-
-        current_app.logger.info(f"Gemini API response: {response.status_code}")
-
-        if response.status_code != 200:
-            current_app.logger.error(f"Gemini API error: {response.status_code}")
-            try:
-                current_app.logger.error(f"Error details: {response.json()}")
-            except:
-                current_app.logger.error(f"Error text: {response.text[:500]}")
-
-        response.raise_for_status()
+        
+        # check status code from helper
+        if status_code != 200:
+             return jsonify({"error": error_msg, "response": None}), status_code
 
         # Extract response
-        response_data = response.json()
         ai_response = extract_gemini_response(response_data)
 
         if not ai_response:
@@ -327,8 +401,7 @@ def chat(user):
     except (requests.exceptions.Timeout, requests.exceptions.HTTPError, 
             requests.exceptions.RequestException, ValueError, Exception) as e:
         error_message, _, status_code = handle_api_error(e)        
-        if status_code == 500 and not isinstance(e, (requests.exceptions.Timeout, 
-                                                       requests.exceptions.HTTPError,
+        if status_code == 500 and not isinstance(e, (requests.exceptions.Timeout, requests.exceptions.HTTPError,
                                                        requests.exceptions.RequestException)):
             current_app.logger.error(f"Unexpected error in chat: {str(e)}")
         
@@ -371,18 +444,8 @@ def random_quiz(user):
                 "limit": DAILY_QUIZ_LIMIT
             }), 429
 
-        api_config = get_api_config()
-        gemini_key = api_config["key"]
-        gemini_model = api_config["model"]
-        gemini_base_url = api_config["base_url"]
-
-        if not gemini_key:
-            current_app.logger.error("Gemini API key not configured")
-            return jsonify({"error": "The service is temporarily unavailable. Please try again later."}), 500
-
-        encoded_key = quote_plus(gemini_key)
-        api_url = f"{gemini_base_url}/{gemini_model}:generateContent?key={encoded_key}"
-
+        gemini_model = current_app.config.get("GEMINI_API_MODEL", "gemini-1.5-flash")
+        
         payload = {
             "contents": [
                 {
@@ -392,10 +455,13 @@ def random_quiz(user):
             ]
         }
 
-        response = requests.post(api_url, json=payload, timeout=30)
-        response.raise_for_status()
+        response_data, error_msg, status_code = call_gemini_with_retry(payload, model=gemini_model)
+        
+        if status_code != 200:
+             # If error_msg is generic, we might want to log it and return generic error
+             current_app.logger.error(f"Random quiz API error: {error_msg}")
+             return jsonify({"error": "There was a problem generating the quiz. Please try again later."}), 500
 
-        response_data = response.json()
         text = extract_gemini_response(response_data)
 
         if not text:
@@ -480,17 +546,7 @@ def dashboard_analysis(user):
         if not dashboard_data:
             return jsonify({"error": "No data provided"}), 400
 
-        api_config = get_api_config()
-        gemini_key = api_config["key"]
-        gemini_model = api_config["model"]
-        gemini_base_url = api_config["base_url"]
-
-        if not gemini_key:
-            current_app.logger.error("Gemini API key not configured")
-            return jsonify({"error": "The service is temporarily unavailable. Please try again later."}), 500
-
-        encoded_key = quote_plus(gemini_key)
-        api_url = f"{gemini_base_url}/{gemini_model}:generateContent?key={encoded_key}"
+        gemini_model = current_app.config.get("GEMINI_API_MODEL", "gemini-1.5-flash")
 
         prompt = f"""Analyze this waste management data for a user.
 Context: {context}
@@ -518,10 +574,12 @@ Do NOT use ```html or ``` tags. Keep it compact and professional."""
             }]
         }
 
-        response = requests.post(api_url, json=payload, timeout=30)
-        response.raise_for_status()
+        response_data, error_msg, status_code = call_gemini_with_retry(payload, model=gemini_model)
 
-        response_data = response.json()
+        if status_code != 200:
+            current_app.logger.error(f"Dashboard analysis API error: {error_msg}")
+            return jsonify({"error": "Unable to analyze the data at this time. Please try again later."}), 500
+
         analysis_text = extract_gemini_response(response_data)
 
         if not analysis_text:
