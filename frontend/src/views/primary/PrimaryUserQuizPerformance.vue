@@ -21,9 +21,6 @@
               <option value="90">Last 90 Days</option>
               <option value="all">All Time</option>
             </select>
-            <button class="btn btn-sm btn-outline-primary" @click="exportData">
-              <i class="bi bi-download me-1"></i> Export
-            </button>
           </div>
         </div>
       </div>
@@ -435,15 +432,6 @@ const viewAllAttempts = () => {
   console.log('View all attempts');
 };
 
-// Export data
-const exportData = () => {
-  // In a real app, this would generate and download a CSV/PDF
-  console.log('Exporting data...');
-  // Simulate export
-  setTimeout(() => {
-    alert('Your data has been exported successfully!');
-  }, 1000);
-};
 
 // Initialize charts
 const initCharts = () => {
