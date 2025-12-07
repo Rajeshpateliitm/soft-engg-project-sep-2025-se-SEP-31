@@ -18,6 +18,10 @@ class Config:
 
  # Google Gemini LLM API configuration
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or ""
+    # Parse multiple keys from comma-separated string
+    GEMINI_API_KEYS = [k.strip() for k in (os.environ.get("GEMINI_API_KEYS") or "").split(",") if k.strip()]
+    if not GEMINI_API_KEYS and GEMINI_API_KEY:
+        GEMINI_API_KEYS = [GEMINI_API_KEY]
     GEMINI_API_MODEL = os.environ.get("GEMINI_API_MODEL") or "gemini-1.5-flash"
     GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
