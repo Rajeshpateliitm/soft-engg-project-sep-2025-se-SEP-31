@@ -51,7 +51,7 @@ python main.py
 
 **Expected output:**
 ```
-✅ Database initialized with sample data
+Database initialized with sample data
  * Serving Flask app 'main'
  * Debug mode: on
 WARNING: This is a development server. Do not use it in a production deployment.
@@ -61,7 +61,7 @@ Press CTRL+C to quit
 
 The API server is now running at: **http://localhost:8000**
 
-**Note:** On first run, you'll see "✅ Database initialized with sample data" message. On subsequent runs, this message won't appear as the data already exists.
+**Note:** On first run, you'll see "Database initialized with sample data" message. On subsequent runs, this message won't appear as the data already exists.
 
 ## Testing the Application
 

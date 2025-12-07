@@ -21,7 +21,7 @@ python main.py
 
 **Expected output:**
 ```
-✅ Database initialized with sample data
+ Database initialized with sample data
  * Running on http://0.0.0.0:8000
  * Debug mode: on
 ```

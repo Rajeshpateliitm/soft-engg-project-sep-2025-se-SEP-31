@@ -599,7 +599,7 @@ const initChart = () => {
       }),
       datasets: [
         {
-          label: "✅ Completed",
+          label: "Completed",
           data: chartDates.map((d) => dailyData[d]?.completed || 0),
           backgroundColor: completedGradient,
           borderColor: "#28a745",
@@ -617,7 +617,7 @@ const initChart = () => {
           barPercentage: 0.85,
         },
         {
-          label: "⏳ Pending",
+          label: "Pending",
           data: chartDates.map((d) => dailyData[d]?.pending || 0),
           backgroundColor: pendingGradient,
           borderColor: "#ffc107",
@@ -635,7 +635,7 @@ const initChart = () => {
           barPercentage: 0.85,
         },
         {
-          label: "❌ Rejected",
+          label: "Rejected",
           data: chartDates.map((d) => dailyData[d]?.rejected || 0),
           backgroundColor: rejectedGradient,
           borderColor: "#dc3545",
@@ -753,7 +753,6 @@ const initChart = () => {
             },
             label: function (context) {
               let label = context.dataset.label || "";
-              // Remove emoji for tooltip
               label = label.replace(/[✅⏳❌]/g, "").trim();
               if (label) {
                 label += ": ";

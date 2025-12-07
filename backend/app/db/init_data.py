@@ -104,7 +104,7 @@ def init_sample_data():
                 db.session.add(user)
             
             db.session.commit()
-            print("✅ Predefined secondary users created")
+            print("Predefined secondary users created")
         
         # Create predefined tertiary user (Government/NGO)
         # This user is provisioned and does not use public sign-up
@@ -133,7 +133,7 @@ def init_sample_data():
                 tertiary_user.set_password(password)
                 db.session.add(tertiary_user)
                 db.session.commit()
-                print("✅ Predefined tertiary user created")
+                print("Predefined tertiary user created")
         
 
         
@@ -406,12 +406,12 @@ def init_sample_data():
                     db.session.add(membership)
                 
                 db.session.commit()
-                print("✅ RWA memberships created for secondary users")
+                print("RWA memberships created for secondary users")
         
-        print("✅ Database initialized with sample data")
+        print("Database initialized with sample data")
         
     except Exception as e:
-        print(f"⚠️  Warning: Could not initialize sample data: {e}")
+        print(f"Warning: Could not initialize sample data: {e}")
         db.session.rollback()
 
 
@@ -422,7 +422,7 @@ def update_recyclers_data():
         ward_2 = Ward.query.filter_by(ward_number="2").first()
         
         if not ward_1:
-            print("❌ Error: Ward 1 not found. Please run database initialization first.")
+            print("Error: Ward 1 not found. Please run database initialization first.")
             return
         
         # Recycler data with coordinates
@@ -493,7 +493,7 @@ def update_recyclers_data():
                 recycler = RecyclerLocation(**rec_data)
                 db.session.add(recycler)
                 added_count += 1
-                print(f"✅ Added: {rec_data['name']}")
+                print(f"Added: {rec_data['name']}")
             else:
                 updated = False
                 updates = []
@@ -531,7 +531,7 @@ def update_recyclers_data():
                 
                 if updated:
                     updated_count += 1
-                    print(f"🔄 Updated: {rec_data['name']} ({', '.join(updates)})")
+                    print(f"Updated: {rec_data['name']} ({', '.join(updates)})")
         
         db.session.commit()
         
@@ -543,7 +543,7 @@ def update_recyclers_data():
         ).count()
         
         print("=" * 60)
-        print(f"✅ Update completed!")
+        print(f"  Update completed!")
         print(f"   - Added: {added_count} recyclers")
         print(f"   - Updated: {updated_count} recyclers")
         print(f"   - Total active recyclers: {total_recyclers}")
@@ -551,7 +551,7 @@ def update_recyclers_data():
         print("=" * 60)
         
     except Exception as e:
-        print(f"❌ Error updating recyclers: {str(e)}")
+        print(f"Error updating recyclers: {str(e)}")
         db.session.rollback()
         import traceback
         traceback.print_exc()

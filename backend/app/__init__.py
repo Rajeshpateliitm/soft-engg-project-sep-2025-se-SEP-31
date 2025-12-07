@@ -117,12 +117,12 @@ def create_app(config_class=Config):
         
         app.logger.info("Scheduler initialized with email reminders every 5 minutes")
         print("\n" + "=" * 60)
-        print("✅ Email Reminder Scheduler Started (TESTING MODE)")
+        print("Email Reminder Scheduler Started (TESTING MODE)")
         print("=" * 60)
-        print("📧 Waste Log Reminders: Every 5 minutes")
-        print("📧 Quiz Reminders: Every 5 minutes")
+        print("Waste Log Reminders: Every 5 minutes")
+        print("Quiz Reminders: Every 5 minutes")
         print("=" * 60)
-        print("⚠️  NOTE: This is for testing with MailHog. Change back to daily schedule for production!")
+        print("NOTE: This is for testing with MailHog. Change back to daily schedule for production!")
         print("=" * 60 + "\n")
 
     return app
