@@ -68,7 +68,7 @@
       <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
 
       <h2 class="score-animate mt-3">
-        🎉 Your Score: {{ animatedScore }} / {{ questions.length }}
+        Your Score: {{ animatedScore }} / {{ questions.length }}
       </h2>
       <h4 class="text-primary fw-bold mt-2">
         +{{ animatedScore * 10 }} Points Earned
@@ -78,7 +78,7 @@
       <ul class="list-group mt-3">
         <li class="list-group-item" v-for="(q, qi) in questions" :key="qi">
           <b>Q{{ qi + 1 }}:</b> {{ q.question_text }}<br />
-          <span class="text-success">✔ {{ q.options.find(o => o.is_correct).text }}</span>
+          <span class="text-success">{{ q.options.find(o => o.is_correct).text }}</span>
         </li>
       </ul>
     </div>
@@ -346,25 +346,21 @@ const retryQuiz = async () => {
   } catch (err) {
     console.error("Quiz error:", err);
 
-    // Default user-friendly message
-    let userMessage = "There was a problem generating the quiz. Please try again later.";
-
     if (err.code === "ECONNABORTED") {
-      userMessage = "Quiz is taking too long. Please try again.";
+      errorMessage.value = "Quiz is taking too long. Please try again.";
+      setTimeout(() => (errorMessage.value = ""), 4000);
     } else if (!err.response) {
-      userMessage = "Network error — check your connection.";
+      errorMessage.value = "Network error — check your connection.";
+      setTimeout(() => (errorMessage.value = ""), 3000);
     } else if (err.response.status === 401) {
-      userMessage = "Session expired. Redirecting...";
-      setTimeout(() => router.push("/signin"), 1500);
+      errorMessage.value = "Session expired. Redirecting...";
+      router.push("/signin");
     } else if (err.response.status === 429) {
-      // Use backend message for rate limiting
-      userMessage = err.response?.data?.error || "You have reached your daily quiz limit. Try again tomorrow!";
-    } else if (err.response?.data?.error) {
-      // Use backend error message (already user-friendly)
-      userMessage = err.response.data.error;
+      errorMessage.value = err.response?.data?.error || "You have reached your daily quiz limit. Try again tomorrow!";
+      setTimeout(() => (errorMessage.value = ""), 3000);
+    } else {
+      errorMessage.value = err.response?.data?.error || "Unknown server error.";
     }
-
-    errorMessage.value = userMessage;
   }
 
   loading.value = false;

@@ -478,16 +478,24 @@ const sendMessage = async () => {
     // Remove loading message
     chatMessages.value.pop();
 
-    // Handle errors with user-friendly messages
+    // Handle errors
     console.error("Chat error:", error);
-    let errorMessage = "The service is temporarily unavailable. Please try again later.";
+    let errorMessage =
+      "Sorry, I'm having trouble connecting. Please try again.";
 
-    if (error.response && error.response.data && error.response.data.error) {
-      // Use the error message from backend (already user-friendly)
-      errorMessage = error.response.data.error;
+    if (error.response) {
+      // Server responded with error status
+      const errorData = error.response.data;
+      if (errorData && errorData.error) {
+        errorMessage = `Error: ${errorData.error}`;
+      } else {
+        errorMessage =
+          "Sorry, the service is temporarily unavailable. Please try again later.";
+      }
     } else if (error.request) {
       // Request was made but no response received
-      errorMessage = "Unable to connect. Please check your connection.";
+      errorMessage =
+        "Unable to connect to the server. Please check your connection.";
     }
 
     chatMessages.value.push({

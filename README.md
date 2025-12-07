@@ -45,7 +45,7 @@ python main.py
 
 **Expected output:**
 ```
-✅ Database initialized with sample data
+ Database initialized with sample data
  * Running on http://0.0.0.0:8000
  * Debug mode: on
 ```
@@ -92,8 +92,8 @@ npm run dev
 ```
   VITE v7.x.x  ready in xxx ms
 
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
+    Local:   http://localhost:5173/
+    Network: use --host to expose
 ```
 
 **Keep this terminal window open too!**
@@ -109,8 +109,8 @@ http://localhost:5173
 ```
 
 **Important Notes:**
-- ✅ **Use `http://localhost:5173`** - This is your frontend application
-- ❌ **Don't use `http://localhost:8000`** - That's just the API backend
+-  **Use `http://localhost:5173`** - This is your frontend application
+-  **Don't use `http://localhost:8000`** - That's just the API backend
 
 ---
 

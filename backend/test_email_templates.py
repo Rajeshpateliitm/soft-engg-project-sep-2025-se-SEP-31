@@ -21,7 +21,7 @@ def test_email_templates():
         # Get PRIMARY category
         primary_category = UserCategory.query.filter_by(key="PRIMARY").first()
         if not primary_category:
-            print("❌ ERROR: PRIMARY user category not found!")
+            print("ERROR: PRIMARY user category not found!")
             return
         
         # Get all active PRIMARY users with emails
@@ -33,15 +33,15 @@ def test_email_templates():
             )
         ).all()
         
-        print(f"\n📊 Found {len(primary_users)} active PRIMARY users with emails")
+        print(f"\nFound {len(primary_users)} active PRIMARY users with emails")
         
         if len(primary_users) == 0:
-            print("\n❌ ERROR: No PRIMARY users found with email addresses!")
+            print("\nERROR: No PRIMARY users found with email addresses!")
             return
         
         # Check MailHog connection
-        print(f"\n📧 Mail Server: {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
-        print(f"📧 Mail Sender: {app.config['MAIL_DEFAULT_SENDER']}")
+        print(f"\n Mail Server: {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
+        print(f" Mail Sender: {app.config['MAIL_DEFAULT_SENDER']}")
         
         # Send waste log reminder
         print("\n" + "-" * 60)
@@ -54,11 +54,11 @@ def test_email_templates():
             print(f"   Sending to {user.email}...", end=" ")
             if send_waste_log_reminder(user.email, username):
                 waste_sent += 1
-                print("✅")
+                print("SUCCESS")
             else:
-                print("❌")
+                print("FAILURE")
         
-        print(f"\n✅ Sent {waste_sent} waste log reminder emails")
+        print(f"\n Sent {waste_sent} waste log reminder emails")
         
         # Send quiz reminder
         print("\n" + "-" * 60)
@@ -71,17 +71,17 @@ def test_email_templates():
             print(f"   Sending to {user.email}...", end=" ")
             if send_quiz_reminder(user.email, username):
                 quiz_sent += 1
-                print("✅")
+                print("SUCCESS")
             else:
-                print("❌")
+                print("FAILURE")
         
-        print(f"\n✅ Sent {quiz_sent} quiz reminder emails")
+        print(f"\nSent {quiz_sent} quiz reminder emails")
         
         print("\n" + "=" * 60)
-        print(f"✅ Total: {waste_sent + quiz_sent} emails sent!")
+        print(f"Total: {waste_sent + quiz_sent} emails sent!")
         print("Check MailHog at: http://localhost:8025")
         print("=" * 60)
-        print("\n📧 Look for emails with subjects:")
+        print("\n Look for emails with subjects:")
         print("   - 'Daily Waste Log Reminder - WasteWise'")
         print("   - 'Daily Quiz Reminder - WasteWise'")
         print("\nThese will have the beautiful HTML templates!")

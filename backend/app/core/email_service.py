@@ -154,7 +154,7 @@ WasteWise Team
             font-size: 15px;
         }}
         .benefits-section li:before {{
-            content: "✓";
+            content: "-";
             position: absolute;
             left: 0;
             color: #28a745;
@@ -225,13 +225,13 @@ WasteWise Team
 <body>
     <div class="email-container">
         <div class="header">
-            <span class="icon">🌱</span>
+            <span class="icon"></span>
             <h1>WasteWise Daily Reminder</h1>
             <p style="margin-top: 10px; opacity: 0.95; font-size: 15px;">Your daily waste logging reminder</p>
         </div>
         <div class="content">
             <div class="greeting">
-                Hello <strong>{username or 'User'}</strong>! 👋
+                Hello <strong>{username or 'User'}</strong>! 
             </div>
             <div class="message">
                 This is a friendly reminder to log your daily waste entry in WasteWise. 
@@ -250,7 +250,7 @@ WasteWise Team
                 <a href="http://localhost:5173/primary/waste-log" class="button">Log Your Waste Now →</a>
             </div>
             <div class="closing">
-                Thank you for being part of the WasteWise community! 🌍
+                Thank you for being part of the WasteWise community! 
             </div>
         </div>
         <div class="footer">
@@ -386,7 +386,7 @@ WasteWise Team
             font-size: 15px;
         }}
         .benefits-section li:before {{
-            content: "✓";
+            content: "-";
             position: absolute;
             left: 0;
             color: #007bff;
@@ -467,13 +467,13 @@ WasteWise Team
 <body>
     <div class="email-container">
         <div class="header">
-            <span class="icon">📚</span>
+            <span class="icon"></span>
             <h1>WasteWise Quiz Reminder</h1>
             <p style="margin-top: 10px; opacity: 0.95; font-size: 15px;">Test your knowledge and earn points!</p>
         </div>
         <div class="content">
             <div class="greeting">
-                Hello <strong>{username or 'User'}</strong>! 👋
+                Hello <strong>{username or 'User'}</strong>! 
             </div>
             <div class="message">
                 Don't forget to take today's waste management quiz in WasteWise! 
@@ -483,7 +483,7 @@ WasteWise Team
                 <h3>Benefits of taking the quiz:</h3>
                 <ul>
                     <li>Learn about sustainable waste management practices</li>
-                    <li>Earn points (10 points per correct answer) 🎯</li>
+                    <li>Earn points (10 points per correct answer) </li>
                     <li>Improve your ranking on the community leaderboard</li>
                     <li>Build your knowledge streak and daily habits</li>
                 </ul>
@@ -495,7 +495,7 @@ WasteWise Team
                 <a href="http://localhost:5173/primary/quiz" class="button">Take Quiz Now →</a>
             </div>
             <div class="closing">
-                Keep up the great work and keep learning! 🚀
+                Keep up the great work and keep learning! 
             </div>
         </div>
         <div class="footer">

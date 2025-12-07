@@ -44,15 +44,15 @@ def send_daily_waste_log_reminders(app=None):
                 if send_waste_log_reminder(user.email, username):
                     reminders_sent += 1
                     app.logger.info(f"Sent waste log reminder to {user.email}")
-                    print(f"📧 Sent waste log reminder to {user.email}")
+                    print(f"Sent waste log reminder to {user.email}")
             
             summary = f"Waste log reminders: {reminders_sent} emails sent (HTML templates)"
             app.logger.info(summary)
-            print(f"✅ {summary}")
+            print(f"{summary}")
             
         except Exception as e:
             app.logger.error(f"Error sending daily waste log reminders: {str(e)}")
-            print(f"❌ Error sending daily waste log reminders: {str(e)}")
+            print(f"Error sending daily waste log reminders: {str(e)}")
 
 
 def send_daily_quiz_reminders(app=None):
@@ -95,13 +95,13 @@ def send_daily_quiz_reminders(app=None):
                 if send_quiz_reminder(user.email, username):
                     reminders_sent += 1
                     app.logger.info(f"Sent quiz reminder to {user.email}")
-                    print(f"📧 Sent quiz reminder to {user.email}")
+                    print(f"Sent quiz reminder to {user.email}")
             
             summary = f"Quiz reminders: {reminders_sent} emails sent (HTML templates)"
             app.logger.info(summary)
-            print(f"✅ {summary}")
+            print(f"{summary}")
             
         except Exception as e:
             app.logger.error(f"Error sending daily quiz reminders: {str(e)}")
-            print(f"❌ Error sending daily quiz reminders: {str(e)}")
+            print(f"Error sending daily quiz reminders: {str(e)}")
 
