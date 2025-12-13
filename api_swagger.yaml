@@ -344,7 +344,7 @@ paths:
               examples:
                 missing_field:
                   value:
-                    error: Missing required field: email
+                    error: "Missing required field: email"
                 email_exists:
                   value:
                     error: Email already registered
@@ -2433,4 +2433,3 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
